@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Login - Coding Exam Platform</title>
+<link
+  href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"
+  rel="stylesheet"
+/>
+<link href="css/style.css" rel="stylesheet" />
+</head>
+<body>
+  <div class="auth-wrapper">
+    <div class="card auth-card shadow-sm">
+      <div class="card-body p-4">
+        <div class="text-center mb-4">
+          <h4 class="fw-bold mb-1">Coding Exam Platform</h4>
+          <p class="text-muted small mb-0">Sign in to continue</p>
+        </div>
+
+        <div id="loginError" class="alert alert-danger py-2 d-none" role="alert"></div>
+
+        <form id="loginForm">
+          <div class="mb-3">
+            <label for="email" class="form-label">Email address</label>
+            <input type="email" class="form-control" id="email" required autocomplete="username" />
+          </div>
+          <div class="mb-3">
+            <label for="password" class="form-label">Password</label>
+            <input type="password" class="form-control" id="password" required autocomplete="current-password" />
+          </div>
+          <button type="submit" class="btn btn-brand w-100" id="loginBtn">
+            <span id="loginBtnText">Login</span>
+            <span id="loginSpinner" class="spinner-border spinner-border-sm ms-2 d-none"></span>
+          </button>
+        </form>
+
+        <p class="text-center text-muted small mt-4 mb-0">
+          Students and Admins use the same login. You will be redirected automatically.
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <script type="module">
+    import { loginUser, getUserProfile, showError, hideError } from "./js/auth.js";
+    import { auth } from "./js/firebase-config.js";
+    import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+
+    // If already logged in, skip the login form.
+    onAuthStateChanged(auth, async (user) => {
+      if (!user) return;
+      const profile = await getUserProfile(user.uid);
+      if (profile) {
+        window.location.href =
+          profile.role === "admin" ? "admin-dashboard.html" : "student-dashboard.html";
+      }
+    });
+
+    const form = document.getElementById("loginForm");
+    const loginBtn = document.getElementById("loginBtn");
+    const loginBtnText = document.getElementById("loginBtnText");
+    const loginSpinner = document.getElementById("loginSpinner");
+
+    function setLoading(isLoading) {
+      loginBtn.disabled = isLoading;
+      loginSpinner.classList.toggle("d-none", !isLoading);
+      loginBtnText.textContent = isLoading ? "Signing in..." : "Login";
+    }
+
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      hideError("loginError");
+      setLoading(true);
+
+      const email = document.getElementById("email").value.trim();
+      const password = document.getElementById("password").value;
+
+      try {
+        const cred = await loginUser(email, password);
+        const profile = await getUserProfile(cred.user.uid);
+
+        if (!profile) {
+          showError("loginError", "No profile found for this account. Contact your admin.");
+          setLoading(false);
+          return;
+        }
+
+        window.location.href =
+          profile.role === "admin" ? "admin-dashboard.html" : "student-dashboard.html";
+      } catch (err) {
+        showError("loginError", friendlyAuthError(err.code));
+        setLoading(false);
+      }
+    });
+
+    function friendlyAuthError(code) {
+      switch (code) {
+        case "auth/invalid-email":
+          return "That email address looks invalid.";
+        case "auth/user-not-found":
+        case "auth/wrong-password":
+        case "auth/invalid-credential":
+          return "Incorrect email or password.";
+        case "auth/too-many-requests":
+          return "Too many attempts. Please wait a moment and try again.";
+        default:
+          return "Login failed. Please try again.";
+      }
+    }
+  </script>
+</body>
+</html>

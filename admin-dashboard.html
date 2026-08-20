@@ -1,0 +1,566 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Admin Dashboard - Coding Exam Platform</title>
+<link
+  href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"
+  rel="stylesheet"
+/>
+<link href="css/style.css" rel="stylesheet" />
+</head>
+<body>
+
+<nav class="navbar navbar-dark bg-brand mb-4">
+  <div class="container-fluid">
+    <span class="navbar-brand">Coding Exam Platform &middot; Admin</span>
+    <div class="d-flex align-items-center">
+      <span id="adminName" class="text-white me-3 small"></span>
+      <button class="btn btn-outline-light btn-sm" data-logout="true">Logout</button>
+    </div>
+  </div>
+</nav>
+
+<div class="container-fluid px-4 pb-5">
+
+  <ul class="nav nav-pills mb-4" id="adminTabs" role="tablist">
+    <li class="nav-item" role="presentation">
+      <button class="nav-link active" data-bs-toggle="pill" data-bs-target="#overviewPane" type="button">
+        Overview
+      </button>
+    </li>
+    <li class="nav-item" role="presentation">
+      <button class="nav-link" data-bs-toggle="pill" data-bs-target="#studentsPane" type="button">
+        Students
+      </button>
+    </li>
+    <li class="nav-item" role="presentation">
+      <button class="nav-link" data-bs-toggle="pill" data-bs-target="#examsPane" type="button">
+        Exams
+      </button>
+    </li>
+  </ul>
+
+  <div class="tab-content">
+
+    <!-- ===================== OVERVIEW ===================== -->
+    <div class="tab-pane fade show active" id="overviewPane">
+
+      <div class="row g-3 mb-4" id="statCards"></div>
+
+      <div class="card mb-4">
+        <div class="card-header fw-semibold">Section-wise Analysis</div>
+        <div class="table-responsive">
+          <table class="table table-striped mb-0 align-middle">
+            <thead>
+              <tr>
+                <th>Section</th>
+                <th>Total</th>
+                <th>Attempted</th>
+                <th>Not Attempted</th>
+                <th>Average</th>
+                <th>Highest</th>
+                <th>Pass %</th>
+              </tr>
+            </thead>
+            <tbody id="sectionTableBody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header d-flex flex-wrap justify-content-between align-items-center gap-2">
+          <span class="fw-semibold">Student Results</span>
+          <button class="btn btn-sm btn-brand" id="exportCsvBtn">Export CSV</button>
+        </div>
+        <div class="card-body border-bottom">
+          <div class="row g-2">
+            <div class="col-6 col-md-3">
+              <label class="form-label small mb-1">Exam</label>
+              <select id="filterExam" class="form-select form-select-sm">
+                <option value="all">All Exams</option>
+              </select>
+            </div>
+            <div class="col-6 col-md-3">
+              <label class="form-label small mb-1">Section</label>
+              <select id="filterSection" class="form-select form-select-sm">
+                <option value="all">All Sections</option>
+              </select>
+            </div>
+            <div class="col-6 col-md-3">
+              <label class="form-label small mb-1">Student</label>
+              <select id="filterStudent" class="form-select form-select-sm">
+                <option value="all">All Students</option>
+              </select>
+            </div>
+            <div class="col-6 col-md-3">
+              <label class="form-label small mb-1">Date</label>
+              <input type="date" id="filterDate" class="form-control form-control-sm" />
+            </div>
+          </div>
+        </div>
+        <div class="table-responsive">
+          <table class="table table-hover table-responsive-sm mb-0">
+            <thead>
+              <tr>
+                <th>Roll No.</th>
+                <th>Name</th>
+                <th>Section</th>
+                <th>Exam</th>
+                <th>Score</th>
+                <th>Percentage</th>
+                <th>Status</th>
+                <th>Violations</th>
+                <th>Submitted</th>
+              </tr>
+            </thead>
+            <tbody id="resultsTableBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===================== STUDENTS ===================== -->
+    <div class="tab-pane fade" id="studentsPane">
+      <div class="d-flex flex-wrap justify-content-between align-items-center mb-3 gap-2">
+        <div id="sectionPills" class="d-flex flex-wrap gap-2">
+          <button class="btn btn-sm btn-brand section-pill" data-section="all">All</button>
+        </div>
+        <button class="btn btn-brand btn-sm" data-bs-toggle="modal" data-bs-target="#studentModal" id="addStudentBtn">
+          + Add Student
+        </button>
+      </div>
+
+      <div class="card">
+        <div class="table-responsive">
+          <table class="table table-striped mb-0 align-middle">
+            <thead>
+              <tr>
+                <th>Roll No.</th>
+                <th>Name</th>
+                <th>Section</th>
+                <th>Email</th>
+                <th class="text-end">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="studentsTableBody">
+              <tr><td colspan="5" class="text-center text-muted py-4">Loading students...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===================== EXAMS ===================== -->
+    <div class="tab-pane fade" id="examsPane">
+      <div class="d-flex justify-content-between align-items-center mb-3">
+        <h6 class="mb-0">Exams</h6>
+        <button class="btn btn-brand btn-sm" data-bs-toggle="modal" data-bs-target="#examModal">
+          + Create Exam
+        </button>
+      </div>
+
+      <div class="alert alert-info small">
+        This creates the exam's basic details. Adding questions, test cases,
+        and the student exam experience are part of Phase 2.
+      </div>
+
+      <div class="card">
+        <div class="table-responsive">
+          <table class="table table-striped mb-0 align-middle">
+            <thead>
+              <tr>
+                <th>Title</th>
+                <th>Duration (min)</th>
+                <th>Total Marks</th>
+                <th>Active</th>
+                <th>Created</th>
+              </tr>
+            </thead>
+            <tbody id="examsTableBody">
+              <tr><td colspan="5" class="text-center text-muted py-4">Loading exams...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- Add/Edit Student Modal -->
+<div class="modal fade" id="studentModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <form id="studentForm">
+        <div class="modal-header">
+          <h5 class="modal-title" id="studentModalTitle">Add Student</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <input type="hidden" id="studentUid" />
+          <div id="studentFormError" class="alert alert-danger py-2 d-none small"></div>
+          <div id="studentCreatedInfo" class="alert alert-success py-2 d-none small"></div>
+
+          <div class="mb-3">
+            <label class="form-label">Full Name</label>
+            <input type="text" class="form-control" id="studentNameInput" required />
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Roll Number</label>
+            <input type="text" class="form-control" id="studentRollInput" required />
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Section</label>
+            <select class="form-select" id="studentSectionInput" required></select>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Email</label>
+            <input type="email" class="form-control" id="studentEmailInput" required />
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-brand" id="studentSubmitBtn">Save Student</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- Create Exam Modal -->
+<div class="modal fade" id="examModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <form id="examForm">
+        <div class="modal-header">
+          <h5 class="modal-title">Create Exam</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <div id="examFormError" class="alert alert-danger py-2 d-none small"></div>
+          <div class="mb-3">
+            <label class="form-label">Exam Title</label>
+            <input type="text" class="form-control" id="examTitleInput" required />
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Description</label>
+            <textarea class="form-control" id="examDescInput" rows="2"></textarea>
+          </div>
+          <div class="row g-2">
+            <div class="col-6">
+              <label class="form-label">Duration (minutes)</label>
+              <input type="number" min="1" class="form-control" id="examDurationInput" required />
+            </div>
+            <div class="col-6">
+              <label class="form-label">Total Marks</label>
+              <input type="number" min="1" class="form-control" id="examMarksInput" required />
+            </div>
+          </div>
+          <div class="form-check mt-3">
+            <input class="form-check-input" type="checkbox" id="examActiveInput" checked />
+            <label class="form-check-label" for="examActiveInput">Active (visible to students)</label>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-brand">Create Exam</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script type="module">
+  import { requireRole, wireLogoutButtons } from "./js/auth.js";
+  import {
+    SECTIONS,
+    addStudent,
+    updateStudent,
+    deleteStudentProfile,
+    listStudents,
+    listExams,
+    listSubmissions,
+    exportToCSV
+  } from "./js/admin.js";
+  import {
+    computeOverallStats,
+    computeSectionStats,
+    renderStatCards,
+    renderSectionTable,
+    renderResultsTable,
+    buildResultRows
+  } from "./js/dashboard.js";
+  import { db, auth } from "./js/firebase-config.js";
+  import { collection, addDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+  wireLogoutButtons();
+
+  let students = [];
+  let exams = [];
+  let submissions = [];
+  let currentSectionFilter = "all";
+  let editingUid = null;
+
+  requireRole("admin", async (user, profile) => {
+    document.getElementById("adminName").textContent = profile.name || profile.email;
+    populateSectionControls();
+    await loadEverything();
+  });
+
+  function populateSectionControls() {
+    const pillsWrap = document.getElementById("sectionPills");
+    SECTIONS.forEach((section) => {
+      const btn = document.createElement("button");
+      btn.className = "btn btn-sm btn-outline-secondary section-pill";
+      btn.dataset.section = section;
+      btn.textContent = section;
+      pillsWrap.appendChild(btn);
+    });
+    pillsWrap.addEventListener("click", (e) => {
+      const btn = e.target.closest(".section-pill");
+      if (!btn) return;
+      currentSectionFilter = btn.dataset.section;
+      [...pillsWrap.children].forEach((c) => c.classList.replace("btn-brand", "btn-outline-secondary"));
+      btn.classList.replace("btn-outline-secondary", "btn-brand");
+      renderStudentsTable();
+    });
+
+    const sectionSelectInput = document.getElementById("studentSectionInput");
+    sectionSelectInput.innerHTML = SECTIONS.map((s) => `<option value="${s}">${s}</option>`).join("");
+
+    const filterSection = document.getElementById("filterSection");
+    SECTIONS.forEach((s) => {
+      const opt = document.createElement("option");
+      opt.value = s;
+      opt.textContent = s;
+      filterSection.appendChild(opt);
+    });
+  }
+
+  async function loadEverything() {
+    [students, exams, submissions] = await Promise.all([
+      listStudents("all"),
+      listExams(),
+      listSubmissions()
+    ]);
+    renderStudentsTable();
+    renderExamsTable();
+    populateFilterOptions();
+    renderOverview();
+  }
+
+  // ---------- Overview ----------
+  function renderOverview() {
+    const stats = computeOverallStats(students, exams, submissions);
+    renderStatCards(document.getElementById("statCards"), stats);
+
+    const sectionStats = computeSectionStats(students, submissions);
+    renderSectionTable(document.getElementById("sectionTableBody"), sectionStats);
+
+    applyFiltersAndRender();
+  }
+
+  function populateFilterOptions() {
+    const examSelect = document.getElementById("filterExam");
+    examSelect.innerHTML =
+      `<option value="all">All Exams</option>` +
+      exams.map((e) => `<option value="${e.id}">${e.title}</option>`).join("");
+
+    const studentSelect = document.getElementById("filterStudent");
+    studentSelect.innerHTML =
+      `<option value="all">All Students</option>` +
+      students.map((s) => `<option value="${s.uid}">${s.name} (${s.rollNumber})</option>`).join("");
+
+    ["filterExam", "filterSection", "filterStudent", "filterDate"].forEach((id) => {
+      document.getElementById(id).addEventListener("change", applyFiltersAndRender);
+    });
+  }
+
+  function currentFilters() {
+    return {
+      examId: document.getElementById("filterExam").value,
+      section: document.getElementById("filterSection").value,
+      studentId: document.getElementById("filterStudent").value,
+      date: document.getElementById("filterDate").value
+    };
+  }
+
+  function applyFiltersAndRender() {
+    const rows = buildResultRows(submissions, students, exams, currentFilters());
+    renderResultsTable(document.getElementById("resultsTableBody"), rows);
+
+    document.getElementById("exportCsvBtn").onclick = () => {
+      exportToCSV(
+        rows,
+        [
+          { key: "rollNumber", label: "Roll Number" },
+          { key: "name", label: "Name" },
+          { key: "section", label: "Section" },
+          { key: "examTitle", label: "Exam" },
+          { key: "score", label: "Score" },
+          { key: "percentage", label: "Percentage" },
+          { key: "status", label: "Status" },
+          { key: "violations", label: "Violations" },
+          { key: "submittedAt", label: "Submitted Time" }
+        ],
+        "exam-results.csv"
+      );
+    };
+  }
+
+  // ---------- Students ----------
+  function renderStudentsTable() {
+    const filtered =
+      currentSectionFilter === "all"
+        ? students
+        : students.filter((s) => s.section === currentSectionFilter);
+
+    const tbody = document.getElementById("studentsTableBody");
+
+    if (!filtered.length) {
+      tbody.innerHTML = `<tr><td colspan="5" class="text-center text-muted py-4">No students in this section yet.</td></tr>`;
+      return;
+    }
+
+    tbody.innerHTML = filtered
+      .map(
+        (s) => `
+        <tr>
+          <td>${s.rollNumber}</td>
+          <td>${s.name}</td>
+          <td><span class="badge bg-secondary">${s.section}</span></td>
+          <td>${s.email}</td>
+          <td class="text-end">
+            <button class="btn btn-sm btn-outline-primary me-1" data-edit="${s.uid}">Edit</button>
+            <button class="btn btn-sm btn-outline-danger" data-delete="${s.uid}">Delete</button>
+          </td>
+        </tr>`
+      )
+      .join("");
+
+    tbody.querySelectorAll("[data-edit]").forEach((btn) => {
+      btn.addEventListener("click", () => openEditStudent(btn.dataset.edit));
+    });
+    tbody.querySelectorAll("[data-delete]").forEach((btn) => {
+      btn.addEventListener("click", () => handleDeleteStudent(btn.dataset.delete));
+    });
+  }
+
+  function openEditStudent(uid) {
+    const student = students.find((s) => s.uid === uid);
+    if (!student) return;
+    editingUid = uid;
+    document.getElementById("studentModalTitle").textContent = "Edit Student";
+    document.getElementById("studentUid").value = uid;
+    document.getElementById("studentNameInput").value = student.name;
+    document.getElementById("studentRollInput").value = student.rollNumber;
+    document.getElementById("studentSectionInput").value = student.section;
+    document.getElementById("studentEmailInput").value = student.email;
+    document.getElementById("studentEmailInput").disabled = true;
+    document.getElementById("studentCreatedInfo").classList.add("d-none");
+    new bootstrap.Modal(document.getElementById("studentModal")).show();
+  }
+
+  document.getElementById("addStudentBtn").addEventListener("click", () => {
+    editingUid = null;
+    document.getElementById("studentModalTitle").textContent = "Add Student";
+    document.getElementById("studentForm").reset();
+    document.getElementById("studentEmailInput").disabled = false;
+    document.getElementById("studentCreatedInfo").classList.add("d-none");
+  });
+
+  async function handleDeleteStudent(uid) {
+    if (!confirm("Delete this student's profile? This cannot be undone.")) return;
+    await deleteStudentProfile(uid);
+    students = students.filter((s) => s.uid !== uid);
+    renderStudentsTable();
+    renderOverview();
+  }
+
+  document.getElementById("studentForm").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const errorEl = document.getElementById("studentFormError");
+    errorEl.classList.add("d-none");
+
+    const name = document.getElementById("studentNameInput").value.trim();
+    const rollNumber = document.getElementById("studentRollInput").value.trim();
+    const section = document.getElementById("studentSectionInput").value;
+    const email = document.getElementById("studentEmailInput").value.trim();
+    const submitBtn = document.getElementById("studentSubmitBtn");
+    submitBtn.disabled = true;
+
+    try {
+      if (editingUid) {
+        await updateStudent(editingUid, { name, rollNumber, section });
+        const idx = students.findIndex((s) => s.uid === editingUid);
+        if (idx > -1) students[idx] = { ...students[idx], name, rollNumber, section };
+      } else {
+        const { tempPassword } = await addStudent({ name, rollNumber, section, email });
+        students.push({ uid: crypto.randomUUID(), name, rollNumber, section, email, role: "student" });
+        const infoEl = document.getElementById("studentCreatedInfo");
+        infoEl.textContent = `Student created. Temporary password: ${tempPassword} (share this with the student securely).`;
+        infoEl.classList.remove("d-none");
+        await loadEverything(); // refresh with the real uid from Firestore
+        return;
+      }
+      renderStudentsTable();
+      renderOverview();
+      bootstrap.Modal.getInstance(document.getElementById("studentModal"))?.hide();
+    } catch (err) {
+      errorEl.textContent = err.message || "Something went wrong.";
+      errorEl.classList.remove("d-none");
+    } finally {
+      submitBtn.disabled = false;
+    }
+  });
+
+  // ---------- Exams ----------
+  function renderExamsTable() {
+    const tbody = document.getElementById("examsTableBody");
+    if (!exams.length) {
+      tbody.innerHTML = `<tr><td colspan="5" class="text-center text-muted py-4">No exams created yet.</td></tr>`;
+      return;
+    }
+    tbody.innerHTML = exams
+      .map(
+        (ex) => `
+        <tr>
+          <td>${ex.title}</td>
+          <td>${ex.duration}</td>
+          <td>${ex.totalMarks}</td>
+          <td>${ex.active ? '<span class="badge bg-success">Active</span>' : '<span class="badge bg-secondary">Inactive</span>'}</td>
+          <td>${ex.createdAt ? new Date(ex.createdAt).toLocaleString() : "-"}</td>
+        </tr>`
+      )
+      .join("");
+  }
+
+  document.getElementById("examForm").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const errorEl = document.getElementById("examFormError");
+    errorEl.classList.add("d-none");
+
+    try {
+      await addDoc(collection(db, "exams"), {
+        title: document.getElementById("examTitleInput").value.trim(),
+        description: document.getElementById("examDescInput").value.trim(),
+        duration: Number(document.getElementById("examDurationInput").value),
+        totalMarks: Number(document.getElementById("examMarksInput").value),
+        active: document.getElementById("examActiveInput").checked,
+        createdBy: auth.currentUser?.uid || null,
+        createdAt: new Date().toISOString()
+      });
+      document.getElementById("examForm").reset();
+      bootstrap.Modal.getInstance(document.getElementById("examModal"))?.hide();
+      await loadEverything();
+    } catch (err) {
+      errorEl.textContent = err.message || "Could not create exam.";
+      errorEl.classList.remove("d-none");
+    }
+  });
+</script>
+</body>
+</html>
