@@ -274,7 +274,7 @@
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script type="module">
-  import { requireRole, wireLogoutButtons } from "./js/auth.js";
+  import { requireRole, wireLogoutButtons } from "./auth.js";
   import {
     SECTIONS,
     addStudent,
@@ -284,7 +284,7 @@
     listExams,
     listSubmissions,
     exportToCSV
-  } from "./js/admin.js";
+  } from "./admin.js";
   import {
     computeOverallStats,
     computeSectionStats,
@@ -292,8 +292,8 @@
     renderSectionTable,
     renderResultsTable,
     buildResultRows
-  } from "./js/dashboard.js";
-  import { db, auth } from "./js/firebase-config.js";
+  } from "./dashboard.js";
+  import { db, auth } from "./firebase-config.js";
   import { collection, addDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
   wireLogoutButtons();
