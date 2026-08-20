@@ -1,197 +1,910 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Coding Exam Platform - Secure Online Coding Assessments</title>
-<meta name="description" content="Run proctored coding exams with fullscreen monitoring, live violation tracking, and instant section-wise analytics." />
-<link
-  href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"
-  rel="stylesheet"
-/>
-<link rel="preconnect" href="https://fonts.googleapis.com" />
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-<link href="https://fonts.googleapis.com/css2?family=Sora:wght@600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
-<link href="css/style.css" rel="stylesheet" />
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <title>Login | CodeExam</title>
+
+  <meta
+    name="description"
+    content="Sign in to CodeExam and access your coding examination dashboard."
+  />
+
+  <!-- Bootstrap -->
+  <link
+    href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"
+    rel="stylesheet"
+  />
+
+  <!-- Bootstrap Icons -->
+  <link
+    rel="stylesheet"
+    href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css"
+  />
+
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+
+  <link
+    href="https://fonts.googleapis.com/css2?family=Sora:wght@600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap"
+    rel="stylesheet"
+  />
+
+  <!-- Your CSS -->
+  <link href="css/style.css" rel="stylesheet" />
+
 </head>
+
+
 <body class="landing">
 
-<!-- Shown only if a valid logged-in session is detected; page works fully without it -->
-<div id="sessionBanner" class="session-banner py-2 d-none">
-  <div class="container d-flex justify-content-between align-items-center flex-wrap gap-2">
-    <span class="small text-white-50">Signed in as <span id="sessionName" class="text-white"></span></span>
-    <a href="#" id="sessionContinueBtn" class="btn btn-sm btn-mint">Continue to Dashboard</a>
-  </div>
-</div>
 
-<nav class="navbar navbar-expand landing-nav py-3">
-  <div class="container d-flex justify-content-between align-items-center">
-    <a href="index.html" class="navbar-brand display-font fw-bold text-white mb-0">
-      <span class="brand-dot">&lt;/&gt;</span> CodeExam
-    </a>
-    <div class="d-flex gap-2">
-      <a href="login.html" class="btn btn-outline-mint btn-sm">Login</a>
+  <!-- =========================
+       NAVBAR
+  ========================== -->
+
+  <nav class="navbar landing-nav py-3">
+
+    <div class="container d-flex justify-content-between align-items-center">
+
+      <!-- Logo -->
+
+      <a
+        href="index.html"
+        class="navbar-brand display-font fw-bold text-white mb-0"
+      >
+
+        <span class="brand-dot">&lt;/&gt;</span>
+        CodeExam
+
+      </a>
+
+
+      <!-- Back Button -->
+
+      <a
+        href="index.html"
+        class="btn btn-outline-mint btn-sm"
+      >
+
+        <i class="bi bi-arrow-left me-1"></i>
+        Back to Home
+
+      </a>
+
     </div>
-  </div>
-</nav>
 
-<!-- ===================== HERO ===================== -->
-<section class="container py-5">
-  <div class="row align-items-center py-4">
-    <div class="col-lg-6">
-      <div class="hero-eyebrow mb-3">Proctored &middot; Auto-graded &middot; Section-wise</div>
-      <h1 class="display-font fw-bold display-5 mb-3">
-        Run coding exams your students can't quietly cheat their way through.
-      </h1>
-      <p class="hero-sub mb-4">
-        Fullscreen enforcement, tab-switch detection, and live violation logging
-        during the exam &mdash; automatic scoring and section analytics the moment
-        it ends.
-      </p>
-      <div class="d-flex flex-wrap gap-3">
-        <a href="login.html" class="btn btn-mint btn-lg px-4">Student Login</a>
-        <a href="login.html" class="btn btn-outline-mint btn-lg px-4">Admin Login</a>
+  </nav>
+
+
+
+  <!-- =========================
+       LOGIN SECTION
+  ========================== -->
+
+  <main
+    class="container d-flex align-items-center justify-content-center"
+    style="min-height: calc(100vh - 76px);"
+  >
+
+
+    <div
+      class="row w-100 justify-content-center align-items-center py-5"
+      style="max-width: 1000px;"
+    >
+
+
+      <!-- =========================
+           LEFT INFORMATION
+      ========================== -->
+
+      <div class="col-lg-6 d-none d-lg-block pe-lg-5">
+
+
+        <div class="hero-eyebrow mb-3">
+
+          <span class="live-dot d-inline-block me-2"></span>
+          Secure Access
+
+        </div>
+
+
+        <h1
+          class="display-font fw-bold text-white mb-3"
+          style="font-size: 2.7rem;"
+        >
+
+          Ready to
+          <span style="color:#5eead4;">
+            prove your code?
+          </span>
+
+        </h1>
+
+
+        <p class="hero-sub mb-4">
+
+          Sign in to access your coding exams, track your
+          performance, and view your results.
+
+        </p>
+
+
+        <!-- Feature List -->
+
+        <div class="d-flex flex-column gap-3">
+
+
+          <div class="d-flex align-items-center gap-3">
+
+            <div class="feature-icon mb-0">
+              <i class="bi bi-code-slash"></i>
+            </div>
+
+            <div>
+
+              <div class="text-white fw-semibold">
+                Coding assessments
+              </div>
+
+              <small class="hero-sub">
+                Solve problems and submit your solutions.
+              </small>
+
+            </div>
+
+          </div>
+
+
+          <div class="d-flex align-items-center gap-3">
+
+            <div class="feature-icon mb-0">
+              <i class="bi bi-graph-up-arrow"></i>
+            </div>
+
+            <div>
+
+              <div class="text-white fw-semibold">
+                Track your performance
+              </div>
+
+              <small class="hero-sub">
+                View marks and section-wise results.
+              </small>
+
+            </div>
+
+          </div>
+
+
+          <div class="d-flex align-items-center gap-3">
+
+            <div class="feature-icon mb-0">
+              <i class="bi bi-shield-check"></i>
+            </div>
+
+            <div>
+
+              <div class="text-white fw-semibold">
+                Secure examination
+              </div>
+
+              <small class="hero-sub">
+                Your examination session is monitored.
+              </small>
+
+            </div>
+
+          </div>
+
+
+        </div>
+
       </div>
-    </div>
 
-    <div class="col-lg-6 mt-5 mt-lg-0">
-      <div class="position-relative">
-        <div class="code-window">
+
+
+      <!-- =========================
+           LOGIN CARD
+      ========================== -->
+
+      <div class="col-lg-6 col-md-8 col-sm-10">
+
+
+        <div
+          class="code-window"
+          style="box-shadow: 0 20px 60px rgba(0,0,0,0.35);"
+        >
+
+
+          <!-- Card Top Bar -->
+
           <div class="code-window-bar">
-            <span class="code-window-dot" style="background:#ff5f56"></span>
-            <span class="code-window-dot" style="background:#ffbd2e"></span>
-            <span class="code-window-dot" style="background:#27c93f"></span>
-            <span class="mono text-white-50 ms-2" style="font-size:0.75rem;">question_2.py</span>
+
+            <span
+              class="code-window-dot"
+              style="background:#ff5f56"
+            ></span>
+
+            <span
+              class="code-window-dot"
+              style="background:#ffbd2e"
+            ></span>
+
+            <span
+              class="code-window-dot"
+              style="background:#27c93f"
+            ></span>
+
+
+            <span
+              class="mono text-white-50 ms-2"
+              style="font-size:0.75rem;"
+            >
+
+              secure_login
+
+            </span>
+
           </div>
-          <div class="code-window-body mono">
-            <div><span class="c-com"># Section B &middot; Q2 &middot; 10 marks</span></div>
-            <div><span class="c-key">def</span> <span class="c-fn">two_sum</span>(nums, target):</div>
-            <div>&nbsp;&nbsp;seen = {}</div>
-            <div>&nbsp;&nbsp;<span class="c-key">for</span> i, n <span class="c-key">in</span> <span class="c-fn">enumerate</span>(nums):</div>
-            <div>&nbsp;&nbsp;&nbsp;&nbsp;<span class="c-key">if</span> target - n <span class="c-key">in</span> seen:</div>
-            <div>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="c-key">return</span> [seen[target-n], i]</div>
-            <div>&nbsp;&nbsp;&nbsp;&nbsp;seen[n] = i<span class="code-cursor"></span></div>
+
+
+
+          <!-- =========================
+               LOGIN BODY
+          ========================== -->
+
+          <div class="p-4 p-md-5">
+
+
+            <!-- Mobile Logo -->
+
+            <div class="text-center d-lg-none mb-4">
+
+              <div
+                class="feature-icon mx-auto"
+                style="
+                  width:60px;
+                  height:60px;
+                  border-radius:15px;
+                  font-size:25px;
+                "
+              >
+
+                <i class="bi bi-code-slash"></i>
+
+              </div>
+
+            </div>
+
+
+            <!-- Heading -->
+
+            <div class="mb-4">
+
+              <div class="hero-eyebrow mb-2">
+                ACCOUNT ACCESS
+              </div>
+
+
+              <h2
+                class="display-font text-white fw-bold h3 mb-2"
+              >
+
+                Welcome back
+
+              </h2>
+
+
+              <p class="hero-sub mb-0">
+
+                Enter your credentials to continue.
+
+              </p>
+
+            </div>
+
+
+
+            <!-- =========================
+                 ERROR MESSAGE
+            ========================== -->
+
+            <div
+              id="loginError"
+              class="alert alert-danger d-none"
+              role="alert"
+            ></div>
+
+
+
+            <!-- =========================
+                 LOGIN FORM
+            ========================== -->
+
+            <form id="loginForm">
+
+
+              <!-- EMAIL -->
+
+              <div class="mb-4">
+
+                <label
+                  for="email"
+                  class="form-label text-white"
+                >
+
+                  Email Address
+
+                </label>
+
+
+                <div class="position-relative">
+
+
+                  <i
+                    class="bi bi-envelope"
+                    style="
+                      position:absolute;
+                      left:16px;
+                      top:50%;
+                      transform:translateY(-50%);
+                      color:#8b96a5;
+                      z-index:5;
+                    "
+                  ></i>
+
+
+                  <input
+                    type="email"
+                    id="email"
+                    class="form-control"
+                    placeholder="name@example.com"
+                    required
+                    autocomplete="username"
+                    style="
+                      height:52px;
+                      padding-left:48px;
+                      background:#0b0f14;
+                      border:1px solid #2a3a48;
+                      color:#e6edf3;
+                      border-radius:10px;
+                    "
+                  />
+
+                </div>
+
+              </div>
+
+
+
+              <!-- PASSWORD -->
+
+              <div class="mb-4">
+
+
+                <label
+                  for="password"
+                  class="form-label text-white"
+                >
+
+                  Password
+
+                </label>
+
+
+                <div class="position-relative">
+
+
+                  <!-- Lock Icon -->
+
+                  <i
+                    class="bi bi-lock"
+                    style="
+                      position:absolute;
+                      left:16px;
+                      top:50%;
+                      transform:translateY(-50%);
+                      color:#8b96a5;
+                      z-index:5;
+                    "
+                  ></i>
+
+
+                  <!-- Password Input -->
+
+                  <input
+                    type="password"
+                    id="password"
+                    class="form-control"
+                    placeholder="Enter your password"
+                    required
+                    autocomplete="current-password"
+                    style="
+                      height:52px;
+                      padding-left:48px;
+                      padding-right:50px;
+                      background:#0b0f14;
+                      border:1px solid #2a3a48;
+                      color:#e6edf3;
+                      border-radius:10px;
+                    "
+                  />
+
+
+                  <!-- Show Password -->
+
+                  <button
+                    type="button"
+                    id="togglePassword"
+                    class="border-0 bg-transparent"
+                    style="
+                      position:absolute;
+                      right:12px;
+                      top:50%;
+                      transform:translateY(-50%);
+                      color:#8b96a5;
+                      z-index:10;
+                    "
+                    aria-label="Show password"
+                  >
+
+                    <i
+                      class="bi bi-eye"
+                      id="passwordIcon"
+                    ></i>
+
+                  </button>
+
+
+                </div>
+
+              </div>
+
+
+
+              <!-- =========================
+                   LOGIN BUTTON
+              ========================== -->
+
+              <button
+                type="submit"
+                id="loginBtn"
+                class="btn btn-mint w-100"
+                style="
+                  height:52px;
+                  border-radius:10px;
+                "
+              >
+
+
+                <span id="loginBtnText">
+
+                  Sign In
+
+                </span>
+
+
+                <span
+                  id="loginSpinner"
+                  class="spinner-border spinner-border-sm ms-2 d-none"
+                  role="status"
+                ></span>
+
+
+              </button>
+
+
+            </form>
+
+
+
+            <!-- =========================
+                 SECURITY INFO
+            ========================== -->
+
+            <div
+              class="mt-4 p-3"
+              style="
+                background:#17212c;
+                border:1px solid #1f2a37;
+                border-radius:10px;
+              "
+            >
+
+              <div
+                class="d-flex align-items-center gap-2"
+              >
+
+                <i
+                  class="bi bi-shield-check"
+                  style="color:#5eead4;"
+                ></i>
+
+
+                <span
+                  class="small"
+                  style="color:#8b96a5;"
+                >
+
+                  Secure authentication powered by Firebase.
+
+                </span>
+
+              </div>
+
+            </div>
+
+
+
+            <!-- Footer Text -->
+
+            <p
+              class="text-center small mt-4 mb-0"
+              style="color:#6b7684;"
+            >
+
+              Students and administrators use the same login.
+              Your dashboard is selected automatically.
+
+            </p>
+
+
           </div>
+
         </div>
-        <div class="live-badge">
-          <span class="live-dot"></span>
-          Fullscreen &middot; 0 violations &middot; 18:42 left
-        </div>
+
       </div>
+
     </div>
-  </div>
-</section>
 
-<!-- ===================== FEATURES ===================== -->
-<section class="container py-5">
-  <h2 class="display-font fw-bold h3 mb-2">Built for exam integrity, not just a code box</h2>
-  <p class="hero-sub mb-5">Everything below runs entirely in the browser and logs straight to Firestore.</p>
+  </main>
 
-  <div class="row g-4">
-    <div class="col-md-6 col-lg-3">
-      <div class="feature-card">
-        <div class="feature-icon mono">&#9635;</div>
-        <h6 class="fw-semibold text-white">Fullscreen enforcement</h6>
-        <p class="small hero-sub mb-0">Exams start in fullscreen; exiting is detected instantly via the Fullscreen API.</p>
-      </div>
+
+
+  <!-- =========================
+       FOOTER
+  ========================== -->
+
+  <footer class="py-3">
+
+    <div class="container text-center">
+
+      <span>
+        © <span id="year"></span> CodeExam
+      </span>
+
     </div>
-    <div class="col-md-6 col-lg-3">
-      <div class="feature-card">
-        <div class="feature-icon mono">&#9673;</div>
-        <h6 class="fw-semibold text-white">Tab &amp; violation tracking</h6>
-        <p class="small hero-sub mb-0">Page Visibility API logs tab switches; configurable auto-submit after N violations.</p>
-      </div>
-    </div>
-    <div class="col-md-6 col-lg-3">
-      <div class="feature-card">
-        <div class="feature-icon mono">&#8987;</div>
-        <h6 class="fw-semibold text-white">Hard timers</h6>
-        <p class="small hero-sub mb-0">Per-exam countdown with auto-submit at zero &mdash; no late submissions possible.</p>
-      </div>
-    </div>
-    <div class="col-md-6 col-lg-3">
-      <div class="feature-card">
-        <div class="feature-icon mono">&#128202;</div>
-        <h6 class="fw-semibold text-white">Section-wise analytics</h6>
-        <p class="small hero-sub mb-0">Live pass rate, averages, and highest/lowest scores per section A&ndash;G, exportable to CSV.</p>
-      </div>
-    </div>
-  </div>
-</section>
 
-<!-- ===================== HOW IT WORKS ===================== -->
-<section class="container py-5">
-  <h2 class="display-font fw-bold h3 mb-5">How it works</h2>
-  <div class="row g-4">
-    <div class="col-md-4">
-      <div class="d-flex gap-3">
-        <div class="step-num">01</div>
-        <div>
-          <h6 class="fw-semibold text-white mb-1">Sign in</h6>
-          <p class="small hero-sub mb-0">Students and admins log in with the credentials issued by their institution.</p>
-        </div>
-      </div>
-    </div>
-    <div class="col-md-4">
-      <div class="d-flex gap-3">
-        <div class="step-num">02</div>
-        <div>
-          <h6 class="fw-semibold text-white mb-1">Confirm &amp; go fullscreen</h6>
-          <p class="small hero-sub mb-0">Review exam details, then the browser enters fullscreen and the timer starts.</p>
-        </div>
-      </div>
-    </div>
-    <div class="col-md-4">
-      <div class="d-flex gap-3">
-        <div class="step-num">03</div>
-        <div>
-          <h6 class="fw-semibold text-white mb-1">Code, submit, get graded</h6>
-          <p class="small hero-sub mb-0">Answers autosave as you work; scoring and analytics appear on the dashboard instantly.</p>
-        </div>
-      </div>
-    </div>
-  </div>
-</section>
+  </footer>
 
-<footer class="py-4 mt-4">
-  <div class="container d-flex flex-wrap justify-content-between">
-    <span>&copy; <span id="year"></span> Coding Exam Platform</span>
-    <span>Browser-based proctoring only &mdash; not a replacement for in-person invigilation.</span>
-  </div>
-</footer>
 
-<script>
-  document.getElementById("year").textContent = new Date().getFullYear();
-</script>
 
-<!--
-  Optional, non-blocking: if the visitor already has a valid Firebase
-  session, show a slim "continue to dashboard" banner instead of forcing
-  a redirect. The page above renders and works instantly either way,
-  even if Firebase isn't configured yet.
--->
-<script type="module">
-  import { auth } from "./js/firebase-config.js";
-  import { getUserProfile } from "./js/auth.js";
-  import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+  <!-- =========================
+       YEAR
+  ========================== -->
 
-  try {
-    onAuthStateChanged(auth, async (user) => {
-      if (!user) return;
-      const profile = await getUserProfile(user.uid);
-      if (!profile) return;
+  <script>
 
-      const dashboardUrl = profile.role === "admin" ? "admin-dashboard.html" : "student-dashboard.html";
-      document.getElementById("sessionName").textContent = profile.name || profile.email;
-      document.getElementById("sessionContinueBtn").href = dashboardUrl;
-      document.getElementById("sessionBanner").classList.remove("d-none");
-    });
-  } catch (e) {
-    // Firebase not configured yet - landing page still works fine without it.
-    console.warn("Firebase not initialized:", e.message);
-  }
-</script>
+    document.getElementById("year").textContent =
+      new Date().getFullYear();
 
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+  </script>
+
+
+
+  <!-- =========================
+       FIREBASE LOGIN
+  ========================== -->
+
+  <script type="module">
+
+    import {
+      loginUser,
+      getUserProfile,
+      showError,
+      hideError
+    }
+    from "./js/auth.js";
+
+
+    import {
+      auth
+    }
+    from "./js/firebase-config.js";
+
+
+    import {
+      onAuthStateChanged
+    }
+    from
+    "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+
+
+
+    /* =========================
+       GET ELEMENTS
+    ========================== */
+
+    const form =
+      document.getElementById("loginForm");
+
+    const loginBtn =
+      document.getElementById("loginBtn");
+
+    const loginBtnText =
+      document.getElementById("loginBtnText");
+
+    const loginSpinner =
+      document.getElementById("loginSpinner");
+
+    const passwordInput =
+      document.getElementById("password");
+
+    const togglePassword =
+      document.getElementById("togglePassword");
+
+    const passwordIcon =
+      document.getElementById("passwordIcon");
+
+
+
+    /* =========================
+       CHECK EXISTING LOGIN
+    ========================== */
+
+    onAuthStateChanged(
+      auth,
+      async (user) => {
+
+        if (!user) return;
+
+
+        try {
+
+          const profile =
+            await getUserProfile(user.uid);
+
+
+          if (!profile) return;
+
+
+          window.location.href =
+            profile.role === "admin"
+              ? "admin-dashboard.html"
+              : "student-dashboard.html";
+
+
+        } catch (error) {
+
+          console.error(
+            "Profile check error:",
+            error
+          );
+
+        }
+
+      }
+    );
+
+
+
+    /* =========================
+       SHOW / HIDE PASSWORD
+    ========================== */
+
+    togglePassword.addEventListener(
+      "click",
+      () => {
+
+        const isHidden =
+          passwordInput.type === "password";
+
+
+        passwordInput.type =
+          isHidden
+            ? "text"
+            : "password";
+
+
+        passwordIcon.className =
+          isHidden
+            ? "bi bi-eye-slash"
+            : "bi bi-eye";
+
+
+        togglePassword.setAttribute(
+          "aria-label",
+          isHidden
+            ? "Hide password"
+            : "Show password"
+        );
+
+      }
+    );
+
+
+
+    /* =========================
+       LOADING STATE
+    ========================== */
+
+    function setLoading(isLoading) {
+
+      loginBtn.disabled = isLoading;
+
+
+      loginSpinner.classList.toggle(
+        "d-none",
+        !isLoading
+      );
+
+
+      loginBtnText.textContent =
+        isLoading
+          ? "Signing in..."
+          : "Sign In";
+
+    }
+
+
+
+    /* =========================
+       LOGIN SUBMIT
+    ========================== */
+
+    form.addEventListener(
+      "submit",
+      async (event) => {
+
+        event.preventDefault();
+
+
+        hideError("loginError");
+
+
+        setLoading(true);
+
+
+        const email =
+          document
+            .getElementById("email")
+            .value
+            .trim();
+
+
+        const password =
+          passwordInput.value;
+
+
+        try {
+
+
+          /* LOGIN */
+
+          const credential =
+            await loginUser(
+              email,
+              password
+            );
+
+
+          /* GET PROFILE */
+
+          const profile =
+            await getUserProfile(
+              credential.user.uid
+            );
+
+
+          /* PROFILE NOT FOUND */
+
+          if (!profile) {
+
+            showError(
+              "loginError",
+              "No profile was found for this account. Please contact your administrator."
+            );
+
+
+            setLoading(false);
+
+            return;
+
+          }
+
+
+          /* REDIRECT */
+
+          window.location.href =
+            profile.role === "admin"
+              ? "admin-dashboard.html"
+              : "student-dashboard.html";
+
+
+        }
+
+
+        catch (error) {
+
+
+          console.error(
+            "Login error:",
+            error
+          );
+
+
+          showError(
+            "loginError",
+            friendlyAuthError(error.code)
+          );
+
+
+          setLoading(false);
+
+        }
+
+      }
+    );
+
+
+
+    /* =========================
+       FIREBASE ERROR MESSAGES
+    ========================== */
+
+    function friendlyAuthError(code) {
+
+      switch (code) {
+
+
+        case "auth/invalid-email":
+
+          return "Please enter a valid email address.";
+
+
+        case "auth/user-not-found":
+
+        case "auth/wrong-password":
+
+        case "auth/invalid-credential":
+
+          return "Incorrect email address or password.";
+
+
+        case "auth/user-disabled":
+
+          return "This account has been disabled. Contact your administrator.";
+
+
+        case "auth/too-many-requests":
+
+          return "Too many login attempts. Please wait and try again.";
+
+
+        case "auth/network-request-failed":
+
+          return "Network error. Please check your internet connection.";
+
+
+        default:
+
+          return "Login failed. Please try again.";
+
+      }
+
+    }
+
+  </script>
+
+
+  <!-- Bootstrap JS -->
+
+  <script
+    src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"
+  ></script>
+
 </body>
 </html>
