@@ -20,7 +20,7 @@ import {
   orderBy
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
-export const SECTIONS = ["A", "B", "C", "D", "E", "F", "G"];
+export const SECTIONS = ["IT-A", "IT-B", "IT-C", "AIDS-A", "AIDS-A", "AIMS", "CYS"];
 
 /** Generates a simple, memorable temporary password for a new student. */
 export function generateTempPassword(rollNumber) {
@@ -126,29 +126,4 @@ export function exportToCSV(rows, columns, filename = "export.csv") {
   link.click();
   document.body.removeChild(link);
   URL.revokeObjectURL(url);
-}
-export async function createAdmin({ name, email, password }) {
-
-  const cred = await createUserWithEmailAndPassword(
-    secondaryAuth,
-    email,
-    password
-  );
-
-  const uid = cred.user.uid;
-
-  await secondarySignOut(secondaryAuth);
-
-  await setDoc(doc(db, "users", uid), {
-    uid: uid,
-    name: name,
-    email: email,
-    role: "admin",
-    createdAt: new Date().toISOString()
-  });
-
-  return {
-    uid,
-    email
-  };
 }
