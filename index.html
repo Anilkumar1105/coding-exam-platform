@@ -1,1072 +1,197 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-
-  <meta
-    name="viewport"
-    content="width=device-width, initial-scale=1.0"
-  >
-
-  <title>CodeExam | Secure Coding Assessments</title>
-
-  <meta
-    name="description"
-    content="A secure coding examination platform for students and administrators with coding assessments, automated evaluation, and performance analytics."
-  >
-
-  <!-- Bootstrap -->
-  <link
-    href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"
-    rel="stylesheet"
-  >
-
-  <!-- Bootstrap Icons -->
-  <link
-    rel="stylesheet"
-    href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css"
-  >
-
-  <!-- Google Fonts -->
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-
-  <link
-    rel="preconnect"
-    href="https://fonts.gstatic.com"
-    crossorigin
-  >
-
-  <link
-    href="https://fonts.googleapis.com/css2?family=Sora:wght@600;700;800&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap"
-    rel="stylesheet"
-  >
-
-  <!-- Main CSS -->
-  <link href="style.css" rel="stylesheet">
-
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Coding Exam Platform - Secure Online Coding Assessments</title>
+<meta name="description" content="Run proctored coding exams with fullscreen monitoring, live violation tracking, and instant section-wise analytics." />
+<link
+  href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"
+  rel="stylesheet"
+/>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<link href="css/style.css" rel="stylesheet" />
 </head>
-
-
 <body class="landing">
 
-
-  <!-- =============================================
-       ACTIVE SESSION BANNER
-  ============================================== -->
-
-  <div
-    id="sessionBanner"
-    class="session-banner py-2 d-none"
-  >
-
-    <div
-      class="container d-flex justify-content-between align-items-center flex-wrap gap-2"
-    >
-
-      <div class="small text-white-50">
-
-        <i class="bi bi-person-check me-1"></i>
-
-        Signed in as
-
-        <span
-          id="sessionName"
-          class="text-white fw-semibold"
-        ></span>
-
-      </div>
-
-
-      <a
-        href="#"
-        id="sessionContinueBtn"
-        class="btn btn-sm btn-mint"
-      >
-
-        <i class="bi bi-arrow-right-circle me-1"></i>
-
-        Continue to Dashboard
-
-      </a>
-
-    </div>
-
+<!-- Shown only if a valid logged-in session is detected; page works fully without it -->
+<div id="sessionBanner" class="session-banner py-2 d-none">
+  <div class="container d-flex justify-content-between align-items-center flex-wrap gap-2">
+    <span class="small text-white-50">Signed in as <span id="sessionName" class="text-white"></span></span>
+    <a href="#" id="sessionContinueBtn" class="btn btn-sm btn-mint">Continue to Dashboard</a>
   </div>
+</div>
 
-
-
-  <!-- =============================================
-       NAVBAR
-  ============================================== -->
-
-  <nav class="navbar landing-nav py-3">
-
-    <div
-      class="container d-flex justify-content-between align-items-center"
-    >
-
-
-      <!-- Logo -->
-
-      <a
-        href="index.html"
-        class="navbar-brand display-font fw-bold text-white mb-0"
-      >
-
-        <span class="brand-dot">&lt;/&gt;</span>
-
-        CodeExam
-
-      </a>
-
-
-
-      <!-- Login Button -->
-
-      <div class="d-flex align-items-center gap-2">
-
-        <a
-          href="login.html"
-          class="btn btn-outline-mint px-3"
-        >
-
-          <i class="bi bi-box-arrow-in-right me-1"></i>
-
-          Login
-
-        </a>
-
-      </div>
-
-
+<nav class="navbar navbar-expand landing-nav py-3">
+  <div class="container d-flex justify-content-between align-items-center">
+    <a href="index.html" class="navbar-brand display-font fw-bold text-white mb-0">
+      <span class="brand-dot">&lt;/&gt;</span> CodeExam
+    </a>
+    <div class="d-flex gap-2">
+      <a href="login.html" class="btn btn-outline-mint btn-sm">Login</a>
     </div>
-
-  </nav>
-
-
-
-  <!-- =============================================
-       HERO SECTION
-  ============================================== -->
-
-  <section class="container py-5">
-
-    <div class="row align-items-center py-lg-5">
-
-
-      <!-- LEFT SIDE -->
-
-      <div class="col-lg-6">
-
-
-        <!-- Small Badge -->
-
-        <div class="hero-eyebrow mb-3">
-
-          <i class="bi bi-shield-check me-1"></i>
-
-          Secure &nbsp;•&nbsp; Smart &nbsp;•&nbsp; Powerful
-
-        </div>
-
-
-
-        <!-- Main Heading -->
-
-        <h1
-          class="display-font fw-bold display-5 mb-4"
-        >
-
-          The smarter way to
-
-          <span class="brand-dot">
-            conduct coding exams.
-          </span>
-
-        </h1>
-
-
-
-        <!-- Description -->
-
-        <p class="hero-sub mb-4">
-
-          CodeExam gives institutions a simple and powerful platform
-          to conduct coding assessments, evaluate student performance,
-          manage exams, and analyze results from one dashboard.
-
-        </p>
-
-
-
-        <!-- Login Buttons -->
-
-        <div class="row g-3 mt-2">
-
-
-          <!-- Student Login -->
-
-          <div class="col-sm-6">
-
-            <a
-              href="login.html?type=student"
-              class="login-choice-card student-login-card"
-            >
-
-              <div class="login-choice-icon">
-
-                <i class="bi bi-mortarboard-fill"></i>
-
-              </div>
-
-
-              <div>
-
-                <div class="login-choice-title">
-                  Student Login
-                </div>
-
-                <div class="login-choice-text">
-                  Take exams and view your results
-                </div>
-
-              </div>
-
-
-              <i class="bi bi-arrow-right login-arrow"></i>
-
-            </a>
-
-          </div>
-
-
-
-          <!-- Admin Login -->
-
-          <div class="col-sm-6">
-
-            <a
-              href="login.html?type=admin"
-              class="login-choice-card admin-login-card"
-            >
-
-              <div class="login-choice-icon">
-
-                <i class="bi bi-person-workspace"></i>
-
-              </div>
-
-
-              <div>
-
-                <div class="login-choice-title">
-                  Admin Login
-                </div>
-
-                <div class="login-choice-text">
-                  Manage exams and students
-                </div>
-
-              </div>
-
-
-              <i class="bi bi-arrow-right login-arrow"></i>
-
-            </a>
-
-          </div>
-
-
-        </div>
-
-
-
-        <!-- Small Note -->
-
-        <p class="small hero-sub mt-4 mb-0">
-
-          <i class="bi bi-info-circle me-1"></i>
-
-          Use the credentials provided by your administrator.
-
-        </p>
-
-
-      </div>
-
-
-
-      <!-- =============================================
-           RIGHT SIDE CODE WINDOW
-      ============================================== -->
-
-      <div class="col-lg-6 mt-5 mt-lg-0">
-
-        <div class="position-relative">
-
-
-          <div class="code-window">
-
-
-            <!-- Editor Top -->
-
-            <div class="code-window-bar">
-
-              <span
-                class="code-window-dot"
-                style="background:#ff5f56"
-              ></span>
-
-              <span
-                class="code-window-dot"
-                style="background:#ffbd2e"
-              ></span>
-
-              <span
-                class="code-window-dot"
-                style="background:#27c93f"
-              ></span>
-
-
-              <span
-                class="mono text-white-50 ms-2"
-                style="font-size:0.75rem;"
-              >
-                coding_exam.py
-              </span>
-
-
-              <span
-                class="ms-auto text-success small"
-              >
-                <i class="bi bi-circle-fill"></i>
-                Running
-              </span>
-
-            </div>
-
-
-
-            <!-- Code -->
-
-            <div class="code-window-body mono">
-
-
-              <div>
-                <span class="c-com">
-                  # Question 02 · Arrays · 10 Marks
-                </span>
-              </div>
-
-
-              <br>
-
-
-              <div>
-
-                <span class="c-key">def</span>
-
-                <span class="c-fn">two_sum</span>(nums, target):
-
-              </div>
-
-
-              <div>
-                &nbsp;&nbsp;seen = {}
-              </div>
-
-
-              <div>
-
-                &nbsp;&nbsp;
-
-                <span class="c-key">for</span>
-
-                i, num
-
-                <span class="c-key">in</span>
-
-                <span class="c-fn">enumerate</span>(nums):
-
-              </div>
-
-
-              <div>
-
-                &nbsp;&nbsp;&nbsp;&nbsp;difference = target - num
-
-              </div>
-
-
-              <div>
-
-                &nbsp;&nbsp;&nbsp;&nbsp;
-
-                <span class="c-key">if</span>
-
-                difference
-
-                <span class="c-key">in</span>
-
-                seen:
-
-              </div>
-
-
-              <div>
-
-                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-
-                <span class="c-key">return</span>
-
-                [seen[difference], i]
-
-              </div>
-
-
-              <div>
-
-                &nbsp;&nbsp;&nbsp;&nbsp;seen[num] = i
-
-                <span class="code-cursor"></span>
-
-              </div>
-
-
-            </div>
-
-
-          </div>
-
-
-
-          <!-- Exam Status -->
-
-          <div class="live-badge">
-
-            <span class="live-dot"></span>
-
-            Secure Exam
-
-            <span class="text-white-50">
-              •
-            </span>
-
-            18:42 remaining
-
-          </div>
-
-
-        </div>
-
-      </div>
-
-
-    </div>
-
-  </section>
-
-
-
-  <!-- =============================================
-       PLATFORM STATS
-  ============================================== -->
-
-  <section class="container py-4">
-
-    <div class="row g-3">
-
-
-      <div class="col-6 col-lg-3">
-
-        <div class="platform-stat-card">
-
-          <div class="platform-stat-icon">
-
-            <i class="bi bi-code-square"></i>
-
-          </div>
-
-          <div>
-
-            <strong>Code</strong>
-
-            <span>Programming Exams</span>
-
-          </div>
-
-        </div>
-
-      </div>
-
-
-
-      <div class="col-6 col-lg-3">
-
-        <div class="platform-stat-card">
-
-          <div class="platform-stat-icon">
-
-            <i class="bi bi-clock-history"></i>
-
-          </div>
-
-          <div>
-
-            <strong>Timed</strong>
-
-            <span>Secure Assessments</span>
-
-          </div>
-
-        </div>
-
-      </div>
-
-
-
-      <div class="col-6 col-lg-3">
-
-        <div class="platform-stat-card">
-
-          <div class="platform-stat-icon">
-
-            <i class="bi bi-bar-chart-line"></i>
-
-          </div>
-
-          <div>
-
-            <strong>Analyze</strong>
-
-            <span>Student Performance</span>
-
-          </div>
-
-        </div>
-
-      </div>
-
-
-
-      <div class="col-6 col-lg-3">
-
-        <div class="platform-stat-card">
-
-          <div class="platform-stat-icon">
-
-            <i class="bi bi-shield-check"></i>
-
-          </div>
-
-          <div>
-
-            <strong>Secure</strong>
-
-            <span>Browser Monitoring</span>
-
-          </div>
-
-        </div>
-
-      </div>
-
-
-    </div>
-
-  </section>
-
-
-
-  <!-- =============================================
-       FEATURES
-  ============================================== -->
-
-  <section class="container py-5">
-
-    <div class="text-center mb-5">
-
-      <div class="hero-eyebrow mb-2">
-        PLATFORM FEATURES
-      </div>
-
-
-      <h2 class="display-font fw-bold h2 text-white">
-
-        Everything needed for a coding assessment
-
-      </h2>
-
-
-      <p class="hero-sub mb-0">
-
-        Designed for students, teachers, and administrators.
-
+  </div>
+</nav>
+
+<!-- ===================== HERO ===================== -->
+<section class="container py-5">
+  <div class="row align-items-center py-4">
+    <div class="col-lg-6">
+      <div class="hero-eyebrow mb-3">Proctored &middot; Auto-graded &middot; Section-wise</div>
+      <h1 class="display-font fw-bold display-5 mb-3">
+        Run coding exams your students can't quietly cheat their way through.
+      </h1>
+      <p class="hero-sub mb-4">
+        Fullscreen enforcement, tab-switch detection, and live violation logging
+        during the exam &mdash; automatic scoring and section analytics the moment
+        it ends.
       </p>
-
+      <div class="d-flex flex-wrap gap-3">
+        <a href="login.html" class="btn btn-mint btn-lg px-4">Student Login</a>
+        <a href="login.html" class="btn btn-outline-mint btn-lg px-4">Admin Login</a>
+      </div>
     </div>
 
-
-
-    <div class="row g-4">
-
-
-      <!-- Feature 1 -->
-
-      <div class="col-md-6 col-lg-3">
-
-        <div class="feature-card">
-
-          <div class="feature-icon">
-
-            <i class="bi bi-code-slash"></i>
-
+    <div class="col-lg-6 mt-5 mt-lg-0">
+      <div class="position-relative">
+        <div class="code-window">
+          <div class="code-window-bar">
+            <span class="code-window-dot" style="background:#ff5f56"></span>
+            <span class="code-window-dot" style="background:#ffbd2e"></span>
+            <span class="code-window-dot" style="background:#27c93f"></span>
+            <span class="mono text-white-50 ms-2" style="font-size:0.75rem;">question_2.py</span>
           </div>
-
-
-          <h6 class="fw-semibold text-white">
-
-            Coding Challenges
-
-          </h6>
-
-
-          <p class="small hero-sub mb-0">
-
-            Create programming questions with marks,
-            sections, and instructions.
-
-          </p>
-
-        </div>
-
-      </div>
-
-
-
-      <!-- Feature 2 -->
-
-      <div class="col-md-6 col-lg-3">
-
-        <div class="feature-card">
-
-          <div class="feature-icon">
-
-            <i class="bi bi-stopwatch"></i>
-
+          <div class="code-window-body mono">
+            <div><span class="c-com"># Section B &middot; Q2 &middot; 10 marks</span></div>
+            <div><span class="c-key">def</span> <span class="c-fn">two_sum</span>(nums, target):</div>
+            <div>&nbsp;&nbsp;seen = {}</div>
+            <div>&nbsp;&nbsp;<span class="c-key">for</span> i, n <span class="c-key">in</span> <span class="c-fn">enumerate</span>(nums):</div>
+            <div>&nbsp;&nbsp;&nbsp;&nbsp;<span class="c-key">if</span> target - n <span class="c-key">in</span> seen:</div>
+            <div>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="c-key">return</span> [seen[target-n], i]</div>
+            <div>&nbsp;&nbsp;&nbsp;&nbsp;seen[n] = i<span class="code-cursor"></span></div>
           </div>
-
-
-          <h6 class="fw-semibold text-white">
-
-            Exam Timer
-
-          </h6>
-
-
-          <p class="small hero-sub mb-0">
-
-            Automatic countdown with submission
-            when the exam time ends.
-
-          </p>
-
         </div>
-
-      </div>
-
-
-
-      <!-- Feature 3 -->
-
-      <div class="col-md-6 col-lg-3">
-
-        <div class="feature-card">
-
-          <div class="feature-icon">
-
-            <i class="bi bi-person-lock"></i>
-
-          </div>
-
-
-          <h6 class="fw-semibold text-white">
-
-            Exam Monitoring
-
-          </h6>
-
-
-          <p class="small hero-sub mb-0">
-
-            Track fullscreen exits and tab changes
-            during an examination.
-
-          </p>
-
+        <div class="live-badge">
+          <span class="live-dot"></span>
+          Fullscreen &middot; 0 violations &middot; 18:42 left
         </div>
-
       </div>
-
-
-
-      <!-- Feature 4 -->
-
-      <div class="col-md-6 col-lg-3">
-
-        <div class="feature-card">
-
-          <div class="feature-icon">
-
-            <i class="bi bi-graph-up-arrow"></i>
-
-          </div>
-
-
-          <h6 class="fw-semibold text-white">
-
-            Results & Analytics
-
-          </h6>
-
-
-          <p class="small hero-sub mb-0">
-
-            View scores, marks, performance,
-            and section-wise analysis.
-
-          </p>
-
-        </div>
-
-      </div>
-
-
     </div>
+  </div>
+</section>
 
-  </section>
+<!-- ===================== FEATURES ===================== -->
+<section class="container py-5">
+  <h2 class="display-font fw-bold h3 mb-2">Built for exam integrity, not just a code box</h2>
+  <p class="hero-sub mb-5">Everything below runs entirely in the browser and logs straight to Firestore.</p>
 
-
-
-  <!-- =============================================
-       HOW IT WORKS
-  ============================================== -->
-
-  <section class="container py-5">
-
-    <div class="text-center mb-5">
-
-      <div class="hero-eyebrow mb-2">
-        SIMPLE PROCESS
+  <div class="row g-4">
+    <div class="col-md-6 col-lg-3">
+      <div class="feature-card">
+        <div class="feature-icon mono">&#9635;</div>
+        <h6 class="fw-semibold text-white">Fullscreen enforcement</h6>
+        <p class="small hero-sub mb-0">Exams start in fullscreen; exiting is detected instantly via the Fullscreen API.</p>
       </div>
-
-
-      <h2 class="display-font fw-bold h2 text-white">
-
-        Start your exam in three steps
-
-      </h2>
-
     </div>
-
-
-
-    <div class="row g-4">
-
-
-      <!-- Step 1 -->
-
-      <div class="col-md-4">
-
-        <div class="process-card">
-
-          <div class="step-num">
-            01
-          </div>
-
-
-          <h5 class="text-white mt-4">
-
-            Sign In
-
-          </h5>
-
-
-          <p class="hero-sub small mb-0">
-
-            Log in securely using your registered
-            email address and password.
-
-          </p>
-
-        </div>
-
+    <div class="col-md-6 col-lg-3">
+      <div class="feature-card">
+        <div class="feature-icon mono">&#9673;</div>
+        <h6 class="fw-semibold text-white">Tab &amp; violation tracking</h6>
+        <p class="small hero-sub mb-0">Page Visibility API logs tab switches; configurable auto-submit after N violations.</p>
       </div>
-
-
-
-      <!-- Step 2 -->
-
-      <div class="col-md-4">
-
-        <div class="process-card">
-
-          <div class="step-num">
-            02
-          </div>
-
-
-          <h5 class="text-white mt-4">
-
-            Take the Exam
-
-          </h5>
-
-
-          <p class="hero-sub small mb-0">
-
-            Read questions, write your code,
-            and submit before the timer ends.
-
-          </p>
-
-        </div>
-
-      </div>
-
-
-
-      <!-- Step 3 -->
-
-      <div class="col-md-4">
-
-        <div class="process-card">
-
-          <div class="step-num">
-            03
-          </div>
-
-
-          <h5 class="text-white mt-4">
-
-            View Results
-
-          </h5>
-
-
-          <p class="hero-sub small mb-0">
-
-            Check your marks, performance,
-            and detailed examination analytics.
-
-          </p>
-
-        </div>
-
-      </div>
-
-
     </div>
-
-  </section>
-
-
-
-  <!-- =============================================
-       FINAL CTA
-  ============================================== -->
-
-  <section class="container py-5">
-
-    <div class="final-cta">
-
-      <div class="row align-items-center">
-
-
-        <div class="col-lg-8">
-
-          <h2 class="display-font fw-bold text-white mb-2">
-
-            Ready to start your coding assessment?
-
-          </h2>
-
-
-          <p class="hero-sub mb-lg-0">
-
-            Sign in with your registered account
-            to continue.
-
-          </p>
-
-        </div>
-
-
-        <div class="col-lg-4 text-lg-end mt-3 mt-lg-0">
-
-          <a
-            href="login.html"
-            class="btn btn-mint btn-lg px-4"
-          >
-
-            Login Now
-
-            <i class="bi bi-arrow-right ms-1"></i>
-
-          </a>
-
-        </div>
-
-
+    <div class="col-md-6 col-lg-3">
+      <div class="feature-card">
+        <div class="feature-icon mono">&#8987;</div>
+        <h6 class="fw-semibold text-white">Hard timers</h6>
+        <p class="small hero-sub mb-0">Per-exam countdown with auto-submit at zero &mdash; no late submissions possible.</p>
       </div>
-
     </div>
-
-  </section>
-
-
-
-  <!-- =============================================
-       FOOTER
-  ============================================== -->
-
-  <footer class="py-4 mt-4">
-
-    <div
-      class="container d-flex flex-column flex-md-row
-      justify-content-between align-items-center gap-2"
-    >
-
-      <span>
-
-        &copy;
-        <span id="year"></span>
-
-        CodeExam Platform
-
-      </span>
-
-
-      <span class="text-center">
-
-        Secure coding assessments · Performance analytics
-
-      </span>
-
-
+    <div class="col-md-6 col-lg-3">
+      <div class="feature-card">
+        <div class="feature-icon mono">&#128202;</div>
+        <h6 class="fw-semibold text-white">Section-wise analytics</h6>
+        <p class="small hero-sub mb-0">Live pass rate, averages, and highest/lowest scores per section A&ndash;G, exportable to CSV.</p>
+      </div>
     </div>
+  </div>
+</section>
 
-  </footer>
+<!-- ===================== HOW IT WORKS ===================== -->
+<section class="container py-5">
+  <h2 class="display-font fw-bold h3 mb-5">How it works</h2>
+  <div class="row g-4">
+    <div class="col-md-4">
+      <div class="d-flex gap-3">
+        <div class="step-num">01</div>
+        <div>
+          <h6 class="fw-semibold text-white mb-1">Sign in</h6>
+          <p class="small hero-sub mb-0">Students and admins log in with the credentials issued by their institution.</p>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-4">
+      <div class="d-flex gap-3">
+        <div class="step-num">02</div>
+        <div>
+          <h6 class="fw-semibold text-white mb-1">Confirm &amp; go fullscreen</h6>
+          <p class="small hero-sub mb-0">Review exam details, then the browser enters fullscreen and the timer starts.</p>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-4">
+      <div class="d-flex gap-3">
+        <div class="step-num">03</div>
+        <div>
+          <h6 class="fw-semibold text-white mb-1">Code, submit, get graded</h6>
+          <p class="small hero-sub mb-0">Answers autosave as you work; scoring and analytics appear on the dashboard instantly.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
 
+<footer class="py-4 mt-4">
+  <div class="container d-flex flex-wrap justify-content-between">
+    <span>&copy; <span id="year"></span> Coding Exam Platform</span>
+    <span>Browser-based proctoring only &mdash; not a replacement for in-person invigilation.</span>
+  </div>
+</footer>
 
+<script>
+  document.getElementById("year").textContent = new Date().getFullYear();
+</script>
 
-  <!-- =============================================
-       CURRENT YEAR
-  ============================================== -->
+<!--
+  Optional, non-blocking: if the visitor already has a valid Firebase
+  session, show a slim "continue to dashboard" banner instead of forcing
+  a redirect. The page above renders and works instantly either way,
+  even if Firebase isn't configured yet.
+-->
+<script type="module">
+  import { auth } from "./firebase-config.js";
+  import { getUserProfile } from "./auth.js";
+  import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 
-  <script>
+  try {
+    onAuthStateChanged(auth, async (user) => {
+      if (!user) return;
+      const profile = await getUserProfile(user.uid);
+      if (!profile) return;
 
-    document
-      .getElementById("year")
-      .textContent =
-      new Date().getFullYear();
+      const dashboardUrl = profile.role === "admin" ? "admin-dashboard.html" : "student-dashboard.html";
+      document.getElementById("sessionName").textContent = profile.name || profile.email;
+      document.getElementById("sessionContinueBtn").href = dashboardUrl;
+      document.getElementById("sessionBanner").classList.remove("d-none");
+    });
+  } catch (e) {
+    // Firebase not configured yet - landing page still works fine without it.
+    console.warn("Firebase not initialized:", e.message);
+  }
+</script>
 
-  </script>
-
-
-
-  <!-- =============================================
-       FIREBASE SESSION CHECK
-  ============================================== -->
-
-  <script type="module">
-
-    import {
-      auth
-    } from "./firebase-config.js";
-
-
-    import {
-      getUserProfile
-    } from "./auth.js";
-
-
-    import {
-      onAuthStateChanged
-    } from
-    "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
-
-
-    onAuthStateChanged(
-      auth,
-
-      async (user) => {
-
-        if (!user) return;
-
-
-        try {
-
-          const profile =
-            await getUserProfile(user.uid);
-
-
-          if (!profile) return;
-
-
-          const dashboardUrl =
-            profile.role === "admin"
-              ? "admin-dashboard.html"
-              : "student-dashboard.html";
-
-
-          const name =
-            profile.name ||
-            profile.fullName ||
-            profile.email ||
-            user.email;
-
-
-          document
-            .getElementById("sessionName")
-            .textContent =
-            name;
-
-
-          document
-            .getElementById("sessionContinueBtn")
-            .href =
-            dashboardUrl;
-
-
-          document
-            .getElementById("sessionBanner")
-            .classList
-            .remove("d-none");
-
-
-        } catch (error) {
-
-          console.warn(
-            "Unable to check Firebase session:",
-            error.message
-          );
-
-        }
-
-      }
-
-    );
-
-  </script>
-
-
-  <!-- Bootstrap JS -->
-
-  <script
-    src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"
-  ></script>
-
-
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>
