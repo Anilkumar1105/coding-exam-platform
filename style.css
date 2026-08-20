@@ -113,6 +113,183 @@ body {
   user-select: text; /* still allow typing/selecting inside inputs */
 }
 
+/* ---------- Landing page (index.html) ---------- */
+.landing {
+  background: #0b0f14;
+  color: #e6edf3;
+  font-family: "Inter", system-ui, sans-serif;
+  min-height: 100vh;
+}
+
+.landing .display-font {
+  font-family: "Sora", "Inter", system-ui, sans-serif;
+}
+
+.landing .mono {
+  font-family: "JetBrains Mono", "Courier New", monospace;
+}
+
+.landing-nav {
+  border-bottom: 1px solid #1f2a37;
+}
+
+.landing-nav .brand-dot {
+  color: #5eead4;
+}
+
+.landing .btn-mint {
+  background-color: #5eead4;
+  border-color: #5eead4;
+  color: #0b0f14;
+  font-weight: 600;
+}
+
+.landing .btn-mint:hover {
+  background-color: #45d6c0;
+  border-color: #45d6c0;
+  color: #0b0f14;
+}
+
+.landing .btn-outline-mint {
+  border: 1px solid #2a3a48;
+  color: #e6edf3;
+  background: transparent;
+}
+
+.landing .btn-outline-mint:hover {
+  border-color: #5eead4;
+  color: #5eead4;
+}
+
+.landing .hero-eyebrow {
+  color: #5eead4;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.landing .hero-sub {
+  color: #8b96a5;
+  font-size: 1.05rem;
+}
+
+/* Fake terminal / editor window used as the hero's signature element */
+.code-window {
+  background: #121a23;
+  border: 1px solid #1f2a37;
+  border-radius: 10px;
+  overflow: hidden;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.45);
+}
+
+.code-window-bar {
+  background: #17212c;
+  padding: 0.6rem 0.9rem;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  border-bottom: 1px solid #1f2a37;
+}
+
+.code-window-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+.code-window-body {
+  padding: 1.25rem 1.4rem;
+  font-size: 0.85rem;
+  line-height: 1.7;
+}
+
+.code-window-body .c-key { color: #c792ea; }
+.code-window-body .c-str { color: #a3e635; }
+.code-window-body .c-fn { color: #5eead4; }
+.code-window-body .c-com { color: #6b7684; }
+.code-window-body .c-num { color: #f2c94c; }
+
+.code-cursor {
+  display: inline-block;
+  width: 8px;
+  height: 1.1em;
+  background: #5eead4;
+  vertical-align: text-bottom;
+  animation: blink 1s steps(1) infinite;
+}
+
+@keyframes blink {
+  50% { opacity: 0; }
+}
+
+.live-badge {
+  position: absolute;
+  bottom: -14px;
+  right: 18px;
+  background: #17212c;
+  border: 1px solid #1f2a37;
+  border-radius: 999px;
+  padding: 0.35rem 0.8rem;
+  font-size: 0.75rem;
+  color: #8b96a5;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.live-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #a3e635;
+}
+
+.landing .feature-card {
+  background: #121a23;
+  border: 1px solid #1f2a37;
+  border-radius: 12px;
+  padding: 1.5rem;
+  height: 100%;
+}
+
+.landing .feature-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 8px;
+  background: rgba(94, 234, 212, 0.12);
+  color: #5eead4;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 0.9rem;
+}
+
+.landing .step-num {
+  font-family: "JetBrains Mono", monospace;
+  color: #5eead4;
+  font-size: 0.85rem;
+  border: 1px solid #1f2a37;
+  border-radius: 6px;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.landing .session-banner {
+  background: #17212c;
+  border-bottom: 1px solid #1f2a37;
+}
+
+.landing footer {
+  border-top: 1px solid #1f2a37;
+  color: #6b7684;
+  font-size: 0.85rem;
+}
+
 /* ---------- Utility ---------- */
 .spinner-wrap {
   display: flex;
