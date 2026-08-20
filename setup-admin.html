@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Create Admin</title>
+</head>
+<body>
+
+  <h2>Create Admin Account</h2>
+
+  <button id="createAdminBtn">
+    Create Admin
+  </button>
+
+  <p id="message"></p>
+
+
+  <script type="module">
+
+    import { createAdmin } from "./js/admin.js";
+
+    const btn = document.getElementById("createAdminBtn");
+    const message = document.getElementById("message");
+
+
+    btn.addEventListener("click", async () => {
+
+      btn.disabled = true;
+      message.textContent = "Creating admin...";
+
+
+      try {
+
+        const result = await createAdmin({
+          name: "Admin",
+          email: "admin@codeexam.com",
+          password: "Admin@12345"
+        });
+
+
+        message.textContent =
+          "Admin created successfully! UID: " + result.uid;
+
+
+      } catch (error) {
+
+        if (error.code === "auth/email-already-in-use") {
+
+          message.textContent =
+            "Admin already exists. You can now login.";
+
+        } else {
+
+          message.textContent =
+            "Error: " + error.message;
+
+          console.error(error);
+
+        }
+
+      } finally {
+
+        btn.disabled = false;
+
+      }
+
+    });
+
+  </script>
+
+</body>
+</html>
