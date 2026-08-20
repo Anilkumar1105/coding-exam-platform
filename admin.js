@@ -127,3 +127,30 @@ export function exportToCSV(rows, columns, filename = "export.csv") {
   document.body.removeChild(link);
   URL.revokeObjectURL(url);
 }
+export async function createAdmin({ name, email, password }) {
+
+  const cred = await createUserWithEmailAndPassword(
+    secondaryAuth,
+    email,
+    password
+  );
+
+  const uid = cred.user.uid;
+
+  // Sign out secondary auth so admin's current login is not affected
+  await secondarySignOut(secondaryAuth);
+
+  // Create admin profile in Firestore
+  await setDoc(doc(db, "users", uid), {
+    uid: uid,
+    name: name,
+    email: email,
+    role: "admin",
+    createdAt: new Date().toISOString()
+  });
+
+  return {
+    uid,
+    email
+  };
+}
