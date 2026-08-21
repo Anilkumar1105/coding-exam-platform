@@ -124,11 +124,11 @@ export function renderSectionTable(tbodyEl, sectionStats) {
  * Renders the student results table.
  * `rows` should already be filtered/joined: each row needs
  * rollNumber, name, section, examTitle, score, percentage, status,
- * violations, submittedAt.
+ * violations, submittedAt, studentId, examId, examType.
  */
 export function renderResultsTable(tbodyEl, rows) {
   if (!rows.length) {
-    tbodyEl.innerHTML = `<tr><td colspan="9" class="text-center text-muted py-4">No results match the current filters.</td></tr>`;
+    tbodyEl.innerHTML = `<tr><td colspan="10" class="text-center text-muted py-4">No results match the current filters.</td></tr>`;
     return;
   }
 
@@ -145,6 +145,13 @@ export function renderResultsTable(tbodyEl, rows) {
         <td>${statusBadge(r.status)}</td>
         <td>${r.violations ?? 0}</td>
         <td>${r.submittedAt ? new Date(r.submittedAt).toLocaleString() : "-"}</td>
+        <td class="text-end">
+          ${
+            r.examType === "coding"
+              ? `<button class="btn btn-sm btn-outline-secondary" data-view-code="${r.studentId}" data-exam-id="${r.examId}"><i class="bi bi-code-slash"></i></button>`
+              : ""
+          }
+        </td>
       </tr>`
     )
     .join("");
@@ -179,6 +186,7 @@ export function buildResultRows(submissions, students, exams, filters = {}) {
         section: sub.section || student.section,
         examId: sub.examId,
         examTitle: exam.title,
+        examType: exam.examType,
         score: sub.score,
         percentage: sub.percentage,
         status: sub.status,
