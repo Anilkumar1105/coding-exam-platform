@@ -164,23 +164,29 @@ function applyFiltersAndRenderResults() {
     btn.addEventListener("click", () => openCodeSubmissionsModal(btn.dataset.viewCode, btn.dataset.examId));
   });
 
-  document.getElementById("exportExcelBtn").onclick = () => {
-    exportResultsToExcel(
-      rows,
-      [
-        { key: "rollNumber", label: "Roll Number", width: 14 },
-        { key: "name", label: "Name", width: 22 },
-        { key: "section", label: "Section", width: 10 },
-        { key: "examTitle", label: "Exam", width: 26 },
-        { key: "score", label: "Score", width: 10 },
-        { key: "percentage", label: "Percentage", width: 12 },
-        { key: "result", label: "Result", width: 10 },
-        { key: "status", label: "Status", width: 16 },
-        { key: "violations", label: "Violations", width: 12 },
-        { key: "submittedAt", label: "Submitted Time", width: 22 }
-      ],
-      { filename: "exam-results.xlsx", sheetName: "Results", title: "Coding Exam Platform - Student Results" }
-    );
+  document.getElementById("exportExcelBtn").onclick = async () => {
+    const btn = document.getElementById("exportExcelBtn");
+    btn.disabled = true;
+    try {
+      await exportResultsToExcel(
+        rows,
+        [
+          { key: "rollNumber", label: "Roll Number", width: 14, type: "text" },
+          { key: "name", label: "Name", width: 22, type: "text" },
+          { key: "section", label: "Section", width: 10, type: "text" },
+          { key: "examTitle", label: "Exam", width: 26, type: "text" },
+          { key: "score", label: "Score", width: 10, type: "number" },
+          { key: "percentage", label: "Percentage", width: 12, type: "percentage" },
+          { key: "result", label: "Result", width: 10, type: "status" },
+          { key: "status", label: "Status", width: 16, type: "text" },
+          { key: "violations", label: "Violations", width: 12, type: "number" },
+          { key: "submittedAt", label: "Submitted Time", width: 22, type: "date" }
+        ],
+        { filename: "exam-results.xlsx", sheetName: "Results", title: "Coding Exam Platform - Student Results" }
+      );
+    } finally {
+      btn.disabled = false;
+    }
   };
 }
 
@@ -234,8 +240,13 @@ function renderStudentsTable() {
         <td><span class="badge bg-secondary">${s.section}</span></td>
         <td>${s.email}</td>
         <td>
-          <span class="password-mask" data-password-cell="${s.uid}">&bull;&bull;&bull;&bull;&bull;&bull;&bull;&bull;</span>
-          <button class="btn btn-sm btn-link p-0 ms-1" data-reveal-password="${s.uid}" title="Show/hide"><i class="bi bi-eye"></i></button>
+          ${
+            s.passwordPlain
+              ? `<span class="password-mask" data-password-cell="${s.uid}">&bull;&bull;&bull;&bull;&bull;&bull;&bull;&bull;</span>
+                 <button class="btn btn-sm btn-link p-0 ms-1" data-reveal-password="${s.uid}" title="Show/hide"><i class="bi bi-eye"></i></button>`
+              : `<span class="text-muted small">Not set</span>
+                 <button class="btn btn-sm btn-link p-0 ms-1" data-set-password="${s.uid}">Set</button>`
+          }
         </td>
         <td class="text-end">
           <button class="btn btn-sm btn-outline-primary me-1" data-edit="${s.uid}"><i class="bi bi-pencil"></i></button>
@@ -249,6 +260,9 @@ function renderStudentsTable() {
   tbody.querySelectorAll("[data-delete]").forEach((btn) => btn.addEventListener("click", () => handleDeleteStudent(btn.dataset.delete)));
   tbody.querySelectorAll("[data-reveal-password]").forEach((btn) =>
     btn.addEventListener("click", () => togglePasswordCell(btn))
+  );
+  tbody.querySelectorAll("[data-set-password]").forEach((btn) =>
+    btn.addEventListener("click", () => openEditStudent(btn.dataset.setPassword))
   );
 }
 
@@ -365,7 +379,8 @@ document.getElementById("studentForm").addEventListener("submit", async (e) => {
         return;
       }
       const original = students.find((s) => s.uid === editingStudentUid);
-      const changedPassword = password && password !== original?.passwordPlain ? password : undefined;
+      const trimmedInput = password.trim();
+      const changedPassword = trimmedInput && trimmedInput !== original?.passwordPlain ? trimmedInput : undefined;
       await updateStudent(editingStudentUid, { name, rollNumber, section, password: changedPassword });
       const idx = students.findIndex((s) => s.uid === editingStudentUid);
       if (idx > -1) {
