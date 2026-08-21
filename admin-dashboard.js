@@ -27,6 +27,7 @@ import {
   computeSectionStats,
   renderStatCards,
   renderSectionTable,
+  renderSectionChart,
   renderResultsTable,
   buildResultRows
 } from "./dashboard.js";
@@ -44,6 +45,7 @@ let editingExamId = null;
 let activeExamForQuestions = null;
 let questions = [];
 let editingQuestionId = null;
+let sectionChartInstance = null;
 
 /* ============================================================
    AUTH + INITIAL LOAD
@@ -104,7 +106,26 @@ function renderAnalytics() {
   const sectionStats = computeSectionStats(students, submissions);
   renderSectionTable(document.getElementById("sectionTableBody"), sectionStats);
 
+  renderChartPane();
   applyFiltersAndRenderResults();
+}
+
+function renderChartPane() {
+  const filterEl = document.getElementById("chartExamFilter");
+  const previousValue = filterEl.value || "all";
+
+  filterEl.innerHTML =
+    `<option value="all">All Exams</option>` +
+    exams.map((e) => `<option value="${e.id}">${e.title}</option>`).join("");
+  filterEl.value = [...filterEl.options].some((o) => o.value === previousValue) ? previousValue : "all";
+  filterEl.onchange = renderChartPane;
+
+  const chartSectionStats = computeSectionStats(students, submissions, filterEl.value);
+  sectionChartInstance = renderSectionChart(
+    document.getElementById("sectionChart"),
+    chartSectionStats,
+    sectionChartInstance
+  );
 }
 
 /* ============================================================
@@ -153,6 +174,7 @@ function applyFiltersAndRenderResults() {
         { key: "examTitle", label: "Exam", width: 26 },
         { key: "score", label: "Score", width: 10 },
         { key: "percentage", label: "Percentage", width: 12 },
+        { key: "result", label: "Result", width: 10 },
         { key: "status", label: "Status", width: 16 },
         { key: "violations", label: "Violations", width: 12 },
         { key: "submittedAt", label: "Submitted Time", width: 22 }
@@ -199,7 +221,7 @@ function renderStudentsTable() {
   const tbody = document.getElementById("studentsTableBody");
 
   if (!filtered.length) {
-    tbody.innerHTML = `<tr><td colspan="5" class="text-center text-muted py-4">No students in this section yet.</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="6" class="text-center text-muted py-4">No students in this section yet.</td></tr>`;
     return;
   }
 
@@ -211,6 +233,10 @@ function renderStudentsTable() {
         <td>${s.name}</td>
         <td><span class="badge bg-secondary">${s.section}</span></td>
         <td>${s.email}</td>
+        <td>
+          <span class="password-mask" data-password-cell="${s.uid}">&bull;&bull;&bull;&bull;&bull;&bull;&bull;&bull;</span>
+          <button class="btn btn-sm btn-link p-0 ms-1" data-reveal-password="${s.uid}" title="Show/hide"><i class="bi bi-eye"></i></button>
+        </td>
         <td class="text-end">
           <button class="btn btn-sm btn-outline-primary me-1" data-edit="${s.uid}"><i class="bi bi-pencil"></i></button>
           <button class="btn btn-sm btn-outline-danger" data-delete="${s.uid}"><i class="bi bi-trash"></i></button>
@@ -221,6 +247,27 @@ function renderStudentsTable() {
 
   tbody.querySelectorAll("[data-edit]").forEach((btn) => btn.addEventListener("click", () => openEditStudent(btn.dataset.edit)));
   tbody.querySelectorAll("[data-delete]").forEach((btn) => btn.addEventListener("click", () => handleDeleteStudent(btn.dataset.delete)));
+  tbody.querySelectorAll("[data-reveal-password]").forEach((btn) =>
+    btn.addEventListener("click", () => togglePasswordCell(btn))
+  );
+}
+
+function togglePasswordCell(btn) {
+  const uid = btn.dataset.revealPassword;
+  const cell = document.querySelector(`[data-password-cell="${uid}"]`);
+  const student = students.find((s) => s.uid === uid);
+  const icon = btn.querySelector("i");
+  const isMasked = cell.dataset.revealed !== "true";
+
+  if (isMasked) {
+    cell.textContent = student?.passwordPlain || "(not set)";
+    cell.dataset.revealed = "true";
+    icon.className = "bi bi-eye-slash";
+  } else {
+    cell.textContent = "\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022";
+    cell.dataset.revealed = "false";
+    icon.className = "bi bi-eye";
+  }
 }
 
 function resetStudentForm() {
@@ -234,7 +281,8 @@ document.getElementById("addStudentBtn").addEventListener("click", () => {
   resetStudentForm();
   document.getElementById("studentModalTitle").textContent = "Add Student";
   document.getElementById("studentEmailInput").disabled = false;
-  document.getElementById("studentPasswordGroup").classList.remove("d-none");
+  document.getElementById("studentPasswordInput").required = true;
+  document.getElementById("studentPasswordHelp").textContent = "The student logs in with this email + password.";
   document.getElementById("resetPasswordGroup").classList.add("d-none");
 });
 
@@ -249,14 +297,28 @@ function openEditStudent(uid) {
   document.getElementById("studentSectionInput").value = student.section;
   document.getElementById("studentEmailInput").value = student.email;
   document.getElementById("studentEmailInput").disabled = true;
-  document.getElementById("studentPasswordGroup").classList.add("d-none");
+  document.getElementById("studentPasswordInput").value = student.passwordPlain || "";
+  document.getElementById("studentPasswordInput").required = false;
+  document.getElementById("studentPasswordHelp").textContent =
+    "Shown in the Students table. Leave unchanged to keep the current value.";
   document.getElementById("resetPasswordGroup").classList.remove("d-none");
   new bootstrap.Modal(document.getElementById("studentModal")).show();
 }
 
+document.getElementById("togglePasswordBtn").addEventListener("click", () => {
+  const input = document.getElementById("studentPasswordInput");
+  const icon = document.querySelector("#togglePasswordBtn i");
+  const show = input.type === "password";
+  input.type = show ? "text" : "password";
+  icon.className = show ? "bi bi-eye-slash" : "bi bi-eye";
+});
+
 document.getElementById("generatePasswordBtn").addEventListener("click", () => {
   const random = Math.random().toString(36).slice(-8);
-  document.getElementById("studentPasswordInput").value = random;
+  const input = document.getElementById("studentPasswordInput");
+  input.value = random;
+  input.type = "text";
+  document.querySelector("#togglePasswordBtn i").className = "bi bi-eye-slash";
 });
 
 document.getElementById("resetPasswordBtn").addEventListener("click", async () => {
@@ -264,7 +326,7 @@ document.getElementById("resetPasswordBtn").addEventListener("click", async () =
   try {
     await sendStudentPasswordReset(email);
     const infoEl = document.getElementById("studentCreatedInfo");
-    infoEl.textContent = `Password reset email sent to ${email}.`;
+    infoEl.textContent = `Password reset email sent to ${email}. Once they set a new one, update the field above to keep this table accurate.`;
     infoEl.classList.remove("d-none");
   } catch (err) {
     const errorEl = document.getElementById("studentFormError");
@@ -296,9 +358,20 @@ document.getElementById("studentForm").addEventListener("submit", async (e) => {
 
   try {
     if (editingStudentUid) {
-      await updateStudent(editingStudentUid, { name, rollNumber, section });
+      if (password && password.length < 6) {
+        errorEl.textContent = "Password must be at least 6 characters.";
+        errorEl.classList.remove("d-none");
+        submitBtn.disabled = false;
+        return;
+      }
+      const original = students.find((s) => s.uid === editingStudentUid);
+      const changedPassword = password && password !== original?.passwordPlain ? password : undefined;
+      await updateStudent(editingStudentUid, { name, rollNumber, section, password: changedPassword });
       const idx = students.findIndex((s) => s.uid === editingStudentUid);
-      if (idx > -1) students[idx] = { ...students[idx], name, rollNumber, section };
+      if (idx > -1) {
+        students[idx] = { ...students[idx], name, rollNumber, section };
+        if (changedPassword) students[idx].passwordPlain = changedPassword;
+      }
       renderStudentsTable();
       renderAnalytics();
       bootstrap.Modal.getInstance(document.getElementById("studentModal"))?.hide();
