@@ -46,7 +46,8 @@ export const SECTIONS = ["IT-A", "IT-B", "IT-C", "AIDS-A", "AIDS-B", "AIML", "CY
  * known value" - see updateStudent() for why it can silently go stale.
  */
 export async function addStudent({ name, rollNumber, section, email, password }) {
-  const cred = await createUserWithEmailAndPassword(secondaryAuth, email, password);
+  const trimmedPassword = String(password || "").trim();
+  const cred = await createUserWithEmailAndPassword(secondaryAuth, email, trimmedPassword);
   const uid = cred.user.uid;
 
   // Sign the secondary app back out immediately so it's clean for the
@@ -59,7 +60,7 @@ export async function addStudent({ name, rollNumber, section, email, password })
     rollNumber,
     section,
     email,
-    passwordPlain: password,
+    passwordPlain: trimmedPassword,
     role: "student",
     createdAt: new Date().toISOString()
   });
@@ -79,7 +80,8 @@ export async function addStudent({ name, rollNumber, section, email, password })
  */
 export function updateStudent(uid, { name, rollNumber, section, password }) {
   const data = { name, rollNumber, section };
-  if (password) data.passwordPlain = password;
+  const trimmed = password ? String(password).trim() : "";
+  if (trimmed) data.passwordPlain = trimmed;
   return updateDoc(doc(db, "users", uid), data);
 }
 
@@ -184,52 +186,134 @@ export async function listSubmissions() {
 }
 
 /* ============================================================
-   EXCEL EXPORT (SheetJS - loaded globally as `XLSX` via CDN script)
+   EXCEL EXPORT (ExcelJS - loaded globally as `ExcelJS` via CDN script)
    ============================================================ */
+/*
+ * We use ExcelJS instead of SheetJS here on purpose: the free/community
+ * build of SheetJS cannot style cells at all (bold, fills, borders are
+ * a paid "Pro" feature), so it can't produce what "professional export"
+ * actually requires. ExcelJS is free (MIT) and supports real styling.
+ */
+
+const BRAND_FILL = { type: "pattern", pattern: "solid", fgColor: { argb: "FF4F46E5" } };
+const PASS_FILL = { type: "pattern", pattern: "solid", fgColor: { argb: "FFD1FAE5" } };
+const FAIL_FILL = { type: "pattern", pattern: "solid", fgColor: { argb: "FFFEE2E2" } };
+const THIN_BORDER = { style: "thin", color: { argb: "FFD1D5DB" } };
+const ALL_BORDERS = { top: THIN_BORDER, left: THIN_BORDER, bottom: THIN_BORDER, right: THIN_BORDER };
 
 /**
- * Builds a formatted .xlsx workbook from row objects and downloads it.
- * `columns` is [{ key, label, width? }, ...] controlling order, headers
- * and column width. Requires the SheetJS <script> tag to be loaded on
- * the page (adds a global `XLSX`).
- *
- * NOTE: the free/community build of SheetJS (used here via CDN) does
- * NOT support cell background colors or fonts - that's a paid "Pro"
- * feature. What we CAN do for free and still get a professional-looking
- * sheet: a merged title row, sensible column widths, a frozen header
- * row, and an Excel autofilter on the header. That's what this does.
+ * Builds a professionally formatted .xlsx workbook and downloads it.
+ * `columns` is [{ key, label, width?, type? }, ...] where `type` is one
+ * of "text" (default), "number", "percentage", "date", or "status"
+ * (renders PASS/FAIL with colored fill). Column width auto-adjusts to
+ * the longest value unless a fixed `width` is given.
  */
-export function exportResultsToExcel(
+export async function exportResultsToExcel(
   rows,
   columns,
   { filename = "results.xlsx", sheetName = "Results", title = "" } = {}
 ) {
-  if (typeof XLSX === "undefined") {
+  if (typeof ExcelJS === "undefined") {
     alert("Excel export library did not load. Check your internet connection and try again.");
     return;
   }
 
-  const headerRow = columns.map((c) => c.label);
-  const dataRows = rows.map((row) => columns.map((c) => row[c.key] ?? ""));
-  const headerRowIndex = title ? 2 : 0;
+  const workbook = new ExcelJS.Workbook();
+  workbook.creator = "Coding Exam Platform";
+  workbook.created = new Date();
 
-  const sheetData = title
-    ? [[title], [], headerRow, ...dataRows]
-    : [headerRow, ...dataRows];
+  const sheet = workbook.addWorksheet(sheetName, { views: [{ state: "frozen", ySplit: title ? 4 : 1 }] });
 
-  const worksheet = XLSX.utils.aoa_to_sheet(sheetData);
-
-  worksheet["!cols"] = columns.map((c) => ({ wch: c.width || 18 }));
-
+  let headerRowNum = 1;
   if (title) {
-    worksheet["!merges"] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: columns.length - 1 } }];
+    sheet.mergeCells(1, 1, 1, columns.length);
+    const titleCell = sheet.getCell(1, 1);
+    titleCell.value = title;
+    titleCell.font = { bold: true, size: 14, color: { argb: "FF1F2937" } };
+    titleCell.alignment = { horizontal: "left" };
+
+    sheet.mergeCells(2, 1, 2, columns.length);
+    const dateCell = sheet.getCell(2, 1);
+    dateCell.value = `Generated on: ${new Date().toLocaleString()}`;
+    dateCell.font = { italic: true, size: 10, color: { argb: "FF6B7280" } };
+
+    headerRowNum = 4;
   }
 
-  // Autofilter dropdowns on the header row
-  const lastCol = XLSX.utils.encode_col(columns.length - 1);
-  worksheet["!autofilter"] = { ref: `A${headerRowIndex + 1}:${lastCol}${headerRowIndex + 1}` };
+  // Header row
+  const headerRow = sheet.getRow(headerRowNum);
+  columns.forEach((col, i) => {
+    const cell = headerRow.getCell(i + 1);
+    cell.value = col.label;
+    cell.font = { bold: true, color: { argb: "FFFFFFFF" } };
+    cell.fill = BRAND_FILL;
+    cell.alignment = { horizontal: "center", vertical: "middle" };
+    cell.border = ALL_BORDERS;
+  });
+  headerRow.height = 20;
 
-  const workbook = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(workbook, worksheet, sheetName);
-  XLSX.writeFile(workbook, filename);
+  // Data rows
+  rows.forEach((row, rIdx) => {
+    const excelRow = sheet.getRow(headerRowNum + 1 + rIdx);
+    columns.forEach((col, cIdx) => {
+      const cell = excelRow.getCell(cIdx + 1);
+      const raw = row[col.key];
+      applyCellValue(cell, raw, col.type);
+      cell.border = ALL_BORDERS;
+      if (col.type === "status") {
+        cell.font = { bold: true, color: { argb: raw === "PASS" ? "FF065F46" : "FF991B1B" } };
+        cell.fill = raw === "PASS" ? PASS_FILL : raw === "FAIL" ? FAIL_FILL : undefined;
+        cell.alignment = { horizontal: "center" };
+      } else if (col.type === "number" || col.type === "percentage") {
+        cell.alignment = { horizontal: "right" };
+      } else {
+        cell.alignment = { horizontal: "left" };
+      }
+    });
+  });
+
+  // Column widths: use the given hint as a floor, auto-grow to fit content
+  columns.forEach((col, i) => {
+    const longest = rows.reduce((max, row) => {
+      const val = row[col.key];
+      const len = val == null ? 0 : String(val).length;
+      return Math.max(max, len);
+    }, col.label.length);
+    sheet.getColumn(i + 1).width = Math.min(Math.max(col.width || 12, longest + 2), 40);
+  });
+
+  sheet.autoFilter = {
+    from: { row: headerRowNum, column: 1 },
+    to: { row: headerRowNum, column: columns.length }
+  };
+
+  const buffer = await workbook.xlsx.writeBuffer();
+  const blob = new Blob([buffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
+}
+
+function applyCellValue(cell, raw, type) {
+  switch (type) {
+    case "number":
+      cell.value = raw == null || raw === "" ? null : Number(raw);
+      cell.numFmt = "0";
+      break;
+    case "percentage":
+      cell.value = raw == null || raw === "" ? null : Number(raw);
+      cell.numFmt = '0.00"%"';
+      break;
+    case "date":
+      cell.value = raw ? new Date(raw) : null;
+      cell.numFmt = "dd-mmm-yyyy hh:mm AM/PM";
+      break;
+    default:
+      cell.value = raw ?? "";
+  }
 }
