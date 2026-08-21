@@ -88,7 +88,7 @@
               <thead>
                 <tr>
                   <th>Roll No.</th><th>Name</th><th>Section</th><th>Exam</th><th>Score</th>
-                  <th>Percentage</th><th>Status</th><th>Violations</th><th>Submitted</th>
+                  <th>Percentage</th><th>Status</th><th>Violations</th><th>Submitted</th><th class="text-end">Code</th>
                 </tr>
               </thead>
               <tbody id="resultsTableBody"></tbody>
@@ -321,76 +321,145 @@
 
 <!-- Coding Question Modal -->
 <div class="modal fade" id="codingModal" tabindex="-1">
-  <div class="modal-dialog modal-lg modal-dialog-scrollable">
+  <div class="modal-dialog modal-xl modal-dialog-scrollable">
     <div class="modal-content">
       <form id="codingForm">
         <div class="modal-header">
-          <h5 class="modal-title">Coding Question (Python)</h5>
+          <h5 class="modal-title">Coding Question</h5>
           <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
         </div>
         <div class="modal-body">
           <input type="hidden" id="codingQuestionId" />
           <div id="codingFormError" class="alert alert-danger py-2 d-none small"></div>
 
+          <div class="row g-3">
+            <div class="col-md-8">
+              <div class="mb-3">
+                <label class="form-label">Question Title</label>
+                <input type="text" class="form-control" id="codingTitleInput" required />
+              </div>
+              <div class="mb-3">
+                <label class="form-label">Problem Statement</label>
+                <textarea class="form-control" id="codingDescInput" rows="3" required></textarea>
+              </div>
+              <div class="row g-2">
+                <div class="col-6">
+                  <label class="form-label">Input Description</label>
+                  <textarea class="form-control" id="codingInputDescInput" rows="2"></textarea>
+                </div>
+                <div class="col-6">
+                  <label class="form-label">Output Description</label>
+                  <textarea class="form-control" id="codingOutputDescInput" rows="2"></textarea>
+                </div>
+              </div>
+              <div class="mb-3 mt-2">
+                <label class="form-label">Constraints</label>
+                <textarea class="form-control" id="codingConstraintsInput" rows="2" placeholder="e.g. 1 <= n <= 10^5"></textarea>
+              </div>
+            </div>
+
+            <div class="col-md-4">
+              <div class="mb-3">
+                <label class="form-label">Difficulty</label>
+                <select class="form-select" id="codingDifficultyInput">
+                  <option value="easy">Easy</option>
+                  <option value="medium" selected>Medium</option>
+                  <option value="hard">Hard</option>
+                </select>
+              </div>
+              <div class="mb-3">
+                <label class="form-label">Marks</label>
+                <input type="number" min="1" class="form-control" id="codingMarksInput" required />
+              </div>
+              <div class="mb-3">
+                <label class="form-label">Time Limit (seconds)</label>
+                <input type="number" min="1" class="form-control" id="codingTimeLimitInput" value="5" required />
+              </div>
+              <div class="mb-3">
+                <label class="form-label">Memory Limit (MB)</label>
+                <input type="number" min="16" class="form-control" id="codingMemoryLimitInput" value="256" />
+                <div class="form-text">Stored for reference only - not enforced by in-browser Python execution.</div>
+              </div>
+              <div class="mb-3">
+                <label class="form-label">Allowed Languages</label>
+                <div class="form-control bg-light small text-muted">Python (only language currently supported)</div>
+              </div>
+            </div>
+          </div>
+
           <div class="mb-3">
-            <label class="form-label">Title</label>
-            <input type="text" class="form-control" id="codingTitleInput" required />
-          </div>
-          <div class="mb-3">
-            <label class="form-label">Description</label>
-            <textarea class="form-control" id="codingDescInput" rows="3" required></textarea>
-          </div>
-          <div class="row g-2">
-            <div class="col-4">
-              <label class="form-label">Marks</label>
-              <input type="number" min="1" class="form-control" id="codingMarksInput" required />
-            </div>
-            <div class="col-4">
-              <label class="form-label">Time Limit (min)</label>
-              <input type="number" min="1" class="form-control" id="codingTimeLimitInput" value="10" />
-            </div>
-            <div class="col-4">
-              <label class="form-label">Language</label>
-              <input type="text" class="form-control" value="Python" disabled />
-            </div>
-          </div>
-          <div class="mb-3 mt-2">
-            <label class="form-label">Starter Code</label>
+            <label class="form-label">Starter Code (Python)</label>
             <textarea class="form-control mono" id="codingStarterInput" rows="4" placeholder="def solve():&#10;    pass"></textarea>
           </div>
 
-          <label class="form-label fw-semibold">Visible Examples (shown to students)</label>
+          <label class="form-label fw-semibold">Sample Input / Output (shown to students)</label>
           <div id="examplesWrap" class="d-flex flex-column gap-2 mb-2"></div>
           <button type="button" class="btn btn-sm btn-outline-secondary mb-3" data-add-row="examplesWrap" data-row-type="example">
-            <i class="bi bi-plus"></i> Add Example
+            <i class="bi bi-plus"></i> Add Sample
           </button>
 
-          <label class="form-label fw-semibold">Visible Test Cases (used by "Run Code")</label>
+          <label class="form-label fw-semibold">Public Test Cases (used by "Run Code" and shown to students)</label>
           <div id="visibleTestsWrap" class="d-flex flex-column gap-2 mb-2"></div>
           <button type="button" class="btn btn-sm btn-outline-secondary mb-3" data-add-row="visibleTestsWrap" data-row-type="test">
-            <i class="bi bi-plus"></i> Add Visible Test Case
+            <i class="bi bi-plus"></i> Add Public Test Case
           </button>
 
-          <label class="form-label fw-semibold">Hidden Test Cases (used only for grading)</label>
+          <label class="form-label fw-semibold">Hidden Test Cases (used only for grading on Submit)</label>
           <div id="hiddenTestsWrap" class="d-flex flex-column gap-2 mb-2"></div>
           <button type="button" class="btn btn-sm btn-outline-secondary" data-add-row="hiddenTestsWrap" data-row-type="test">
             <i class="bi bi-plus"></i> Add Hidden Test Case
           </button>
-          <div class="form-text mt-2">
-            Note: this project has no backend, so "hidden" test cases are hidden from the exam UI only, not cryptographically secret from the browser's network tab.
+          <div class="form-text mt-2 mb-3">
+            Optional per-test weight lets you make some test cases worth more than others. Leave weight blank to split marks evenly across all test cases.
           </div>
+
+          <hr />
+          <div class="d-flex gap-2 mb-2">
+            <button type="button" class="btn btn-outline-secondary btn-sm" id="previewQuestionBtn"><i class="bi bi-eye me-1"></i>Preview</button>
+            <button type="button" class="btn btn-outline-secondary btn-sm" id="testRunQuestionBtn"><i class="bi bi-play-circle me-1"></i>Test Run</button>
+          </div>
+          <div id="testRunOutput" class="d-none"></div>
         </div>
         <div class="modal-footer">
           <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
-          <button type="submit" class="btn btn-brand">Save Question</button>
+          <button type="submit" class="btn btn-outline-primary" id="codingSaveDraftBtn" data-publish="false">Save as Draft</button>
+          <button type="submit" class="btn btn-brand" id="codingPublishBtn" data-publish="true">Save &amp; Publish</button>
         </div>
       </form>
     </div>
   </div>
 </div>
 
+<!-- Question Preview Modal -->
+<div class="modal fade" id="previewModal" tabindex="-1">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Student Preview</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body" id="previewBody"></div>
+    </div>
+  </div>
+</div>
+
+<!-- View Code Submissions Modal -->
+<div class="modal fade" id="codeSubmissionsModal" tabindex="-1">
+  <div class="modal-dialog modal-lg modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Code Submission History</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body" id="codeSubmissionsBody"></div>
+    </div>
+  </div>
+</div>
+
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<!-- Pyodide powers the admin "Test Run" button for coding questions -->
+<script src="https://cdn.jsdelivr.net/pyodide/v0.26.4/full/pyodide.js"></script>
 <script type="module" src="admin-dashboard.js"></script>
 </body>
 </html>
