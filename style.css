@@ -297,6 +297,17 @@ body {
   font-size: 0.85rem;
 }
 
+/* Bootstrap's scrollable-modal layout needs .modal-header/.modal-body/
+   .modal-footer to be DIRECT children of .modal-content so its flexbox
+   can pin the header/footer and let only the body scroll. Our modals
+   wrap those three in a <form> (so Enter-to-submit and the submit
+   button work), which breaks that direct-child requirement and killed
+   scrolling. display:contents makes the <form> invisible to layout
+   while keeping it fully functional for submission. */
+.modal-content form {
+  display: contents;
+}
+
 /* ---------- Admin app shell (sidebar layout) ---------- */
 .app-shell {
   display: flex;
