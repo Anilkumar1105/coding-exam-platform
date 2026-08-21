@@ -1,11 +1,17 @@
 rules_version = '2';
 
 // NOTE: This is a client-only project (no Cloud Functions / backend).
-// Because of that, "hiddenTestCases" on questions cannot be fully hidden
-// from a signed-in student at the database level - any authenticated
-// client can technically read a question document. Treat hidden test
-// cases as "hidden from the UI", not as secret data. If you need true
-// server-side secrecy, move grading into a Cloud Function later.
+// Because of that, two things can't be made truly secret from the browser:
+//   1. "hiddenTestCases" on a coding question - hidden from the UI, not
+//      cryptographically secret (any authenticated client can read the
+//      question document directly).
+//   2. "published: false" (draft) questions - hidden from the student UI
+//      by query filters, but not blocked at the rules level, since that
+//      would require per-document field checks tied to exam ownership
+//      that add complexity without real security here (a determined
+//      student could still fetch a draft question doc directly).
+// If you need true server-side secrecy for either, move grading and
+// question delivery into a Cloud Function later.
 
 service cloud.firestore {
   match /databases/{database}/documents {
@@ -58,6 +64,21 @@ service cloud.firestore {
         (isSignedIn() && resource.data.studentId == request.auth.uid &&
          resource.data.status == 'in-progress');
 
+      allow delete: if isAdmin();
+    }
+
+    // codeSubmissions/{submissionId}
+    // One immutable document per "Submit Code" click - a running history
+    // of a student's attempts at a coding question. Never updated after
+    // creation; a new attempt is always a new document.
+    match /codeSubmissions/{submissionId} {
+      allow read: if isAdmin() ||
+        (isSignedIn() && resource.data.studentId == request.auth.uid);
+
+      allow create: if isSignedIn() &&
+        request.resource.data.studentId == request.auth.uid;
+
+      allow update: if false;
       allow delete: if isAdmin();
     }
   }
