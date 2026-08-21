@@ -18,7 +18,7 @@ import {
   listCodeSubmissionsForExam
 } from "./student.js";
 import { ensurePyodide, runAllTestCases } from "./python-runner.js";
-import { computeCodingMarks } from "./grading.js";
+import { computeCodingMarks, isPass, PASS_MARK } from "./grading.js";
 
 wireLogoutButtons();
 
@@ -607,6 +607,13 @@ function showResult(status, message, { score, mcqScore, codingScore, totalMarks 
     document.getElementById("resultTotal").textContent = totalMarks;
     document.getElementById("resultMcqScore").textContent = mcqScore;
     document.getElementById("resultCodingScore").textContent = codingScore;
+
+    const percentage = totalMarks ? Math.round((score / totalMarks) * 10000) / 100 : 0;
+    const passed = isPass(percentage);
+    document.getElementById("resultPassFail").innerHTML =
+      `<span class="badge ${passed ? "bg-success" : "bg-danger"} fs-6">${passed ? "PASS" : "FAIL"}</span>` +
+      `<div class="small text-muted mt-1">Pass mark: ${PASS_MARK}%</div>`;
+
     document.getElementById("resultScoreBlock").classList.remove("d-none");
   }
 
