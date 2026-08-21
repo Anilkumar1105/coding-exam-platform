@@ -500,3 +500,8 @@ body {
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
+
+.password-mask {
+  font-family: "Courier New", monospace;
+  letter-spacing: 2px;
+}
