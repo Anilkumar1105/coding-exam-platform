@@ -5,8 +5,7 @@
 // and paints them into the DOM.
 
 import { SECTIONS } from "./admin.js";
-
-const PASS_PERCENTAGE = 40; // configurable pass mark
+import { PASS_MARK, isPass } from "./grading.js";
 
 function round(n) {
   return Math.round(n * 100) / 100;
@@ -29,7 +28,7 @@ export function computeOverallStats(students, exams, submissions) {
   const average = scores.length ? round(scores.reduce((a, b) => a + b, 0) / scores.length) : 0;
   const highest = scores.length ? round(Math.max(...scores)) : 0;
   const lowest = scores.length ? round(Math.min(...scores)) : 0;
-  const passed = scores.filter((s) => s >= PASS_PERCENTAGE).length;
+  const passed = scores.filter((s) => isPass(s)).length;
   const passPercentage = scores.length ? round((passed / scores.length) * 100) : 0;
 
   return {
@@ -44,12 +43,18 @@ export function computeOverallStats(students, exams, submissions) {
   };
 }
 
-/** Computes the per-section (A-G) report rows. */
-export function computeSectionStats(students, submissions) {
+/**
+ * Computes the per-section (A-G) report rows.
+ * Pass `examId` to restrict to one exam's submissions; "all" (default)
+ * combines every exam's submissions per section.
+ */
+export function computeSectionStats(students, submissions, examId = "all") {
+  const scoped = examId === "all" ? submissions : submissions.filter((s) => s.examId === examId);
+
   return SECTIONS.map((section) => {
     const sectionStudents = students.filter((s) => s.section === section);
     const sectionIds = new Set(sectionStudents.map((s) => s.uid));
-    const sectionSubs = submissions.filter((sub) => sectionIds.has(sub.studentId));
+    const sectionSubs = scoped.filter((sub) => sectionIds.has(sub.studentId));
     const attemptedIds = new Set(sectionSubs.map((s) => s.studentId));
 
     const scores = sectionSubs
@@ -58,7 +63,7 @@ export function computeSectionStats(students, submissions) {
 
     const average = scores.length ? round(scores.reduce((a, b) => a + b, 0) / scores.length) : 0;
     const highest = scores.length ? round(Math.max(...scores)) : 0;
-    const passed = scores.filter((s) => s >= PASS_PERCENTAGE).length;
+    const passed = scores.filter((s) => isPass(s)).length;
     const passPercentage = scores.length ? round((passed / scores.length) * 100) : 0;
 
     return {
@@ -121,6 +126,56 @@ export function renderSectionTable(tbodyEl, sectionStats) {
 }
 
 /**
+ * Renders (or re-renders) a Chart.js bar chart comparing each section's
+ * average score. Pass the same `chartInstance` back in on the next call
+ * so it's destroyed and recreated instead of stacking canvases.
+ * Returns the new Chart instance - keep it and pass it back in next time.
+ */
+export function renderSectionChart(canvasEl, sectionStats, chartInstance) {
+  if (chartInstance) chartInstance.destroy();
+
+  return new Chart(canvasEl, {
+    type: "bar",
+    data: {
+      labels: sectionStats.map((s) => `Section ${s.section}`),
+      datasets: [
+        {
+          label: "Average Score (%)",
+          data: sectionStats.map((s) => s.average),
+          backgroundColor: sectionStats.map((s) => (isPass(s.average) ? "#4f46e5" : "#f59e0b")),
+          borderRadius: 6,
+          maxBarThickness: 48
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            afterLabel: (ctx) => {
+              const s = sectionStats[ctx.dataIndex];
+              return `${s.attempted}/${s.total} attempted \u00b7 Pass rate ${s.passPercentage}%`;
+            }
+          }
+        }
+      },
+      scales: {
+        y: {
+          beginAtZero: true,
+          max: 100,
+          ticks: { callback: (v) => `${v}%` },
+          grid: { color: "#eef0f4" }
+        },
+        x: { grid: { display: false } }
+      }
+    }
+  });
+}
+
+/**
  * Renders the student results table.
  * `rows` should already be filtered/joined: each row needs
  * rollNumber, name, section, examTitle, score, percentage, status,
@@ -128,7 +183,7 @@ export function renderSectionTable(tbodyEl, sectionStats) {
  */
 export function renderResultsTable(tbodyEl, rows) {
   if (!rows.length) {
-    tbodyEl.innerHTML = `<tr><td colspan="10" class="text-center text-muted py-4">No results match the current filters.</td></tr>`;
+    tbodyEl.innerHTML = `<tr><td colspan="11" class="text-center text-muted py-4">No results match the current filters.</td></tr>`;
     return;
   }
 
@@ -142,6 +197,7 @@ export function renderResultsTable(tbodyEl, rows) {
         <td>${r.examTitle ?? "-"}</td>
         <td>${r.score ?? "-"}</td>
         <td>${r.percentage != null ? r.percentage + "%" : "-"}</td>
+        <td>${r.percentage != null ? passFailBadge(r.percentage) : "-"}</td>
         <td>${statusBadge(r.status)}</td>
         <td>${r.violations ?? 0}</td>
         <td>${r.submittedAt ? new Date(r.submittedAt).toLocaleString() : "-"}</td>
@@ -155,6 +211,12 @@ export function renderResultsTable(tbodyEl, rows) {
       </tr>`
     )
     .join("");
+}
+
+function passFailBadge(percentage) {
+  return isPass(percentage)
+    ? '<span class="badge bg-success">PASS</span>'
+    : '<span class="badge bg-danger">FAIL</span>';
 }
 
 function statusBadge(status) {
@@ -189,6 +251,7 @@ export function buildResultRows(submissions, students, exams, filters = {}) {
         examType: exam.examType,
         score: sub.score,
         percentage: sub.percentage,
+        result: sub.percentage != null ? (isPass(sub.percentage) ? "PASS" : "FAIL") : "-",
         status: sub.status,
         violations: sub.violations,
         submittedAt: sub.submittedAt,
