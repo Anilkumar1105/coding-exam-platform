@@ -23,7 +23,7 @@ import {
   orderBy
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
-export const SECTIONS = ["IT-A", "IT-B", "IT-C", "AIDS-A", "AIDS-B", "AIMS", "CYS"];
+export const SECTIONS = ["A", "B", "C", "D", "E", "F", "G"];
 
 /* ============================================================
    STUDENTS
@@ -33,8 +33,17 @@ export const SECTIONS = ["IT-A", "IT-B", "IT-C", "AIDS-A", "AIDS-B", "AIMS", "CY
  * Creates a Firebase Auth account for a new student (using a secondary
  * app instance so the admin's own session is untouched) using the
  * password the admin typed in, and writes the profile document to
- * users/{uid}. The password itself is never stored in Firestore -
- * only Firebase Authentication holds it.
+ * users/{uid}.
+ *
+ * SECURITY NOTE: `password` is also stored in Firestore as
+ * `passwordPlain` so it can be shown back to the admin later (per
+ * product requirement). This is a deliberate weakening of the earlier
+ * "never store plaintext passwords" design - Firestore is not a
+ * credential store, and anyone with read access to a student's user
+ * doc (any signed-in admin) can read it in plaintext. Firebase
+ * Authentication itself never exposes the real password back to
+ * anyone, including admins, so `passwordPlain` is only ever a "last
+ * known value" - see updateStudent() for why it can silently go stale.
  */
 export async function addStudent({ name, rollNumber, section, email, password }) {
   const cred = await createUserWithEmailAndPassword(secondaryAuth, email, password);
@@ -50,6 +59,7 @@ export async function addStudent({ name, rollNumber, section, email, password })
     rollNumber,
     section,
     email,
+    passwordPlain: password,
     role: "student",
     createdAt: new Date().toISOString()
   });
@@ -57,9 +67,20 @@ export async function addStudent({ name, rollNumber, section, email, password })
   return { uid };
 }
 
-/** Updates a student's profile fields (name, rollNumber, section). */
-export function updateStudent(uid, { name, rollNumber, section }) {
-  return updateDoc(doc(db, "users", uid), { name, rollNumber, section });
+/**
+ * Updates a student's profile fields. If `password` is provided, the
+ * stored `passwordPlain` reference is updated too - but this does NOT
+ * change the student's real Firebase Authentication password (the
+ * client SDK cannot overwrite another user's password without the
+ * Admin SDK). If the student ever uses "Send Password Reset Email" to
+ * set their own new password, `passwordPlain` here will no longer
+ * match what actually logs them in. Treat this field as "the password
+ * we last set for them," not as a live mirror of their real credential.
+ */
+export function updateStudent(uid, { name, rollNumber, section, password }) {
+  const data = { name, rollNumber, section };
+  if (password) data.passwordPlain = password;
+  return updateDoc(doc(db, "users", uid), data);
 }
 
 /**
