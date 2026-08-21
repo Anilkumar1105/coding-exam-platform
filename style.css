@@ -103,6 +103,13 @@ body {
   resize: vertical;
 }
 
+.CodeMirror {
+  border: 1px solid #dee2e6;
+  border-radius: 0.5rem;
+  font-family: "Courier New", monospace;
+  font-size: 0.9rem;
+}
+
 /* Prevent text selection during exam to discourage copying */
 .exam-locked {
   user-select: none;
