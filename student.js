@@ -26,7 +26,12 @@ export async function getExamById(examId) {
 }
 
 export async function getQuestionsForExam(examId) {
-  const q = query(collection(db, "questions"), where("examId", "==", examId));
+  // Students only ever see published questions.
+  const q = query(
+    collection(db, "questions"),
+    where("examId", "==", examId),
+    where("published", "==", true)
+  );
   const snap = await getDocs(q);
   return snap.docs.map((d) => ({ id: d.id, ...d.data() }));
 }
@@ -82,13 +87,80 @@ export function incrementViolation(examId, studentId, newCount) {
 }
 
 /** Final submit: writes score/status/submittedAt. */
-export function finalizeSubmission(examId, studentId, { answers, score, totalMarks, percentage, status }) {
+export function finalizeSubmission(examId, studentId, { answers, score, mcqScore, codingScore, totalMarks, percentage, status }) {
   return updateDoc(doc(db, "submissions", submissionId(examId, studentId)), {
     answers,
     score,
+    mcqScore,
+    codingScore,
     totalMarks,
     percentage,
     status,
     submittedAt: new Date().toISOString()
   });
+}
+
+/* ============================================================
+   CODE SUBMISSIONS ("Submit Code" attempts, one doc per attempt)
+   ============================================================ */
+
+/** Records one "Submit Code" attempt. Returns the new doc id. */
+export async function createCodeSubmission({
+  studentId,
+  examId,
+  questionId,
+  language,
+  sourceCode,
+  compilationStatus,
+  executionStatus,
+  testCasesPassed,
+  totalTestCases,
+  marksObtained,
+  executionTimeMs,
+  memoryUsage,
+  errorMessage
+}) {
+  const ref = doc(collection(db, "codeSubmissions"));
+  await setDoc(ref, {
+    submissionId: ref.id,
+    studentId,
+    examId,
+    questionId,
+    language,
+    sourceCode,
+    submittedAt: new Date().toISOString(),
+    compilationStatus,
+    executionStatus,
+    testCasesPassed,
+    totalTestCases,
+    marksObtained,
+    executionTimeMs,
+    memoryUsage: memoryUsage ?? null,
+    errorMessage: errorMessage || null
+  });
+  return ref.id;
+}
+
+/** All of one student's attempts at one question, newest first. */
+export async function listCodeSubmissions(studentId, questionId) {
+  const q = query(
+    collection(db, "codeSubmissions"),
+    where("studentId", "==", studentId),
+    where("questionId", "==", questionId)
+  );
+  const snap = await getDocs(q);
+  return snap.docs
+    .map((d) => ({ id: d.id, ...d.data() }))
+    .sort((a, b) => new Date(b.submittedAt) - new Date(a.submittedAt));
+}
+
+/** All of a student's coding submissions across an entire exam (used for admin review + final grading). */
+export async function listCodeSubmissionsForExam(studentId, examId) {
+  const q = query(
+    collection(db, "codeSubmissions"),
+    where("studentId", "==", studentId),
+    where("examId", "==", examId)
+  );
+  const snap = await getDocs(q);
+  return snap.docs.map((d) => ({ id: d.id, ...d.data() }));
 }
