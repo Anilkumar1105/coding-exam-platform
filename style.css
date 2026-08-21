@@ -290,14 +290,195 @@ body {
   font-size: 0.85rem;
 }
 
-/* ---------- Utility ---------- */
-.spinner-wrap {
+/* ---------- Admin app shell (sidebar layout) ---------- */
+.app-shell {
+  display: flex;
+  min-height: 100vh;
+}
+
+.app-sidebar {
+  width: 240px;
+  flex-shrink: 0;
+  background: #111827;
+  color: #cbd5e1;
+  display: flex;
+  flex-direction: column;
+  position: sticky;
+  top: 0;
+  height: 100vh;
+}
+
+.app-sidebar .brand {
+  padding: 1.25rem 1.25rem 1rem;
+  font-weight: 700;
+  color: #fff;
+  font-size: 1.05rem;
+  border-bottom: 1px solid #1f2937;
+}
+
+.app-sidebar .nav-link {
+  color: #94a3b8;
+  padding: 0.65rem 1.25rem;
+  border-radius: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  font-size: 0.92rem;
+  cursor: pointer;
+}
+
+.app-sidebar .nav-link i {
+  font-size: 1.05rem;
+  width: 1.2rem;
+  text-align: center;
+}
+
+.app-sidebar .nav-link:hover {
+  background: #1f2937;
+  color: #fff;
+}
+
+.app-sidebar .nav-link.active {
+  background: var(--brand);
+  color: #fff;
+}
+
+.app-sidebar .sidebar-footer {
+  margin-top: auto;
+  padding: 1rem 1.25rem;
+  border-top: 1px solid #1f2937;
+  font-size: 0.8rem;
+  color: #64748b;
+}
+
+.app-main {
+  flex-grow: 1;
+  min-width: 0;
+}
+
+.app-topbar {
+  background: #fff;
+  border-bottom: 1px solid #e5e7eb;
+  padding: 0.9rem 1.5rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.app-content {
+  padding: 1.5rem;
+}
+
+@media (max-width: 991.98px) {
+  .app-sidebar {
+    position: fixed;
+    z-index: 1040;
+    transform: translateX(-100%);
+    transition: transform 0.2s ease;
+  }
+  .app-sidebar.show {
+    transform: translateX(0);
+  }
+}
+
+/* ---------- Stat cards v2 (with icon) ---------- */
+.stat-card {
+  border: none;
+  border-radius: 0.9rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+}
+
+.stat-card .stat-icon {
+  width: 46px;
+  height: 46px;
+  border-radius: 0.7rem;
   display: flex;
   align-items: center;
   justify-content: center;
-  min-height: 200px;
+  font-size: 1.2rem;
+  flex-shrink: 0;
+  color: #fff;
 }
 
+.stat-card .stat-value {
+  font-size: 1.5rem;
+  font-weight: 700;
+  line-height: 1.1;
+}
+
+.stat-card .stat-label {
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #6c757d;
+}
+
+/* ---------- Section cards / pills ---------- */
+.section-pill {
+  cursor: pointer;
+}
+
+.exam-type-badge.mcq { background-color: #0dcaf0; color: #052c33; }
+.exam-type-badge.coding { background-color: #6f42c1; color: #fff; }
+
+.question-card {
+  border: 1px solid #e5e7eb;
+  border-radius: 0.75rem;
+}
+
+/* ---------- Exam page: MCQ + coding ---------- */
+.mcq-option {
+  border: 1px solid #dee2e6;
+  border-radius: 0.6rem;
+  padding: 0.75rem 1rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.mcq-option:hover {
+  border-color: var(--brand);
+}
+
+.mcq-option.selected {
+  border-color: var(--brand);
+  background: #eef2ff;
+}
+
+.testcase-result {
+  border-radius: 0.5rem;
+  padding: 0.6rem 0.8rem;
+  font-family: "Courier New", monospace;
+  font-size: 0.82rem;
+}
+
+.testcase-result.pass {
+  background: #ecfdf5;
+  border: 1px solid #a7f3d0;
+}
+
+.testcase-result.fail {
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+}
+
+.python-status {
+  font-size: 0.8rem;
+  color: #6c757d;
+}
+
+/* ---------- Utility ---------- */
 .table-responsive-sm {
   font-size: 0.9rem;
+}
+
+.text-truncate-2 {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
