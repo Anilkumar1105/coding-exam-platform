@@ -76,14 +76,14 @@ export function computeSectionStats(students, submissions) {
 /** Renders the row of top stat cards into `container`. */
 export function renderStatCards(container, stats) {
   const cards = [
-    { label: "Total Students", value: stats.totalStudents },
-    { label: "Total Exams", value: stats.totalExams },
-    { label: "Attempted", value: stats.attempted },
-    { label: "Not Attempted", value: stats.notAttempted },
-    { label: "Average Score", value: `${stats.average}%` },
-    { label: "Highest Score", value: `${stats.highest}%` },
-    { label: "Lowest Score", value: `${stats.lowest}%` },
-    { label: "Pass Percentage", value: `${stats.passPercentage}%` }
+    { label: "Total Students", value: stats.totalStudents, icon: "bi-people-fill", color: "#4f46e5" },
+    { label: "Total Exams", value: stats.totalExams, icon: "bi-journal-code", color: "#0ea5e9" },
+    { label: "Attempted", value: stats.attempted, icon: "bi-pencil-square", color: "#16a34a" },
+    { label: "Not Attempted", value: stats.notAttempted, icon: "bi-hourglass-split", color: "#f59e0b" },
+    { label: "Average Score", value: `${stats.average}%`, icon: "bi-bar-chart-fill", color: "#8b5cf6" },
+    { label: "Highest Score", value: `${stats.highest}%`, icon: "bi-trophy-fill", color: "#eab308" },
+    { label: "Lowest Score", value: `${stats.lowest}%`, icon: "bi-graph-down", color: "#ef4444" },
+    { label: "Pass Percentage", value: `${stats.passPercentage}%`, icon: "bi-check-circle-fill", color: "#10b981" }
   ];
 
   container.innerHTML = cards
@@ -91,8 +91,11 @@ export function renderStatCards(container, stats) {
       (c) => `
       <div class="col-6 col-md-3">
         <div class="card stat-card p-3 h-100">
-          <div class="stat-label">${c.label}</div>
-          <div class="stat-value">${c.value}</div>
+          <div class="stat-icon" style="background-color:${c.color}"><i class="bi ${c.icon}"></i></div>
+          <div>
+            <div class="stat-label">${c.label}</div>
+            <div class="stat-value">${c.value}</div>
+          </div>
         </div>
       </div>`
     )
