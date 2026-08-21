@@ -1,7 +1,8 @@
 // js/exam.js
 // Student exam-taking experience: fullscreen + tab-switch monitoring,
-// countdown timer with auto-submit, MCQ + Python coding questions,
-// in-browser Python execution/grading via Pyodide, and autosave.
+// countdown timer with auto-submit, MCQ + Python coding questions
+// (CodeMirror editor, separate Run/Submit actions, per-question
+// submission history), and final MCQ + coding score aggregation.
 
 import { requireRole, wireLogoutButtons } from "./auth.js";
 import {
@@ -11,8 +12,13 @@ import {
   startSubmission,
   saveAnswers,
   incrementViolation,
-  finalizeSubmission
+  finalizeSubmission,
+  createCodeSubmission,
+  listCodeSubmissions,
+  listCodeSubmissionsForExam
 } from "./student.js";
+import { ensurePyodide, runAllTestCases } from "./python-runner.js";
+import { computeCodingMarks } from "./grading.js";
 
 wireLogoutButtons();
 
@@ -23,7 +29,7 @@ let currentUser = null;
 let studentProfile = null;
 let exam = null;
 let questions = [];
-let answers = {}; // { [questionId]: number (mcq) | { code } (coding) }
+let answers = {}; // { [questionId]: number (mcq) | { code } (coding, code text only - marks live in codeSubmissions) }
 let currentIndex = 0;
 let violationCount = 0;
 let maxViolations = 3;
@@ -31,8 +37,7 @@ let remainingSeconds = 0;
 let timerInterval = null;
 let examLocked = false;
 let saveTimeout = null;
-let pyodideInstance = null;
-let pyodideLoading = null;
+let cmEditor = null; // current CodeMirror instance, one at a time
 
 if (!examId) {
   window.location.href = "student-dashboard.html";
@@ -175,6 +180,8 @@ function detachSecurityListeners() {
 
 function blockEvent(e) {
   if (examLocked) return;
+  // Code editor typing must still work - only block copy/cut/paste/context-menu,
+  // which this listener is scoped to already (see attachSecurityListeners).
   e.preventDefault();
 }
 
@@ -252,6 +259,7 @@ function renderQuestionNav() {
 function renderCurrentQuestion() {
   const q = questions[currentIndex];
   const card = document.getElementById("questionCard");
+  cmEditor = null; // old instance's DOM is about to be thrown away
   if (!q) {
     card.innerHTML = `<p class="text-muted">No questions in this exam yet.</p>`;
     return;
@@ -289,11 +297,11 @@ function renderCodingQuestion(card, q) {
   const saved = answers[q.id] || {};
   const code = saved.code !== undefined ? saved.code : q.starterCode || "";
 
-  const examplesHtml = (q.examples || [])
+  const samplesHtml = (q.examples || [])
     .map(
       (ex, i) => `
       <div class="mb-2">
-        <div class="small text-muted">Example ${i + 1}</div>
+        <div class="small text-muted">Sample ${i + 1}</div>
         <div class="testcase-result">Input:\n${escapeHtml(ex.input || "")}\n\nOutput:\n${escapeHtml(ex.output || "")}</div>
       </div>`
     )
@@ -302,31 +310,74 @@ function renderCodingQuestion(card, q) {
   card.innerHTML = `
     <div class="d-flex justify-content-between mb-2">
       <span class="badge bg-secondary">Question ${currentIndex + 1} of ${questions.length}</span>
+      <span class="badge ${difficultyBadgeClass(q.difficulty)}">${(q.difficulty || "medium").toUpperCase()}</span>
       <span class="badge bg-brand">${q.marks} marks</span>
     </div>
-    <h5 class="mb-2">${q.title}</h5>
-    <p class="text-muted">${q.description}</p>
-    ${examplesHtml ? `<div class="mb-3">${examplesHtml}</div>` : ""}
+    <div class="row g-3">
+      <div class="col-lg-5">
+        <h5 class="mb-2">${q.title}</h5>
+        <p>${q.description}</p>
+        ${q.inputDescription ? `<p class="small"><strong>Input:</strong> ${q.inputDescription}</p>` : ""}
+        ${q.outputDescription ? `<p class="small"><strong>Output:</strong> ${q.outputDescription}</p>` : ""}
+        ${q.constraints ? `<p class="small text-muted"><strong>Constraints:</strong> ${q.constraints}</p>` : ""}
+        ${samplesHtml}
+        <div id="submissionHistory" class="mt-3"></div>
+      </div>
 
-    <label class="form-label fw-semibold">Your Code (Python)</label>
-    <textarea id="codeEditor" class="form-control mono" spellcheck="false">${escapeHtml(code)}</textarea>
+      <div class="col-lg-7">
+        <div class="d-flex justify-content-between align-items-center mb-2">
+          <select class="form-select form-select-sm w-auto" disabled title="More languages coming soon">
+            <option>Python</option>
+          </select>
+          <button type="button" class="btn btn-outline-secondary btn-sm" id="clearCodeBtn"><i class="bi bi-arrow-counterclockwise me-1"></i>Reset</button>
+        </div>
 
-    <div class="d-flex align-items-center gap-2 mt-2">
-      <button class="btn btn-outline-secondary btn-sm" id="runCodeBtn"><i class="bi bi-play-fill me-1"></i>Run Code</button>
-      <span class="python-status" id="pythonStatus"></span>
+        <textarea id="codeEditorTextarea">${escapeHtml(code)}</textarea>
+
+        <div class="d-flex align-items-center gap-2 mt-2">
+          <button class="btn btn-outline-secondary btn-sm" id="runCodeBtn"><i class="bi bi-play-fill me-1"></i>Run Code</button>
+          <button class="btn btn-brand btn-sm" id="submitCodeBtn"><i class="bi bi-cloud-arrow-up me-1"></i>Submit Code</button>
+          <span class="python-status" id="pythonStatus"></span>
+        </div>
+
+        <div id="testResults" class="d-flex flex-column gap-2 mt-3"></div>
+      </div>
     </div>
-
-    <div id="testResults" class="d-flex flex-column gap-2 mt-3"></div>
   `;
 
-  const editor = document.getElementById("codeEditor");
-  editor.addEventListener("input", () => {
-    answers[q.id] = { ...(answers[q.id] || {}), code: editor.value };
+  cmEditor = CodeMirror.fromTextArea(document.getElementById("codeEditorTextarea"), {
+    mode: "python",
+    lineNumbers: true,
+    indentUnit: 4,
+    tabSize: 4,
+    indentWithTabs: false,
+    matchBrackets: true,
+    theme: "dracula",
+    viewportMargin: Infinity
+  });
+  cmEditor.setSize("100%", "320px");
+
+  cmEditor.on("change", () => {
+    answers[q.id] = { ...(answers[q.id] || {}), code: cmEditor.getValue() };
     scheduleAutosave();
     renderQuestionNav();
   });
 
-  document.getElementById("runCodeBtn").addEventListener("click", () => runVisibleTests(q, editor.value));
+  document.getElementById("clearCodeBtn").addEventListener("click", () => {
+    if (!confirm("Reset your code back to the starter template? This cannot be undone.")) return;
+    cmEditor.setValue(q.starterCode || "");
+  });
+
+  document.getElementById("runCodeBtn").addEventListener("click", () => runVisibleTests(q, cmEditor.getValue()));
+  document.getElementById("submitCodeBtn").addEventListener("click", () => submitCode(q, cmEditor.getValue()));
+
+  renderSubmissionHistory(q.id);
+}
+
+function difficultyBadgeClass(difficulty) {
+  if (difficulty === "easy") return "bg-success";
+  if (difficulty === "hard") return "bg-danger";
+  return "bg-warning text-dark";
 }
 
 function escapeHtml(str) {
@@ -337,7 +388,7 @@ function escapeHtml(str) {
 }
 
 /* ============================================================
-   AUTOSAVE
+   AUTOSAVE (code text only - marks/scoring live in codeSubmissions)
    ============================================================ */
 function scheduleAutosave() {
   clearTimeout(saveTimeout);
@@ -347,47 +398,8 @@ function scheduleAutosave() {
 }
 
 /* ============================================================
-   PYTHON EXECUTION (Pyodide)
+   RUN CODE (public/sample test cases only - never scored)
    ============================================================ */
-function ensurePyodide() {
-  if (pyodideInstance) return Promise.resolve(pyodideInstance);
-  if (pyodideLoading) return pyodideLoading;
-
-  pyodideLoading = loadPyodide({ indexURL: "https://cdn.jsdelivr.net/pyodide/v0.26.4/full/" }).then((p) => {
-    pyodideInstance = p;
-    return p;
-  });
-  return pyodideLoading;
-}
-
-/**
- * Runs `code` once per test case with fresh globals each time (so
- * variables don't leak between test cases) and captures stdout as the
- * program's output. Student code is expected to read input() line by
- * line and print() its answer, matching a classic stdin/stdout judge.
- */
-async function runTestCase(pyodide, code, testCase) {
-  const inputLines = (testCase.input || "").split("\n");
-  let lineIdx = 0;
-  let output = "";
-
-  pyodide.setStdout({ batched: (s) => { output += s + "\n"; } });
-  pyodide.setStderr({ batched: (s) => { output += s + "\n"; } });
-  pyodide.setStdin({
-    stdin: () => (lineIdx < inputLines.length ? inputLines[lineIdx++] : "")
-  });
-
-  try {
-    const namespace = pyodide.globals.get("dict")();
-    await pyodide.runPythonAsync(code, { globals: namespace });
-    const actual = output.trim();
-    const expected = (testCase.expectedOutput || "").trim();
-    return { input: testCase.input, expectedOutput: expected, actualOutput: actual, passed: actual === expected };
-  } catch (err) {
-    return { input: testCase.input, expectedOutput: testCase.expectedOutput, actualOutput: "", passed: false, error: String(err) };
-  }
-}
-
 async function runVisibleTests(q, code) {
   const statusEl = document.getElementById("pythonStatus");
   const resultsEl = document.getElementById("testResults");
@@ -397,20 +409,18 @@ async function runVisibleTests(q, code) {
   try {
     const pyodide = await ensurePyodide();
     const testCases = q.visibleTestCases || [];
-    const results = [];
-    for (const tc of testCases) {
-      results.push(await runTestCase(pyodide, code, tc));
-    }
-    statusEl.textContent = `${results.filter((r) => r.passed).length} / ${results.length} visible test cases passed`;
+    const results = await runAllTestCases(pyodide, code, testCases, (q.timeLimit || 5) * 1000);
+
+    statusEl.textContent = `${results.filter((r) => r.passed).length} / ${results.length} public test cases passed`;
     resultsEl.innerHTML = results
       .map(
         (r, i) => `
         <div class="testcase-result ${r.passed ? "pass" : "fail"}">
-          <div><strong>Test ${i + 1}: ${r.passed ? "PASSED" : "FAILED"}</strong></div>
+          <div><strong>Test ${i + 1}: ${r.passed ? "PASSED" : "FAILED"}</strong> &middot; ${r.executionStatus} &middot; ${r.executionTimeMs} ms</div>
           <div>Input: ${escapeHtml(r.input || "(none)")}</div>
           <div>Expected: ${escapeHtml(r.expectedOutput)}</div>
           <div>Got: ${escapeHtml(r.actualOutput)}</div>
-          ${r.error ? `<div>Error: ${escapeHtml(r.error)}</div>` : ""}
+          ${r.errorMessage ? `<div>Error: ${escapeHtml(r.errorMessage)}</div>` : ""}
         </div>`
       )
       .join("");
@@ -421,7 +431,96 @@ async function runVisibleTests(q, code) {
 }
 
 /* ============================================================
-   SUBMIT
+   SUBMIT CODE (full test suite incl. hidden - scored + saved)
+   ============================================================ */
+async function submitCode(q, code) {
+  const statusEl = document.getElementById("pythonStatus");
+  const resultsEl = document.getElementById("testResults");
+  statusEl.textContent = "Submitting and grading...";
+  document.getElementById("submitCodeBtn").disabled = true;
+
+  try {
+    const pyodide = await ensurePyodide();
+    const allTests = [...(q.visibleTestCases || []), ...(q.hiddenTestCases || [])];
+    const results = await runAllTestCases(pyodide, code, allTests, (q.timeLimit || 5) * 1000);
+
+    const passedCount = results.filter((r) => r.passed).length;
+    const marksObtained = computeCodingMarks(q.marks, results);
+    const totalExecutionTimeMs = results.reduce((sum, r) => sum + (r.executionTimeMs || 0), 0);
+    const hadError = results.some((r) => r.executionStatus === "error" || r.executionStatus === "timeout");
+    const firstError = results.find((r) => r.errorMessage)?.errorMessage || null;
+
+    await createCodeSubmission({
+      studentId: currentUser.uid,
+      examId,
+      questionId: q.id,
+      language: "python",
+      sourceCode: code,
+      compilationStatus: results.some((r) => r.compilationStatus === "error") ? "error" : "success",
+      executionStatus: hadError ? "error" : "completed",
+      testCasesPassed: passedCount,
+      totalTestCases: allTests.length,
+      marksObtained,
+      executionTimeMs: totalExecutionTimeMs,
+      memoryUsage: null, // not measurable from in-browser Pyodide execution
+      errorMessage: firstError
+    });
+
+    answers[q.id] = { ...(answers[q.id] || {}), code };
+    scheduleAutosave();
+
+    statusEl.textContent = `Submitted: ${passedCount} / ${allTests.length} test cases passed \u00b7 ${marksObtained} / ${q.marks} marks`;
+
+    // Only show pass/fail per test - never reveal hidden inputs/expected output.
+    resultsEl.innerHTML = results
+      .map(
+        (r, i) => `
+        <div class="testcase-result ${r.passed ? "pass" : "fail"}">
+          <strong>Test ${i + 1}: ${r.passed ? "PASSED" : "FAILED"}</strong> &middot; ${r.executionStatus} &middot; ${r.executionTimeMs} ms
+        </div>`
+      )
+      .join("");
+
+    renderSubmissionHistory(q.id);
+    renderQuestionNav();
+  } catch (err) {
+    statusEl.textContent = "Could not submit code.";
+    console.error(err);
+  } finally {
+    document.getElementById("submitCodeBtn").disabled = false;
+  }
+}
+
+async function renderSubmissionHistory(questionId) {
+  const wrap = document.getElementById("submissionHistory");
+  if (!wrap) return;
+  wrap.innerHTML = `<div class="small text-muted">Loading submission history...</div>`;
+
+  try {
+    const history = await listCodeSubmissions(currentUser.uid, questionId);
+    if (!history.length) {
+      wrap.innerHTML = `<div class="small text-muted">No submissions yet for this question.</div>`;
+      return;
+    }
+    wrap.innerHTML =
+      `<div class="small fw-semibold mb-1">Your Submissions</div>` +
+      history
+        .map(
+          (s) => `
+          <div class="small text-muted d-flex justify-content-between border-bottom py-1">
+            <span>${new Date(s.submittedAt).toLocaleTimeString()}</span>
+            <span>${s.testCasesPassed}/${s.totalTestCases} passed</span>
+            <span>${s.marksObtained} marks</span>
+          </div>`
+        )
+        .join("");
+  } catch (err) {
+    wrap.innerHTML = "";
+  }
+}
+
+/* ============================================================
+   SUBMIT EXAM (final)
    ============================================================ */
 document.getElementById("submitExamBtn").addEventListener("click", () => {
   new bootstrap.Modal(document.getElementById("submitConfirmModal")).show();
@@ -440,61 +539,62 @@ async function handleSubmit(status, message) {
   clearTimeout(saveTimeout);
   detachSecurityListeners();
 
-  document.querySelectorAll("#examUi input, #examUi textarea, #examUi button").forEach((el) => (el.disabled = true));
+  document.querySelectorAll("#examUi input, #examUi textarea, #examUi button, #examUi select").forEach((el) => (el.disabled = true));
+  if (cmEditor) cmEditor.setOption("readOnly", true);
 
   if (document.fullscreenElement) {
     document.exitFullscreen().catch(() => {});
   }
 
-  const { score, totalMarks } = await gradeSubmission();
+  const { score, mcqScore, codingScore, totalMarks } = await gradeSubmission();
   const percentage = totalMarks ? Math.round((score / totalMarks) * 10000) / 100 : 0;
 
   await finalizeSubmission(examId, currentUser.uid, {
     answers,
     score,
+    mcqScore,
+    codingScore,
     totalMarks,
     percentage,
     status
   }).catch((e) => console.error("Failed to finalize submission:", e));
 
-  showResult(status, message, score, totalMarks);
+  showResult(status, message, { score, mcqScore, codingScore, totalMarks });
 }
 
+/**
+ * Final score = MCQ marks (compared live against correctOptionIndex) +
+ * coding marks (the BEST "Submit Code" attempt per question, since a
+ * submission history is kept precisely so a student's strongest attempt
+ * counts - not just whichever one happened to be last).
+ */
 async function gradeSubmission() {
-  let score = 0;
+  let mcqScore = 0;
+  let codingScore = 0;
   let totalMarks = 0;
-  let pyodide = null;
+
+  const codingSubs =
+    exam.examType === "coding" ? await listCodeSubmissionsForExam(currentUser.uid, examId) : [];
 
   for (const q of questions) {
     totalMarks += q.marks || 0;
 
     if (q.type === "mcq") {
-      if (answers[q.id] === q.correctOptionIndex) score += q.marks || 0;
+      if (answers[q.id] === q.correctOptionIndex) mcqScore += q.marks || 0;
       continue;
     }
 
-    // coding
-    const code = (answers[q.id] && answers[q.id].code) || "";
-    const allTests = [...(q.visibleTestCases || []), ...(q.hiddenTestCases || [])];
-    if (!allTests.length || !code.trim()) continue;
-
-    try {
-      pyodide = pyodide || (await ensurePyodide());
-      let passed = 0;
-      for (const tc of allTests) {
-        const result = await runTestCase(pyodide, code, tc);
-        if (result.passed) passed += 1;
-      }
-      score += Math.round(((q.marks || 0) * passed) / allTests.length);
-    } catch (err) {
-      console.error("Grading failed for question", q.id, err);
+    const attempts = codingSubs.filter((s) => s.questionId === q.id);
+    if (attempts.length) {
+      const best = attempts.reduce((max, s) => (s.marksObtained > max ? s.marksObtained : max), 0);
+      codingScore += best;
     }
   }
 
-  return { score, totalMarks };
+  return { score: mcqScore + codingScore, mcqScore, codingScore, totalMarks };
 }
 
-function showResult(status, message, score, totalMarks) {
+function showResult(status, message, { score, mcqScore, codingScore, totalMarks }) {
   const resultMessage = document.getElementById("resultMessage");
   resultMessage.textContent =
     message ||
@@ -505,6 +605,8 @@ function showResult(status, message, score, totalMarks) {
   if (exam.showResult !== false) {
     document.getElementById("resultScore").textContent = score;
     document.getElementById("resultTotal").textContent = totalMarks;
+    document.getElementById("resultMcqScore").textContent = mcqScore;
+    document.getElementById("resultCodingScore").textContent = codingScore;
     document.getElementById("resultScoreBlock").classList.remove("d-none");
   }
 
