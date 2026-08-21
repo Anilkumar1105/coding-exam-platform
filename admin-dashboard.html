@@ -40,6 +40,20 @@
       <div class="tab-pane" id="analyticsPane">
         <div class="row g-3 mb-4" id="statCards"></div>
 
+        <div class="card mb-4">
+          <div class="card-header d-flex flex-wrap justify-content-between align-items-center gap-2">
+            <span class="fw-semibold"><i class="bi bi-bar-chart-fill me-1"></i>Section-wise Score Comparison</span>
+            <select id="chartExamFilter" class="form-select form-select-sm w-auto">
+              <option value="all">All Exams</option>
+            </select>
+          </div>
+          <div class="card-body">
+            <div style="height: 320px;">
+              <canvas id="sectionChart"></canvas>
+            </div>
+          </div>
+        </div>
+
         <div class="card">
           <div class="card-header fw-semibold"><i class="bi bi-diagram-3 me-1"></i>Section-wise Analysis</div>
           <div class="table-responsive">
@@ -88,7 +102,7 @@
               <thead>
                 <tr>
                   <th>Roll No.</th><th>Name</th><th>Section</th><th>Exam</th><th>Score</th>
-                  <th>Percentage</th><th>Status</th><th>Violations</th><th>Submitted</th><th class="text-end">Code</th>
+                  <th>Percentage</th><th>Result</th><th>Status</th><th>Violations</th><th>Submitted</th><th class="text-end">Code</th>
                 </tr>
               </thead>
               <tbody id="resultsTableBody"></tbody>
@@ -113,11 +127,11 @@
             <table class="table table-striped mb-0 align-middle">
               <thead>
                 <tr>
-                  <th>Roll No.</th><th>Name</th><th>Section</th><th>Email</th><th class="text-end">Actions</th>
+                  <th>Roll No.</th><th>Name</th><th>Section</th><th>Email</th><th>Password</th><th class="text-end">Actions</th>
                 </tr>
               </thead>
               <tbody id="studentsTableBody">
-                <tr><td colspan="5" class="text-center text-muted py-4">No students loaded yet.</td></tr>
+                <tr><td colspan="6" class="text-center text-muted py-4">No students loaded yet.</td></tr>
               </tbody>
             </table>
           </div>
@@ -205,16 +219,17 @@
           <div class="mb-3" id="studentPasswordGroup">
             <label class="form-label">Password</label>
             <div class="input-group">
-              <input type="text" class="form-control" id="studentPasswordInput" minlength="6" placeholder="Min 6 characters" />
-              <button class="btn btn-outline-secondary" type="button" id="generatePasswordBtn"><i class="bi bi-shuffle"></i></button>
+              <input type="password" class="form-control mono" id="studentPasswordInput" minlength="6" placeholder="Min 6 characters" />
+              <button class="btn btn-outline-secondary" type="button" id="togglePasswordBtn" title="Show/hide"><i class="bi bi-eye"></i></button>
+              <button class="btn btn-outline-secondary" type="button" id="generatePasswordBtn" title="Generate"><i class="bi bi-shuffle"></i></button>
             </div>
-            <div class="form-text">The student logs in with this email + password. It is stored only in Firebase Authentication, never shown in tables.</div>
+            <div class="form-text" id="studentPasswordHelp">The student logs in with this email + password.</div>
           </div>
           <div class="d-none" id="resetPasswordGroup">
             <button type="button" class="btn btn-sm btn-outline-secondary" id="resetPasswordBtn">
               <i class="bi bi-envelope me-1"></i>Send Password Reset Email
             </button>
-            <div class="form-text">Firebase doesn't allow directly overwriting another user's password from the browser. This sends the student a secure reset link instead.</div>
+            <div class="form-text">Use this if the student needs to set their own new password - editing the field above only updates what's shown in the admin table, it does not change their actual Firebase login by itself.</div>
           </div>
         </div>
         <div class="modal-footer">
@@ -458,6 +473,7 @@
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
 <!-- Pyodide powers the admin "Test Run" button for coding questions -->
 <script src="https://cdn.jsdelivr.net/pyodide/v0.26.4/full/pyodide.js"></script>
 <script type="module" src="admin-dashboard.js"></script>
