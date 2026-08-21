@@ -50,3 +50,16 @@ export function outputsMatch(actual, expected) {
 
   return normalize(actual) === normalize(expected);
 }
+
+/* ============================================================
+   PASS / FAIL
+   ============================================================ */
+
+/** Single source of truth for the pass mark, used everywhere a
+ *  score is judged pass/fail: exam results, dashboard analytics,
+ *  the results table, and Excel exports. */
+export const PASS_MARK = 40;
+
+export function isPass(percentage) {
+  return Number(percentage) >= PASS_MARK;
+}
