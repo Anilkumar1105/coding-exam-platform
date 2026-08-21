@@ -43,8 +43,8 @@
   </div>
 
   <script type="module">
-    import { loginUser, getUserProfile, showError, hideError } from ".auth.js";
-    import { auth } from ".firebase-config.js";
+    import { loginUser, getUserProfile, showError, hideError } from "./auth.js";
+    import { auth } from "./firebase-config.js";
     import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 
     // If already logged in, skip the login form.
