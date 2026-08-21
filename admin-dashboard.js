@@ -1,700 +1,465 @@
-// js/admin-dashboard.js
-// UI wiring for admin-dashboard.html: sidebar navigation, students,
-// exams, questions (MCQ + coding), analytics, results, Excel export.
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Admin Dashboard - Coding Exam Platform</title>
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" />
+<link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet" />
+<link href="style.css" rel="stylesheet" />
+</head>
+<body>
 
-import { requireRole, wireLogoutButtons } from "./auth.js";
-import {
-  SECTIONS,
-  addStudent,
-  updateStudent,
-  sendStudentPasswordReset,
-  deleteStudentProfile,
-  listStudents,
-  listExams,
-  createExam,
-  updateExamDoc,
-  toggleExamActive,
-  deleteExamDoc,
-  listQuestionsForExam,
-  addQuestion,
-  updateQuestionDoc,
-  deleteQuestionDoc,
-  listSubmissions,
-  exportResultsToExcel
-} from "./admin.js";
-import {
-  computeOverallStats,
-  computeSectionStats,
-  renderStatCards,
-  renderSectionTable,
-  renderResultsTable,
-  buildResultRows
-} from "./dashboard.js";
-import { auth } from "./firebase-config.js";
+<div class="app-shell">
 
-wireLogoutButtons();
+  <!-- ===================== SIDEBAR ===================== -->
+  <aside class="app-sidebar" id="appSidebar">
+    <div class="brand"><i class="bi bi-code-square me-1"></i> CodeExam Admin</div>
+    <nav class="flex-grow-1 py-2">
+      <a class="nav-link active" data-pane="analyticsPane"><i class="bi bi-bar-chart-line"></i> Analytics</a>
+      <a class="nav-link" data-pane="resultsPane"><i class="bi bi-table"></i> Results</a>
+      <a class="nav-link" data-pane="studentsPane"><i class="bi bi-people"></i> Students</a>
+      <a class="nav-link" data-pane="examsPane"><i class="bi bi-journal-code"></i> Exams</a>
+    </nav>
+    <div class="sidebar-footer">Signed in as<br /><span id="adminName" class="text-light"></span></div>
+  </aside>
 
-let students = [];
-let exams = [];
-let submissions = [];
-let currentSectionFilter = "all";
-let editingStudentUid = null;
-let editingExamId = null;
-let activeExamForQuestions = null;
-let questions = [];
-let editingQuestionId = null;
+  <!-- ===================== MAIN ===================== -->
+  <div class="app-main">
+    <div class="app-topbar">
+      <div class="d-flex align-items-center gap-2">
+        <button class="btn btn-sm btn-outline-secondary d-lg-none" id="sidebarToggle"><i class="bi bi-list"></i></button>
+        <h5 class="mb-0" id="pageTitle">Analytics</h5>
+      </div>
+      <button class="btn btn-outline-danger btn-sm" data-logout="true"><i class="bi bi-box-arrow-right me-1"></i>Logout</button>
+    </div>
 
-/* ============================================================
-   AUTH + INITIAL LOAD
-   ============================================================ */
-requireRole("admin", async (user, profile) => {
-  document.getElementById("adminName").textContent = profile.name || profile.email;
-  populateSectionControls();
-  await loadEverything();
-});
+    <div class="app-content">
 
-async function loadEverything() {
-  [students, exams, submissions] = await Promise.all([
-    listStudents("all"),
-    listExams(),
-    listSubmissions()
-  ]);
-  renderStudentsTable();
-  renderExamsTable();
-  populateFilterOptions();
-  renderAnalytics();
-}
+      <!-- ===================== ANALYTICS PANE ===================== -->
+      <div class="tab-pane" id="analyticsPane">
+        <div class="row g-3 mb-4" id="statCards"></div>
 
-/* ============================================================
-   SIDEBAR NAVIGATION
-   ============================================================ */
-const paneTitles = {
-  analyticsPane: "Analytics",
-  resultsPane: "Results",
-  studentsPane: "Students",
-  examsPane: "Exams"
-};
-
-document.querySelectorAll(".app-sidebar .nav-link").forEach((link) => {
-  link.addEventListener("click", () => {
-    document.querySelectorAll(".app-sidebar .nav-link").forEach((l) => l.classList.remove("active"));
-    link.classList.add("active");
-
-    const paneId = link.dataset.pane;
-    document.querySelectorAll(".app-content .tab-pane").forEach((p) => p.classList.add("d-none"));
-    document.getElementById(paneId).classList.remove("d-none");
-    document.getElementById("pageTitle").textContent = paneTitles[paneId];
-
-    document.getElementById("appSidebar").classList.remove("show");
-  });
-});
-
-document.getElementById("sidebarToggle").addEventListener("click", () => {
-  document.getElementById("appSidebar").classList.toggle("show");
-});
-
-/* ============================================================
-   ANALYTICS
-   ============================================================ */
-function renderAnalytics() {
-  const stats = computeOverallStats(students, exams, submissions);
-  renderStatCards(document.getElementById("statCards"), stats);
-
-  const sectionStats = computeSectionStats(students, submissions);
-  renderSectionTable(document.getElementById("sectionTableBody"), sectionStats);
-
-  applyFiltersAndRenderResults();
-}
-
-/* ============================================================
-   RESULTS + FILTERS + EXCEL EXPORT
-   ============================================================ */
-function populateFilterOptions() {
-  const examSelect = document.getElementById("filterExam");
-  examSelect.innerHTML =
-    `<option value="all">All Exams</option>` +
-    exams.map((e) => `<option value="${e.id}">${e.title}</option>`).join("");
-
-  const studentSelect = document.getElementById("filterStudent");
-  studentSelect.innerHTML =
-    `<option value="all">All Students</option>` +
-    students.map((s) => `<option value="${s.uid}">${s.name} (${s.rollNumber})</option>`).join("");
-
-  ["filterExam", "filterSection", "filterStudent", "filterDate"].forEach((id) => {
-    document.getElementById(id).addEventListener("change", applyFiltersAndRenderResults);
-  });
-}
-
-function currentFilters() {
-  return {
-    examId: document.getElementById("filterExam").value,
-    section: document.getElementById("filterSection").value,
-    studentId: document.getElementById("filterStudent").value,
-    date: document.getElementById("filterDate").value
-  };
-}
-
-function applyFiltersAndRenderResults() {
-  const rows = buildResultRows(submissions, students, exams, currentFilters());
-  renderResultsTable(document.getElementById("resultsTableBody"), rows);
-
-  document.getElementById("exportExcelBtn").onclick = () => {
-    exportResultsToExcel(
-      rows,
-      [
-        { key: "rollNumber", label: "Roll Number", width: 14 },
-        { key: "name", label: "Name", width: 22 },
-        { key: "section", label: "Section", width: 10 },
-        { key: "examTitle", label: "Exam", width: 26 },
-        { key: "score", label: "Score", width: 10 },
-        { key: "percentage", label: "Percentage", width: 12 },
-        { key: "status", label: "Status", width: 16 },
-        { key: "violations", label: "Violations", width: 12 },
-        { key: "submittedAt", label: "Submitted Time", width: 22 }
-      ],
-      { filename: "exam-results.xlsx", sheetName: "Results", title: "Coding Exam Platform - Student Results" }
-    );
-  };
-}
-
-/* ============================================================
-   STUDENTS
-   ============================================================ */
-function populateSectionControls() {
-  const pillsWrap = document.getElementById("sectionPills");
-  SECTIONS.forEach((section) => {
-    const btn = document.createElement("button");
-    btn.className = "btn btn-sm btn-outline-secondary section-pill";
-    btn.dataset.section = section;
-    btn.textContent = section;
-    pillsWrap.appendChild(btn);
-  });
-  pillsWrap.addEventListener("click", (e) => {
-    const btn = e.target.closest(".section-pill");
-    if (!btn) return;
-    currentSectionFilter = btn.dataset.section;
-    [...pillsWrap.children].forEach((c) => c.classList.replace("btn-brand", "btn-outline-secondary"));
-    btn.classList.replace("btn-outline-secondary", "btn-brand");
-    renderStudentsTable();
-  });
-
-  document.getElementById("studentSectionInput").innerHTML = SECTIONS.map((s) => `<option value="${s}">${s}</option>`).join("");
-
-  const filterSection = document.getElementById("filterSection");
-  SECTIONS.forEach((s) => {
-    const opt = document.createElement("option");
-    opt.value = s;
-    opt.textContent = s;
-    filterSection.appendChild(opt);
-  });
-}
-
-function renderStudentsTable() {
-  const filtered = currentSectionFilter === "all" ? students : students.filter((s) => s.section === currentSectionFilter);
-  const tbody = document.getElementById("studentsTableBody");
-
-  if (!filtered.length) {
-    tbody.innerHTML = `<tr><td colspan="5" class="text-center text-muted py-4">No students in this section yet.</td></tr>`;
-    return;
-  }
-
-  tbody.innerHTML = filtered
-    .map(
-      (s) => `
-      <tr>
-        <td>${s.rollNumber}</td>
-        <td>${s.name}</td>
-        <td><span class="badge bg-secondary">${s.section}</span></td>
-        <td>${s.email}</td>
-        <td class="text-end">
-          <button class="btn btn-sm btn-outline-primary me-1" data-edit="${s.uid}"><i class="bi bi-pencil"></i></button>
-          <button class="btn btn-sm btn-outline-danger" data-delete="${s.uid}"><i class="bi bi-trash"></i></button>
-        </td>
-      </tr>`
-    )
-    .join("");
-
-  tbody.querySelectorAll("[data-edit]").forEach((btn) => btn.addEventListener("click", () => openEditStudent(btn.dataset.edit)));
-  tbody.querySelectorAll("[data-delete]").forEach((btn) => btn.addEventListener("click", () => handleDeleteStudent(btn.dataset.delete)));
-}
-
-function resetStudentForm() {
-  document.getElementById("studentForm").reset();
-  document.getElementById("studentFormError").classList.add("d-none");
-  document.getElementById("studentCreatedInfo").classList.add("d-none");
-}
-
-document.getElementById("addStudentBtn").addEventListener("click", () => {
-  editingStudentUid = null;
-  resetStudentForm();
-  document.getElementById("studentModalTitle").textContent = "Add Student";
-  document.getElementById("studentEmailInput").disabled = false;
-  document.getElementById("studentPasswordGroup").classList.remove("d-none");
-  document.getElementById("resetPasswordGroup").classList.add("d-none");
-});
-
-function openEditStudent(uid) {
-  const student = students.find((s) => s.uid === uid);
-  if (!student) return;
-  editingStudentUid = uid;
-  resetStudentForm();
-  document.getElementById("studentModalTitle").textContent = "Edit Student";
-  document.getElementById("studentNameInput").value = student.name;
-  document.getElementById("studentRollInput").value = student.rollNumber;
-  document.getElementById("studentSectionInput").value = student.section;
-  document.getElementById("studentEmailInput").value = student.email;
-  document.getElementById("studentEmailInput").disabled = true;
-  document.getElementById("studentPasswordGroup").classList.add("d-none");
-  document.getElementById("resetPasswordGroup").classList.remove("d-none");
-  new bootstrap.Modal(document.getElementById("studentModal")).show();
-}
-
-document.getElementById("generatePasswordBtn").addEventListener("click", () => {
-  const random = Math.random().toString(36).slice(-8);
-  document.getElementById("studentPasswordInput").value = random;
-});
-
-document.getElementById("resetPasswordBtn").addEventListener("click", async () => {
-  const email = document.getElementById("studentEmailInput").value.trim();
-  try {
-    await sendStudentPasswordReset(email);
-    const infoEl = document.getElementById("studentCreatedInfo");
-    infoEl.textContent = `Password reset email sent to ${email}.`;
-    infoEl.classList.remove("d-none");
-  } catch (err) {
-    const errorEl = document.getElementById("studentFormError");
-    errorEl.textContent = err.message || "Could not send reset email.";
-    errorEl.classList.remove("d-none");
-  }
-});
-
-async function handleDeleteStudent(uid) {
-  if (!confirm("Delete this student's profile? This cannot be undone.")) return;
-  await deleteStudentProfile(uid);
-  students = students.filter((s) => s.uid !== uid);
-  renderStudentsTable();
-  renderAnalytics();
-}
-
-document.getElementById("studentForm").addEventListener("submit", async (e) => {
-  e.preventDefault();
-  const errorEl = document.getElementById("studentFormError");
-  errorEl.classList.add("d-none");
-
-  const name = document.getElementById("studentNameInput").value.trim();
-  const rollNumber = document.getElementById("studentRollInput").value.trim();
-  const section = document.getElementById("studentSectionInput").value;
-  const email = document.getElementById("studentEmailInput").value.trim();
-  const password = document.getElementById("studentPasswordInput").value;
-  const submitBtn = document.getElementById("studentSubmitBtn");
-  submitBtn.disabled = true;
-
-  try {
-    if (editingStudentUid) {
-      await updateStudent(editingStudentUid, { name, rollNumber, section });
-      const idx = students.findIndex((s) => s.uid === editingStudentUid);
-      if (idx > -1) students[idx] = { ...students[idx], name, rollNumber, section };
-      renderStudentsTable();
-      renderAnalytics();
-      bootstrap.Modal.getInstance(document.getElementById("studentModal"))?.hide();
-    } else {
-      if (!password || password.length < 6) {
-        errorEl.textContent = "Password must be at least 6 characters.";
-        errorEl.classList.remove("d-none");
-        submitBtn.disabled = false;
-        return;
-      }
-      await addStudent({ name, rollNumber, section, email, password });
-      const infoEl = document.getElementById("studentCreatedInfo");
-      infoEl.textContent = `Student account created. Share the email + password you set with the student directly.`;
-      infoEl.classList.remove("d-none");
-      await loadEverything();
-    }
-  } catch (err) {
-    errorEl.textContent = err.message || "Something went wrong.";
-    errorEl.classList.remove("d-none");
-  } finally {
-    submitBtn.disabled = false;
-  }
-});
-
-/* ============================================================
-   EXAMS
-   ============================================================ */
-function renderExamsTable() {
-  const tbody = document.getElementById("examsTableBody");
-  if (!exams.length) {
-    tbody.innerHTML = `<tr><td colspan="6" class="text-center text-muted py-4">No exams created yet.</td></tr>`;
-    return;
-  }
-  tbody.innerHTML = exams
-    .map(
-      (ex) => `
-      <tr>
-        <td>${ex.title}</td>
-        <td><span class="badge exam-type-badge ${ex.examType || "mcq"}">${(ex.examType || "mcq").toUpperCase()}</span></td>
-        <td>${ex.duration} min</td>
-        <td>${ex.totalMarks}</td>
-        <td>${ex.active ? '<span class="badge bg-success">Active</span>' : '<span class="badge bg-secondary">Inactive</span>'}</td>
-        <td class="text-end">
-          <button class="btn btn-sm btn-outline-secondary me-1" data-questions="${ex.id}" title="Manage Questions"><i class="bi bi-list-check"></i></button>
-          <button class="btn btn-sm btn-outline-primary me-1" data-edit-exam="${ex.id}" title="Edit"><i class="bi bi-pencil"></i></button>
-          <button class="btn btn-sm ${ex.active ? "btn-outline-warning" : "btn-outline-success"} me-1" data-toggle-exam="${ex.id}" title="${ex.active ? "Deactivate" : "Activate"}">
-            <i class="bi ${ex.active ? "bi-pause-fill" : "bi-play-fill"}"></i>
-          </button>
-          <button class="btn btn-sm btn-outline-danger" data-delete-exam="${ex.id}" title="Delete"><i class="bi bi-trash"></i></button>
-        </td>
-      </tr>`
-    )
-    .join("");
-
-  tbody.querySelectorAll("[data-questions]").forEach((btn) => btn.addEventListener("click", () => openQuestionsView(btn.dataset.questions)));
-  tbody.querySelectorAll("[data-edit-exam]").forEach((btn) => btn.addEventListener("click", () => openEditExam(btn.dataset.editExam)));
-  tbody.querySelectorAll("[data-toggle-exam]").forEach((btn) => btn.addEventListener("click", () => handleToggleExam(btn.dataset.toggleExam)));
-  tbody.querySelectorAll("[data-delete-exam]").forEach((btn) => btn.addEventListener("click", () => handleDeleteExam(btn.dataset.deleteExam)));
-}
-
-document.getElementById("createExamBtn").addEventListener("click", () => {
-  editingExamId = null;
-  document.getElementById("examForm").reset();
-  document.getElementById("examModalTitle").textContent = "Create Exam";
-  document.getElementById("examSubmitBtn").textContent = "Create Exam";
-  document.getElementById("examFormError").classList.add("d-none");
-  document.getElementById("examTypeInput").disabled = false;
-  document.getElementById("examMaxViolationsInput").value = 3;
-  document.getElementById("examActiveInput").checked = true;
-  document.getElementById("examShowResultInput").checked = true;
-});
-
-function openEditExam(examId) {
-  const exam = exams.find((e) => e.id === examId);
-  if (!exam) return;
-  editingExamId = examId;
-  document.getElementById("examModalTitle").textContent = "Edit Exam";
-  document.getElementById("examSubmitBtn").textContent = "Save Changes";
-  document.getElementById("examFormError").classList.add("d-none");
-  document.getElementById("examTitleInput").value = exam.title;
-  document.getElementById("examDescInput").value = exam.description || "";
-  document.getElementById("examTypeInput").value = exam.examType || "mcq";
-  document.getElementById("examTypeInput").disabled = true; // avoid mismatched questions after creation
-  document.getElementById("examMaxViolationsInput").value = exam.maxViolations ?? 3;
-  document.getElementById("examDurationInput").value = exam.duration;
-  document.getElementById("examMarksInput").value = exam.totalMarks;
-  document.getElementById("examActiveInput").checked = !!exam.active;
-  document.getElementById("examShowResultInput").checked = exam.showResult !== false;
-  new bootstrap.Modal(document.getElementById("examModal")).show();
-}
-
-async function handleToggleExam(examId) {
-  const exam = exams.find((e) => e.id === examId);
-  if (!exam) return;
-  await toggleExamActive(examId, !exam.active);
-  exam.active = !exam.active;
-  renderExamsTable();
-}
-
-async function handleDeleteExam(examId) {
-  if (!confirm("Delete this exam? Its questions will remain orphaned unless removed separately. This cannot be undone.")) return;
-  await deleteExamDoc(examId);
-  exams = exams.filter((e) => e.id !== examId);
-  renderExamsTable();
-  populateFilterOptions();
-  renderAnalytics();
-}
-
-document.getElementById("examForm").addEventListener("submit", async (e) => {
-  e.preventDefault();
-  const errorEl = document.getElementById("examFormError");
-  errorEl.classList.add("d-none");
-
-  const data = {
-    title: document.getElementById("examTitleInput").value.trim(),
-    description: document.getElementById("examDescInput").value.trim(),
-    examType: document.getElementById("examTypeInput").value,
-    maxViolations: Number(document.getElementById("examMaxViolationsInput").value),
-    duration: Number(document.getElementById("examDurationInput").value),
-    totalMarks: Number(document.getElementById("examMarksInput").value),
-    active: document.getElementById("examActiveInput").checked,
-    showResult: document.getElementById("examShowResultInput").checked
-  };
-
-  try {
-    if (editingExamId) {
-      await updateExamDoc(editingExamId, data);
-    } else {
-      await createExam(data, auth.currentUser?.uid || null);
-    }
-    bootstrap.Modal.getInstance(document.getElementById("examModal"))?.hide();
-    await loadEverything();
-  } catch (err) {
-    errorEl.textContent = err.message || "Could not save exam.";
-    errorEl.classList.remove("d-none");
-  }
-});
-
-/* ============================================================
-   QUESTIONS (MCQ + Coding)
-   ============================================================ */
-async function openQuestionsView(examId) {
-  activeExamForQuestions = exams.find((e) => e.id === examId);
-  if (!activeExamForQuestions) return;
-
-  document.getElementById("examsListView").classList.add("d-none");
-  document.getElementById("examQuestionsView").classList.remove("d-none");
-  document.getElementById("questionsExamTitle").textContent = `Manage Questions - ${activeExamForQuestions.title}`;
-
-  const addBtn = document.getElementById("addQuestionBtn");
-  addBtn.innerHTML =
-    activeExamForQuestions.examType === "coding"
-      ? '<i class="bi bi-plus-lg me-1"></i>Add Coding Question'
-      : '<i class="bi bi-plus-lg me-1"></i>Add MCQ Question';
-  addBtn.onclick = () =>
-    activeExamForQuestions.examType === "coding" ? openCodingModal() : openMcqModal();
-
-  questions = await listQuestionsForExam(examId);
-  renderQuestionsList();
-}
-
-document.getElementById("backToExamsBtn").addEventListener("click", () => {
-  document.getElementById("examQuestionsView").classList.add("d-none");
-  document.getElementById("examsListView").classList.remove("d-none");
-});
-
-function renderQuestionsList() {
-  const wrap = document.getElementById("questionsList");
-  if (!questions.length) {
-    wrap.innerHTML = `<div class="text-center text-muted py-4">No questions added yet.</div>`;
-    return;
-  }
-
-  wrap.innerHTML = questions
-    .map((q, i) => {
-      if (q.type === "mcq") {
-        return `
-        <div class="question-card p-3">
-          <div class="d-flex justify-content-between">
-            <div>
-              <span class="badge bg-secondary me-2">Q${i + 1}</span>
-              <strong>${q.questionText}</strong>
-              <div class="text-muted small mt-1">${q.marks} marks &middot; ${q.options.length} options</div>
-            </div>
-            <div class="text-nowrap">
-              <button class="btn btn-sm btn-outline-primary me-1" data-edit-q="${q.id}"><i class="bi bi-pencil"></i></button>
-              <button class="btn btn-sm btn-outline-danger" data-delete-q="${q.id}"><i class="bi bi-trash"></i></button>
-            </div>
+        <div class="card">
+          <div class="card-header fw-semibold"><i class="bi bi-diagram-3 me-1"></i>Section-wise Analysis</div>
+          <div class="table-responsive">
+            <table class="table table-striped mb-0 align-middle">
+              <thead>
+                <tr>
+                  <th>Section</th><th>Total</th><th>Attempted</th><th>Not Attempted</th>
+                  <th>Average</th><th>Highest</th><th>Pass %</th>
+                </tr>
+              </thead>
+              <tbody id="sectionTableBody"></tbody>
+            </table>
           </div>
-        </div>`;
-      }
-      return `
-        <div class="question-card p-3">
-          <div class="d-flex justify-content-between">
-            <div>
-              <span class="badge bg-secondary me-2">Q${i + 1}</span>
-              <strong>${q.title}</strong>
-              <div class="text-muted small mt-1">
-                ${q.marks} marks &middot; ${q.timeLimit || "-"} min &middot;
-                ${(q.visibleTestCases || []).length} visible / ${(q.hiddenTestCases || []).length} hidden test cases
+        </div>
+      </div>
+
+      <!-- ===================== RESULTS PANE ===================== -->
+      <div class="tab-pane d-none" id="resultsPane">
+        <div class="card">
+          <div class="card-header d-flex flex-wrap justify-content-between align-items-center gap-2">
+            <span class="fw-semibold"><i class="bi bi-clipboard-data me-1"></i>Student Results</span>
+            <button class="btn btn-sm btn-brand" id="exportExcelBtn"><i class="bi bi-file-earmark-excel me-1"></i>Export to Excel</button>
+          </div>
+          <div class="card-body border-bottom">
+            <div class="row g-2">
+              <div class="col-6 col-md-3">
+                <label class="form-label small mb-1">Exam</label>
+                <select id="filterExam" class="form-select form-select-sm"><option value="all">All Exams</option></select>
+              </div>
+              <div class="col-6 col-md-3">
+                <label class="form-label small mb-1">Section</label>
+                <select id="filterSection" class="form-select form-select-sm"><option value="all">All Sections</option></select>
+              </div>
+              <div class="col-6 col-md-3">
+                <label class="form-label small mb-1">Student</label>
+                <select id="filterStudent" class="form-select form-select-sm"><option value="all">All Students</option></select>
+              </div>
+              <div class="col-6 col-md-3">
+                <label class="form-label small mb-1">Date</label>
+                <input type="date" id="filterDate" class="form-control form-control-sm" />
               </div>
             </div>
-            <div class="text-nowrap">
-              <button class="btn btn-sm btn-outline-primary me-1" data-edit-q="${q.id}"><i class="bi bi-pencil"></i></button>
-              <button class="btn btn-sm btn-outline-danger" data-delete-q="${q.id}"><i class="bi bi-trash"></i></button>
+          </div>
+          <div class="table-responsive">
+            <table class="table table-hover table-responsive-sm mb-0">
+              <thead>
+                <tr>
+                  <th>Roll No.</th><th>Name</th><th>Section</th><th>Exam</th><th>Score</th>
+                  <th>Percentage</th><th>Status</th><th>Violations</th><th>Submitted</th><th class="text-end">Code</th>
+                </tr>
+              </thead>
+              <tbody id="resultsTableBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- ===================== STUDENTS PANE ===================== -->
+      <div class="tab-pane d-none" id="studentsPane">
+        <div class="d-flex flex-wrap justify-content-between align-items-center mb-3 gap-2">
+          <div id="sectionPills" class="d-flex flex-wrap gap-2">
+            <button class="btn btn-sm btn-brand section-pill" data-section="all">All</button>
+          </div>
+          <button class="btn btn-brand btn-sm" data-bs-toggle="modal" data-bs-target="#studentModal" id="addStudentBtn">
+            <i class="bi bi-person-plus me-1"></i>Add Student
+          </button>
+        </div>
+
+        <div class="card">
+          <div class="table-responsive">
+            <table class="table table-striped mb-0 align-middle">
+              <thead>
+                <tr>
+                  <th>Roll No.</th><th>Name</th><th>Section</th><th>Email</th><th class="text-end">Actions</th>
+                </tr>
+              </thead>
+              <tbody id="studentsTableBody">
+                <tr><td colspan="5" class="text-center text-muted py-4">No students loaded yet.</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- ===================== EXAMS PANE ===================== -->
+      <div class="tab-pane d-none" id="examsPane">
+
+        <!-- Exam list view -->
+        <div id="examsListView">
+          <div class="d-flex justify-content-between align-items-center mb-3">
+            <h6 class="mb-0"><i class="bi bi-journal-code me-1"></i>Exams</h6>
+            <button class="btn btn-brand btn-sm" data-bs-toggle="modal" data-bs-target="#examModal" id="createExamBtn">
+              <i class="bi bi-plus-lg me-1"></i>Create Exam
+            </button>
+          </div>
+
+          <div class="card">
+            <div class="table-responsive">
+              <table class="table table-striped mb-0 align-middle">
+                <thead>
+                  <tr>
+                    <th>Title</th><th>Type</th><th>Duration</th><th>Marks</th><th>Status</th><th class="text-end">Actions</th>
+                  </tr>
+                </thead>
+                <tbody id="examsTableBody">
+                  <tr><td colspan="6" class="text-center text-muted py-4">No exams created yet.</td></tr>
+                </tbody>
+              </table>
             </div>
           </div>
-        </div>`;
-    })
-    .join("");
+        </div>
 
-  wrap.querySelectorAll("[data-edit-q]").forEach((btn) =>
-    btn.addEventListener("click", () => {
-      const q = questions.find((x) => x.id === btn.dataset.editQ);
-      if (!q) return;
-      q.type === "mcq" ? openMcqModal(q) : openCodingModal(q);
-    })
-  );
-  wrap.querySelectorAll("[data-delete-q]").forEach((btn) =>
-    btn.addEventListener("click", async () => {
-      if (!confirm("Delete this question? This cannot be undone.")) return;
-      await deleteQuestionDoc(btn.dataset.deleteQ);
-      questions = questions.filter((x) => x.id !== btn.dataset.deleteQ);
-      renderQuestionsList();
-    })
-  );
-}
+        <!-- Exam questions view -->
+        <div id="examQuestionsView" class="d-none">
+          <div class="d-flex justify-content-between align-items-center mb-3">
+            <div>
+              <button class="btn btn-sm btn-outline-secondary mb-2" id="backToExamsBtn"><i class="bi bi-arrow-left me-1"></i>Back to Exams</button>
+              <h6 class="mb-0" id="questionsExamTitle">Manage Questions</h6>
+            </div>
+            <button class="btn btn-brand btn-sm" id="addQuestionBtn"><i class="bi bi-plus-lg me-1"></i>Add Question</button>
+          </div>
+          <div id="questionsList" class="d-flex flex-column gap-2"></div>
+        </div>
 
-/* ---------- MCQ modal ---------- */
-function openMcqModal(question = null) {
-  editingQuestionId = question?.id || null;
-  document.getElementById("mcqForm").reset();
-  document.getElementById("mcqFormError").classList.add("d-none");
+      </div>
 
-  const optionsWrap = document.getElementById("mcqOptionsWrap");
-  optionsWrap.innerHTML = "";
-  const options = question?.options || ["", "", "", ""];
-  options.forEach((val, i) => addMcqOptionRow(val, question?.correctOptionIndex === i));
-
-  document.getElementById("mcqQuestionText").value = question?.questionText || "";
-  document.getElementById("mcqMarksInput").value = question?.marks || "";
-
-  new bootstrap.Modal(document.getElementById("mcqModal")).show();
-}
-
-function addMcqOptionRow(value = "", checked = false) {
-  const wrap = document.getElementById("mcqOptionsWrap");
-  const row = document.createElement("div");
-  row.className = "input-group";
-  row.innerHTML = `
-    <span class="input-group-text"><input type="radio" name="mcqCorrect" class="form-check-input mt-0" ${checked ? "checked" : ""}></span>
-    <input type="text" class="form-control" placeholder="Option text" value="${value.replace(/"/g, "&quot;")}" required />
-    <button type="button" class="btn btn-outline-danger" data-remove-option><i class="bi bi-x"></i></button>
-  `;
-  row.querySelector("[data-remove-option]").addEventListener("click", () => row.remove());
-  wrap.appendChild(row);
-}
-
-document.getElementById("mcqForm").addEventListener("submit", async (e) => {
-  e.preventDefault();
-  const errorEl = document.getElementById("mcqFormError");
-  errorEl.classList.add("d-none");
-
-  const rows = [...document.querySelectorAll("#mcqOptionsWrap .input-group")];
-  const options = rows.map((r) => r.querySelector("input[type=text]").value.trim());
-  const correctIndex = rows.findIndex((r) => r.querySelector("input[type=radio]").checked);
-
-  if (options.some((o) => !o) || options.length < 2) {
-    errorEl.textContent = "Please fill in at least 2 options.";
-    errorEl.classList.remove("d-none");
-    return;
-  }
-  if (correctIndex === -1) {
-    errorEl.textContent = "Please mark the correct option.";
-    errorEl.classList.remove("d-none");
-    return;
-  }
-
-  const data = {
-    examId: activeExamForQuestions.id,
-    type: "mcq",
-    questionText: document.getElementById("mcqQuestionText").value.trim(),
-    options,
-    correctOptionIndex: correctIndex,
-    marks: Number(document.getElementById("mcqMarksInput").value)
-  };
-
-  try {
-    if (editingQuestionId) {
-      await updateQuestionDoc(editingQuestionId, data);
-    } else {
-      await addQuestion(data);
-    }
-    bootstrap.Modal.getInstance(document.getElementById("mcqModal"))?.hide();
-    questions = await listQuestionsForExam(activeExamForQuestions.id);
-    renderQuestionsList();
-  } catch (err) {
-    errorEl.textContent = err.message || "Could not save question.";
-    errorEl.classList.remove("d-none");
-  }
-});
-
-// Allow adding more than 4 options via keyboard shortcut isn't needed;
-// admins can duplicate rows by editing the 4 defaults, but let's also
-// expose a quick "+" affordance by double-clicking the wrap (simple, no extra UI clutter).
-document.getElementById("mcqOptionsWrap").addEventListener("dblclick", () => addMcqOptionRow());
-
-/* ---------- Coding modal ---------- */
-function addDynamicRow(containerId, rowType, initial = {}) {
-  const wrap = document.getElementById(containerId);
-  const row = document.createElement("div");
-  row.className = "row g-2 align-items-start";
-
-  const labelA = rowType === "example" ? "Input" : "Input";
-  const labelB = rowType === "example" ? "Expected Output" : "Expected Output";
-
-  row.innerHTML = `
-    <div class="col-5">
-      <textarea class="form-control mono" rows="2" placeholder="${labelA}" data-field="input">${initial.input || ""}</textarea>
     </div>
-    <div class="col-5">
-      <textarea class="form-control mono" rows="2" placeholder="${labelB}" data-field="output">${initial.output || initial.expectedOutput || ""}</textarea>
+  </div>
+</div>
+
+<!-- ===================== MODALS ===================== -->
+
+<!-- Add/Edit Student Modal -->
+<div class="modal fade" id="studentModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <form id="studentForm">
+        <div class="modal-header">
+          <h5 class="modal-title" id="studentModalTitle">Add Student</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <input type="hidden" id="studentUid" />
+          <div id="studentFormError" class="alert alert-danger py-2 d-none small"></div>
+          <div id="studentCreatedInfo" class="alert alert-success py-2 d-none small"></div>
+
+          <div class="mb-3">
+            <label class="form-label">Full Name</label>
+            <input type="text" class="form-control" id="studentNameInput" required />
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Roll Number</label>
+            <input type="text" class="form-control" id="studentRollInput" required />
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Section</label>
+            <select class="form-select" id="studentSectionInput" required></select>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Email (used as login username)</label>
+            <input type="email" class="form-control" id="studentEmailInput" required />
+          </div>
+          <div class="mb-3" id="studentPasswordGroup">
+            <label class="form-label">Password</label>
+            <div class="input-group">
+              <input type="text" class="form-control" id="studentPasswordInput" minlength="6" placeholder="Min 6 characters" />
+              <button class="btn btn-outline-secondary" type="button" id="generatePasswordBtn"><i class="bi bi-shuffle"></i></button>
+            </div>
+            <div class="form-text">The student logs in with this email + password. It is stored only in Firebase Authentication, never shown in tables.</div>
+          </div>
+          <div class="d-none" id="resetPasswordGroup">
+            <button type="button" class="btn btn-sm btn-outline-secondary" id="resetPasswordBtn">
+              <i class="bi bi-envelope me-1"></i>Send Password Reset Email
+            </button>
+            <div class="form-text">Firebase doesn't allow directly overwriting another user's password from the browser. This sends the student a secure reset link instead.</div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-brand" id="studentSubmitBtn">Save Student</button>
+        </div>
+      </form>
     </div>
-    <div class="col-2">
-      <button type="button" class="btn btn-outline-danger btn-sm" data-remove-row><i class="bi bi-x"></i></button>
+  </div>
+</div>
+
+<!-- Create/Edit Exam Modal -->
+<div class="modal fade" id="examModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <form id="examForm">
+        <div class="modal-header">
+          <h5 class="modal-title" id="examModalTitle">Create Exam</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <input type="hidden" id="examIdInput" />
+          <div id="examFormError" class="alert alert-danger py-2 d-none small"></div>
+          <div class="mb-3">
+            <label class="form-label">Exam Title</label>
+            <input type="text" class="form-control" id="examTitleInput" required />
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Description</label>
+            <textarea class="form-control" id="examDescInput" rows="2"></textarea>
+          </div>
+          <div class="row g-2">
+            <div class="col-6">
+              <label class="form-label">Exam Type</label>
+              <select class="form-select" id="examTypeInput">
+                <option value="mcq">MCQ</option>
+                <option value="coding">Coding (Python)</option>
+              </select>
+            </div>
+            <div class="col-6">
+              <label class="form-label">Max Violations</label>
+              <input type="number" min="1" class="form-control" id="examMaxViolationsInput" value="3" required />
+            </div>
+          </div>
+          <div class="row g-2 mt-1">
+            <div class="col-6">
+              <label class="form-label">Duration (minutes)</label>
+              <input type="number" min="1" class="form-control" id="examDurationInput" required />
+            </div>
+            <div class="col-6">
+              <label class="form-label">Total Marks</label>
+              <input type="number" min="1" class="form-control" id="examMarksInput" required />
+            </div>
+          </div>
+          <div class="form-check mt-3">
+            <input class="form-check-input" type="checkbox" id="examActiveInput" checked />
+            <label class="form-check-label" for="examActiveInput">Active (visible to students)</label>
+          </div>
+          <div class="form-check mt-2">
+            <input class="form-check-input" type="checkbox" id="examShowResultInput" checked />
+            <label class="form-check-label" for="examShowResultInput">Show score to student after submission</label>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-brand" id="examSubmitBtn">Create Exam</button>
+        </div>
+      </form>
     </div>
-  `;
-  row.querySelector("[data-remove-row]").addEventListener("click", () => row.remove());
-  wrap.appendChild(row);
-}
+  </div>
+</div>
 
-document.querySelectorAll("[data-add-row]").forEach((btn) => {
-  btn.addEventListener("click", () => addDynamicRow(btn.dataset.addRow, btn.dataset.rowType));
-});
+<!-- MCQ Question Modal -->
+<div class="modal fade" id="mcqModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <form id="mcqForm">
+        <div class="modal-header">
+          <h5 class="modal-title">MCQ Question</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <input type="hidden" id="mcqQuestionId" />
+          <div id="mcqFormError" class="alert alert-danger py-2 d-none small"></div>
+          <div class="mb-3">
+            <label class="form-label">Question</label>
+            <textarea class="form-control" id="mcqQuestionText" rows="2" required></textarea>
+          </div>
+          <label class="form-label">Options (select the correct one)</label>
+          <div id="mcqOptionsWrap" class="d-flex flex-column gap-2 mb-3"></div>
+          <div class="mb-3">
+            <label class="form-label">Marks</label>
+            <input type="number" min="1" class="form-control" id="mcqMarksInput" required />
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-brand">Save Question</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
 
-function collectDynamicRows(containerId, isTestCase) {
-  return [...document.getElementById(containerId).children].map((row) => {
-    const input = row.querySelector('[data-field="input"]').value;
-    const output = row.querySelector('[data-field="output"]').value;
-    return isTestCase ? { input, expectedOutput: output } : { input, output };
-  });
-}
+<!-- Coding Question Modal -->
+<div class="modal fade" id="codingModal" tabindex="-1">
+  <div class="modal-dialog modal-xl modal-dialog-scrollable">
+    <div class="modal-content">
+      <form id="codingForm">
+        <div class="modal-header">
+          <h5 class="modal-title">Coding Question</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <input type="hidden" id="codingQuestionId" />
+          <div id="codingFormError" class="alert alert-danger py-2 d-none small"></div>
 
-function openCodingModal(question = null) {
-  editingQuestionId = question?.id || null;
-  document.getElementById("codingForm").reset();
-  document.getElementById("codingFormError").classList.add("d-none");
+          <div class="row g-3">
+            <div class="col-md-8">
+              <div class="mb-3">
+                <label class="form-label">Question Title</label>
+                <input type="text" class="form-control" id="codingTitleInput" required />
+              </div>
+              <div class="mb-3">
+                <label class="form-label">Problem Statement</label>
+                <textarea class="form-control" id="codingDescInput" rows="3" required></textarea>
+              </div>
+              <div class="row g-2">
+                <div class="col-6">
+                  <label class="form-label">Input Description</label>
+                  <textarea class="form-control" id="codingInputDescInput" rows="2"></textarea>
+                </div>
+                <div class="col-6">
+                  <label class="form-label">Output Description</label>
+                  <textarea class="form-control" id="codingOutputDescInput" rows="2"></textarea>
+                </div>
+              </div>
+              <div class="mb-3 mt-2">
+                <label class="form-label">Constraints</label>
+                <textarea class="form-control" id="codingConstraintsInput" rows="2" placeholder="e.g. 1 <= n <= 10^5"></textarea>
+              </div>
+            </div>
 
-  document.getElementById("codingTitleInput").value = question?.title || "";
-  document.getElementById("codingDescInput").value = question?.description || "";
-  document.getElementById("codingMarksInput").value = question?.marks || "";
-  document.getElementById("codingTimeLimitInput").value = question?.timeLimit || 10;
-  document.getElementById("codingStarterInput").value = question?.starterCode || "";
+            <div class="col-md-4">
+              <div class="mb-3">
+                <label class="form-label">Difficulty</label>
+                <select class="form-select" id="codingDifficultyInput">
+                  <option value="easy">Easy</option>
+                  <option value="medium" selected>Medium</option>
+                  <option value="hard">Hard</option>
+                </select>
+              </div>
+              <div class="mb-3">
+                <label class="form-label">Marks</label>
+                <input type="number" min="1" class="form-control" id="codingMarksInput" required />
+              </div>
+              <div class="mb-3">
+                <label class="form-label">Time Limit (seconds)</label>
+                <input type="number" min="1" class="form-control" id="codingTimeLimitInput" value="5" required />
+              </div>
+              <div class="mb-3">
+                <label class="form-label">Memory Limit (MB)</label>
+                <input type="number" min="16" class="form-control" id="codingMemoryLimitInput" value="256" />
+                <div class="form-text">Stored for reference only - not enforced by in-browser Python execution.</div>
+              </div>
+              <div class="mb-3">
+                <label class="form-label">Allowed Languages</label>
+                <div class="form-control bg-light small text-muted">Python (only language currently supported)</div>
+              </div>
+            </div>
+          </div>
 
-  ["examplesWrap", "visibleTestsWrap", "hiddenTestsWrap"].forEach((id) => {
-    document.getElementById(id).innerHTML = "";
-  });
+          <div class="mb-3">
+            <label class="form-label">Starter Code (Python)</label>
+            <textarea class="form-control mono" id="codingStarterInput" rows="4" placeholder="def solve():&#10;    pass"></textarea>
+          </div>
 
-  (question?.examples || [{}]).forEach((ex) => addDynamicRow("examplesWrap", "example", ex));
-  (question?.visibleTestCases || [{}]).forEach((tc) => addDynamicRow("visibleTestsWrap", "test", tc));
-  (question?.hiddenTestCases || [{}]).forEach((tc) => addDynamicRow("hiddenTestsWrap", "test", tc));
+          <label class="form-label fw-semibold">Sample Input / Output (shown to students)</label>
+          <div id="examplesWrap" class="d-flex flex-column gap-2 mb-2"></div>
+          <button type="button" class="btn btn-sm btn-outline-secondary mb-3" data-add-row="examplesWrap" data-row-type="example">
+            <i class="bi bi-plus"></i> Add Sample
+          </button>
 
-  new bootstrap.Modal(document.getElementById("codingModal")).show();
-}
+          <label class="form-label fw-semibold">Public Test Cases (used by "Run Code" and shown to students)</label>
+          <div id="visibleTestsWrap" class="d-flex flex-column gap-2 mb-2"></div>
+          <button type="button" class="btn btn-sm btn-outline-secondary mb-3" data-add-row="visibleTestsWrap" data-row-type="test">
+            <i class="bi bi-plus"></i> Add Public Test Case
+          </button>
 
-document.getElementById("codingForm").addEventListener("submit", async (e) => {
-  e.preventDefault();
-  const errorEl = document.getElementById("codingFormError");
-  errorEl.classList.add("d-none");
+          <label class="form-label fw-semibold">Hidden Test Cases (used only for grading on Submit)</label>
+          <div id="hiddenTestsWrap" class="d-flex flex-column gap-2 mb-2"></div>
+          <button type="button" class="btn btn-sm btn-outline-secondary" data-add-row="hiddenTestsWrap" data-row-type="test">
+            <i class="bi bi-plus"></i> Add Hidden Test Case
+          </button>
+          <div class="form-text mt-2 mb-3">
+            Optional per-test weight lets you make some test cases worth more than others. Leave weight blank to split marks evenly across all test cases.
+          </div>
 
-  const data = {
-    examId: activeExamForQuestions.id,
-    type: "coding",
-    language: "python",
-    title: document.getElementById("codingTitleInput").value.trim(),
-    description: document.getElementById("codingDescInput").value.trim(),
-    marks: Number(document.getElementById("codingMarksInput").value),
-    timeLimit: Number(document.getElementById("codingTimeLimitInput").value),
-    starterCode: document.getElementById("codingStarterInput").value,
-    examples: collectDynamicRows("examplesWrap", false).filter((r) => r.input || r.output),
-    visibleTestCases: collectDynamicRows("visibleTestsWrap", true).filter((r) => r.input || r.expectedOutput),
-    hiddenTestCases: collectDynamicRows("hiddenTestsWrap", true).filter((r) => r.input || r.expectedOutput)
-  };
+          <hr />
+          <div class="d-flex gap-2 mb-2">
+            <button type="button" class="btn btn-outline-secondary btn-sm" id="previewQuestionBtn"><i class="bi bi-eye me-1"></i>Preview</button>
+            <button type="button" class="btn btn-outline-secondary btn-sm" id="testRunQuestionBtn"><i class="bi bi-play-circle me-1"></i>Test Run</button>
+          </div>
+          <div id="testRunOutput" class="d-none"></div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-outline-primary" id="codingSaveDraftBtn" data-publish="false">Save as Draft</button>
+          <button type="submit" class="btn btn-brand" id="codingPublishBtn" data-publish="true">Save &amp; Publish</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
 
-  if (!data.visibleTestCases.length && !data.hiddenTestCases.length) {
-    errorEl.textContent = "Add at least one test case (visible or hidden).";
-    errorEl.classList.remove("d-none");
-    return;
-  }
+<!-- Question Preview Modal -->
+<div class="modal fade" id="previewModal" tabindex="-1">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Student Preview</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body" id="previewBody"></div>
+    </div>
+  </div>
+</div>
 
-  try {
-    if (editingQuestionId) {
-      await updateQuestionDoc(editingQuestionId, data);
-    } else {
-      await addQuestion(data);
-    }
-    bootstrap.Modal.getInstance(document.getElementById("codingModal"))?.hide();
-    questions = await listQuestionsForExam(activeExamForQuestions.id);
-    renderQuestionsList();
-  } catch (err) {
-    errorEl.textContent = err.message || "Could not save question.";
-    errorEl.classList.remove("d-none");
-  }
-});
+<!-- View Code Submissions Modal -->
+<div class="modal fade" id="codeSubmissionsModal" tabindex="-1">
+  <div class="modal-dialog modal-lg modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Code Submission History</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body" id="codeSubmissionsBody"></div>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<!-- Pyodide powers the admin "Test Run" button for coding questions -->
+<script src="https://cdn.jsdelivr.net/pyodide/v0.26.4/full/pyodide.js"></script>
+<script type="module" src="admin-dashboard.js"></script>
+</body>
+</html>
