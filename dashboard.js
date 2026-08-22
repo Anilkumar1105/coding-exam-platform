@@ -78,6 +78,34 @@ export function computeSectionStats(students, submissions, examId = "all") {
   });
 }
 
+/**
+ * Builds a report heading from the active filters, e.g. "All Exams
+ * Report", "Midterm Report", "Section A Report", or a combination.
+ * Shared by Excel and PDF export so both show the same heading.
+ */
+export function buildReportTitle(filters, exams) {
+  const examName = filters.examId && filters.examId !== "all" ? exams.find((e) => e.id === filters.examId)?.title : null;
+  const sectionPart = filters.section && filters.section !== "all" ? `Section ${filters.section}` : null;
+
+  if (examName && sectionPart) return `${examName} - ${sectionPart} Report`;
+  if (examName) return `${examName} Report`;
+  if (sectionPart) return `${sectionPart} Report`;
+  return "All Exams Report";
+}
+
+/** Builds a human-readable "Exam: X | Section: Y | ..." summary of the active filters. */
+export function buildFiltersText(filters, exams, students) {
+  const parts = [];
+  parts.push(`Exam: ${filters.examId && filters.examId !== "all" ? exams.find((e) => e.id === filters.examId)?.title || "-" : "All"}`);
+  parts.push(`Section: ${filters.section && filters.section !== "all" ? filters.section : "All"}`);
+  if (filters.studentId && filters.studentId !== "all") {
+    const student = students.find((s) => s.uid === filters.studentId);
+    parts.push(`Student: ${student ? student.name : "-"}`);
+  }
+  if (filters.date) parts.push(`Date: ${filters.date}`);
+  return parts.join("  \u00b7  ");
+}
+
 /** Renders the row of top stat cards into `container`. */
 export function renderStatCards(container, stats) {
   const cards = [
