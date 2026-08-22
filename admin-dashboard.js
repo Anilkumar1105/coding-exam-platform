@@ -305,14 +305,18 @@ function wireStudentExportButtons(filtered) {
     { key: "rollNumber", label: "Roll Number", width: 14, type: "text" },
     { key: "name", label: "Name", width: 22, type: "text" },
     { key: "section", label: "Section", width: 10, type: "text" },
-    { key: "email", label: "Email", width: 28, type: "text" }
+    { key: "email", label: "Email", width: 28, type: "text" },
+    { key: "passwordPlain", label: "Password", width: 18, type: "text" }
   ];
+  // Fall back to a readable label instead of a blank cell for students
+  // who don't have a password on record yet.
+  const rows = filtered.map((s) => ({ ...s, passwordPlain: s.passwordPlain || "Not Set" }));
 
   document.getElementById("exportStudentsExcelBtn").onclick = async () => {
     const btn = document.getElementById("exportStudentsExcelBtn");
     btn.disabled = true;
     try {
-      await exportResultsToExcel(filtered, columns, {
+      await exportResultsToExcel(rows, columns, {
         filename: `${title.replace(/\s+/g, "-")}.xlsx`,
         sheetName: "Students",
         title,
@@ -327,9 +331,9 @@ function wireStudentExportButtons(filtered) {
     generateReportPDF({
       title,
       filtersText: `Section: ${currentSectionFilter === "all" ? "All" : currentSectionFilter}`,
-      summaryCards: [{ label: "Total Students", value: filtered.length }],
+      summaryCards: [{ label: "Total Students", value: rows.length }],
       columns,
-      rows: filtered,
+      rows,
       filename: `${title.replace(/\s+/g, "-")}.pdf`
     });
   };
