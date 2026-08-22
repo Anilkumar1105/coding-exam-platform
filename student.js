@@ -25,7 +25,14 @@ export async function getExamById(examId) {
   return snap.exists() ? { id: snap.id, ...snap.data() } : null;
 }
 
-export async function getQuestionsForExam(examId) {
+/** Fetch a batch of exams by id (dedup'd), for building submission history
+ *  where a student's exam may since have been deactivated or removed
+ *  from the "active" list but still needs to show in their history. */
+export async function getExamsByIds(examIds) {
+  const uniqueIds = [...new Set(examIds)];
+  const exams = await Promise.all(uniqueIds.map((id) => getExamById(id)));
+  return exams.filter(Boolean);
+}
   // Students only ever see published questions.
   const q = query(
     collection(db, "questions"),
