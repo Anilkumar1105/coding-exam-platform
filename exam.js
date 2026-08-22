@@ -7,7 +7,7 @@
 import { requireRole, wireLogoutButtons } from "./auth.js";
 import {
   getExamById,
-  getQuestionsForExam,
+  getQuestionsByExamId,
   getSubmission,
   startSubmission,
   saveAnswers,
@@ -67,7 +67,7 @@ async function loadExam() {
     return;
   }
 
-  questions = await getQuestionsForExam(examId);
+  questions = await getQuestionsByExamId(examId);
   maxViolations = exam.maxViolations || 3;
 
   document.getElementById("startExamTitle").textContent = exam.title;
