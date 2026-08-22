@@ -7,7 +7,7 @@
 import { requireRole, wireLogoutButtons } from "./auth.js";
 import {
   getExamById,
-  getQuestionsByExamId,
+  getQuestionsForExam,
   getSubmission,
   startSubmission,
   saveAnswers,
@@ -18,7 +18,7 @@ import {
   listCodeSubmissionsForExam
 } from "./student.js";
 import { ensurePyodide, runAllTestCases } from "./python-runner.js";
-import { computeCodingMarks, isPass, PASS_MARK } from "./grading.js";
+import { computeCodingMarks, isPass, PASS_MARK, computeExamAccessStatus, formatExamWindow } from "./grading.js";
 
 wireLogoutButtons();
 
@@ -61,13 +61,45 @@ async function loadExam() {
   }
 
   const existing = await getSubmission(examId, currentUser.uid);
-  if (existing && existing.status !== "in-progress") {
+  const accessStatus = computeExamAccessStatus(exam, existing);
+
+  if (accessStatus === "completed") {
     alert("You have already submitted this exam.");
     window.location.href = "student-dashboard.html";
     return;
   }
 
-  questions = await getQuestionsByExamId(examId);
+  if (accessStatus === "upcoming") {
+    showStartError(`This exam hasn't started yet. It opens at ${formatExamWindow(exam)}.`);
+    return;
+  }
+
+  if (accessStatus === "absent") {
+    if (existing && existing.status === "in-progress") {
+      // They started but never finished, and the deadline has now passed
+      // while they were away - finalize with whatever they had, marked absent.
+      questions = await getQuestionsForExam(examId);
+      answers = existing.answers || {};
+      const { score, mcqScore, codingScore, totalMarks } = await gradeSubmission();
+      const percentage = totalMarks ? Math.round((score / totalMarks) * 10000) / 100 : 0;
+      await finalizeSubmission(examId, currentUser.uid, {
+        answers,
+        score,
+        mcqScore,
+        codingScore,
+        totalMarks,
+        percentage,
+        status: "absent"
+      }).catch((e) => console.error("Failed to finalize stale submission:", e));
+      alert("The exam window has closed. You did not complete this exam in time and have been marked absent.");
+    } else {
+      alert("The exam window has closed. You did not attempt this exam in time and have been marked absent.");
+    }
+    window.location.href = "student-dashboard.html";
+    return;
+  }
+
+  questions = await getQuestionsForExam(examId);
   maxViolations = exam.maxViolations || 3;
 
   document.getElementById("startExamTitle").textContent = exam.title;
@@ -75,6 +107,12 @@ async function loadExam() {
   document.getElementById("startDuration").textContent = exam.duration;
   document.getElementById("startMarks").textContent = exam.totalMarks;
   document.getElementById("startMaxViolations").textContent = maxViolations;
+
+  if (exam.startTime && exam.endTime) {
+    const windowNote = document.createElement("li");
+    windowNote.innerHTML = `<i class="bi bi-calendar-event me-1"></i> Window: ${formatExamWindow(exam)}`;
+    document.querySelector("#startScreen ul.list-unstyled").appendChild(windowNote);
+  }
 
   document.getElementById("enterFullscreenBtn").addEventListener("click", handleStart);
 
@@ -111,6 +149,11 @@ async function handleStart() {
 
   const elapsedSeconds = (Date.now() - new Date(submission.startedAt).getTime()) / 1000;
   remainingSeconds = Math.max(Math.round(exam.duration * 60 - elapsedSeconds), 0);
+
+  if (exam.endTime) {
+    const windowRemainingSeconds = Math.round((new Date(exam.endTime).getTime() - Date.now()) / 1000);
+    remainingSeconds = Math.max(Math.min(remainingSeconds, windowRemainingSeconds), 0);
+  }
 
   document.getElementById("startScreen").classList.add("d-none");
   document.getElementById("examUi").classList.remove("d-none");
