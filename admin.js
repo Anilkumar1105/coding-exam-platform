@@ -23,7 +23,7 @@ import {
   orderBy
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
-export const SECTIONS = ["IT-A", "IT-B", "IT-C", "AIDS-A", "AIDS-B", "AIML", "CYS"];
+export const SECTIONS = ["A", "B", "C", "D", "E", "F", "G"];
 
 /* ============================================================
    STUDENTS
@@ -211,7 +211,7 @@ const ALL_BORDERS = { top: THIN_BORDER, left: THIN_BORDER, bottom: THIN_BORDER, 
 export async function exportResultsToExcel(
   rows,
   columns,
-  { filename = "results.xlsx", sheetName = "Results", title = "" } = {}
+  { filename = "results.xlsx", sheetName = "Results", title = "", filtersText = "" } = {}
 ) {
   if (typeof ExcelJS === "undefined") {
     alert("Excel export library did not load. Check your internet connection and try again.");
@@ -222,23 +222,21 @@ export async function exportResultsToExcel(
   workbook.creator = "Coding Exam Platform";
   workbook.created = new Date();
 
-  const sheet = workbook.addWorksheet(sheetName, { views: [{ state: "frozen", ySplit: title ? 4 : 1 }] });
+  // Meta rows above the table: title, generated-on, filters-used (each optional except title).
+  const metaLines = [];
+  if (title) metaLines.push({ text: title, font: { bold: true, size: 14, color: { argb: "FF1F2937" } } });
+  if (title) metaLines.push({ text: `Generated on: ${new Date().toLocaleString()}`, font: { italic: true, size: 10, color: { argb: "FF6B7280" } } });
+  if (filtersText) metaLines.push({ text: `Filters: ${filtersText}`, font: { italic: true, size: 10, color: { argb: "FF6B7280" } } });
 
-  let headerRowNum = 1;
-  if (title) {
-    sheet.mergeCells(1, 1, 1, columns.length);
-    const titleCell = sheet.getCell(1, 1);
-    titleCell.value = title;
-    titleCell.font = { bold: true, size: 14, color: { argb: "FF1F2937" } };
-    titleCell.alignment = { horizontal: "left" };
+  const headerRowNum = metaLines.length ? metaLines.length + 2 : 1; // +1 blank spacer row before headers
+  const sheet = workbook.addWorksheet(sheetName, { views: [{ state: "frozen", ySplit: headerRowNum }] });
 
-    sheet.mergeCells(2, 1, 2, columns.length);
-    const dateCell = sheet.getCell(2, 1);
-    dateCell.value = `Generated on: ${new Date().toLocaleString()}`;
-    dateCell.font = { italic: true, size: 10, color: { argb: "FF6B7280" } };
-
-    headerRowNum = 4;
-  }
+  metaLines.forEach((line, i) => {
+    sheet.mergeCells(i + 1, 1, i + 1, columns.length);
+    const cell = sheet.getCell(i + 1, 1);
+    cell.value = line.text;
+    cell.font = line.font;
+  });
 
   // Header row
   const headerRow = sheet.getRow(headerRowNum);
