@@ -8,6 +8,7 @@
 const BRAND_RGB = [79, 70, 229];
 const PASS_RGB = { text: [6, 95, 70], fill: [209, 250, 229] };
 const FAIL_RGB = { text: [153, 27, 27], fill: [254, 226, 226] };
+const ABSENT_RGB = { text: [55, 65, 81], fill: [229, 231, 235] };
 
 function formatCell(raw, type) {
   if (raw == null || raw === "") return "-";
@@ -104,6 +105,10 @@ export function generateReportPDF({
       } else if (data.cell.raw === "FAIL") {
         data.cell.styles.textColor = FAIL_RGB.text;
         data.cell.styles.fillColor = FAIL_RGB.fill;
+        data.cell.styles.fontStyle = "bold";
+      } else if (data.cell.raw === "ABSENT") {
+        data.cell.styles.textColor = ABSENT_RGB.text;
+        data.cell.styles.fillColor = ABSENT_RGB.fill;
         data.cell.styles.fontStyle = "bold";
       }
     }
