@@ -119,14 +119,14 @@
 <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.2/dist/jspdf.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.4/dist/jspdf.plugin.autotable.min.js"></script>
 <script type="module">
-  import { requireRole, wireLogoutButtons } from "./auth.js";
+  import { requireRole, wireLogoutButtons } from "./jauth.js";
   import {
     listActiveExams,
     getStudentSubmissions,
     findSubmissionForExam,
     getExamsByIds
   } from "./student.js";
-  import { isPass, PASS_MARK } from "./grading.js";
+  import { isPass, PASS_MARK, computeExamAccessStatus, formatExamWindow } from "./grading.js";
   import { generateReportPDF } from "./pdf-export.js";
 
   wireLogoutButtons();
@@ -159,11 +159,10 @@
 
   /* ---------- Stats ---------- */
   function renderStats(activeExams, submissions) {
-    const completed = submissions.filter((s) => s.status !== "in-progress");
-    const available = activeExams.filter((e) => {
-      const sub = findSubmissionForExam(submissions, e.id);
-      return !sub || sub.status === "in-progress";
-    });
+    const completed = submissions.filter((s) => s.status === "submitted" || s.status === "auto-submitted");
+    const available = activeExams.filter(
+      (e) => computeExamAccessStatus(e, findSubmissionForExam(submissions, e.id)) === "active"
+    );
     const totalExamIds = new Set([...activeExams.map((e) => e.id), ...submissions.map((s) => s.examId)]);
     const visibleCompleted = completed.filter((s) => examById[s.examId]?.showResult !== false && s.percentage != null);
     const avg = visibleCompleted.length
@@ -203,7 +202,10 @@
 
   function renderCharts(submissions) {
     const visible = submissions.filter(
-      (s) => s.status !== "in-progress" && examById[s.examId]?.showResult !== false && s.percentage != null
+      (s) =>
+        (s.status === "submitted" || s.status === "auto-submitted") &&
+        examById[s.examId]?.showResult !== false &&
+        s.percentage != null
     );
 
     if (performanceChart) performanceChart.destroy();
@@ -259,12 +261,12 @@
     container.innerHTML = exams
       .map((exam) => {
         const submission = findSubmissionForExam(submissions, exam.id);
-        const alreadyDone = submission && submission.status !== "in-progress";
+        const status = computeExamAccessStatus(exam, submission);
         const typeLabel = (exam.examType || "mcq").toUpperCase();
         const typeBadgeClass = exam.examType === "coding" ? "coding" : "mcq";
 
         let actionHtml;
-        if (alreadyDone) {
+        if (status === "completed") {
           if (exam.showResult !== false && submission.percentage != null) {
             const passed = isPass(submission.percentage);
             actionHtml =
@@ -273,13 +275,19 @@
           } else {
             actionHtml = `<span class="badge bg-success"><i class="bi bi-check-circle me-1"></i>Submitted</span>`;
           }
+        } else if (status === "upcoming") {
+          actionHtml =
+            `<span class="badge bg-warning text-dark d-block mb-1"><i class="bi bi-hourglass-split me-1"></i>Upcoming</span>` +
+            `<span class="small text-muted">Opens ${formatExamWindow(exam)}</span>`;
+        } else if (status === "absent") {
+          actionHtml = `<span class="badge bg-dark"><i class="bi bi-x-circle me-1"></i>Absent - window closed</span>`;
         } else {
           actionHtml = `<button class="btn btn-brand btn-sm start-exam-btn"
               data-id="${exam.id}"
               data-title="${exam.title}"
               data-type="${typeLabel}"
               data-duration="${exam.duration}"
-              data-marks="${exam.totalMarks}"><i class="bi bi-play-fill me-1"></i>Start Exam</button>`;
+              data-marks="${exam.totalMarks}"><i class="bi bi-play-fill me-1"></i>${submission ? "Resume Exam" : "Start Exam"}</button>`;
         }
 
         return `
@@ -291,10 +299,11 @@
                   <span class="badge exam-type-badge ${typeBadgeClass}">${typeLabel}</span>
                 </div>
                 <p class="card-text text-muted small flex-grow-1">${exam.description || ""}</p>
-                <div class="d-flex justify-content-between align-items-center small text-muted mb-3">
+                <div class="d-flex justify-content-between align-items-center small text-muted mb-2">
                   <span><i class="bi bi-clock me-1"></i>${exam.duration} min</span>
                   <span><i class="bi bi-award me-1"></i>${exam.totalMarks} marks</span>
                 </div>
+                ${exam.startTime && exam.endTime && status === "active" ? `<div class="small text-muted mb-2"><i class="bi bi-calendar-event me-1"></i>Closes ${formatExamWindow(exam).split(" - ").pop()}</div>` : ""}
                 ${actionHtml}
               </div>
             </div>
@@ -332,11 +341,14 @@
       .map((s) => {
         const exam = examById[s.examId] || {};
         const hidden = exam.showResult === false;
-        const resultBadge = hidden
-          ? '<span class="badge bg-secondary">Pending</span>'
-          : s.percentage != null
-          ? `<span class="badge ${isPass(s.percentage) ? "bg-success" : "bg-danger"}">${isPass(s.percentage) ? "PASS" : "FAIL"}</span>`
-          : "-";
+        const resultBadge =
+          s.status === "absent"
+            ? '<span class="badge bg-dark">ABSENT</span>'
+            : hidden
+            ? '<span class="badge bg-secondary">Pending</span>'
+            : s.percentage != null
+            ? `<span class="badge ${isPass(s.percentage) ? "bg-success" : "bg-danger"}">${isPass(s.percentage) ? "PASS" : "FAIL"}</span>`
+            : "-";
 
         return `
         <tr>
@@ -347,7 +359,7 @@
           <td>${resultBadge}</td>
           <td>${s.violations ?? 0}</td>
           <td>${s.submittedAt ? new Date(s.submittedAt).toLocaleString() : "-"}</td>
-          <td class="text-end">${hidden ? "" : `<button class="btn btn-sm btn-outline-secondary" data-view-result="${s.examId}"><i class="bi bi-eye me-1"></i>View</button>`}</td>
+          <td class="text-end">${hidden || s.status === "absent" ? "" : `<button class="btn btn-sm btn-outline-secondary" data-view-result="${s.examId}"><i class="bi bi-eye me-1"></i>View</button>`}</td>
         </tr>`;
       })
       .join("");
@@ -385,12 +397,14 @@
         .map((s) => {
           const exam = examById[s.examId] || {};
           const hidden = exam.showResult === false;
+          const result =
+            s.status === "absent" ? "ABSENT" : hidden ? "Pending" : s.percentage != null ? (isPass(s.percentage) ? "PASS" : "FAIL") : "-";
           return {
             examTitle: exam.title || "Deleted exam",
             examType: (exam.examType || "mcq").toUpperCase(),
-            score: hidden ? "-" : s.score ?? "-",
-            percentage: hidden ? null : s.percentage,
-            result: hidden ? "Pending" : s.percentage != null ? (isPass(s.percentage) ? "PASS" : "FAIL") : "-",
+            score: hidden || s.status === "absent" ? "-" : s.score ?? "-",
+            percentage: hidden || s.status === "absent" ? null : s.percentage,
+            result,
             violations: s.violations ?? 0,
             submittedAt: s.submittedAt
           };
