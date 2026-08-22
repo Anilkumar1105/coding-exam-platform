@@ -10,7 +10,7 @@ import {
   updateDoc,
   query,
   where,
-  getDocs
+  getDocs  
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
 /** Fetch all exams currently marked active (visible to students). */
@@ -33,12 +33,16 @@ export async function getExamsByIds(examIds) {
   const exams = await Promise.all(uniqueIds.map((id) => getExamById(id)));
   return exams.filter(Boolean);
 }
+
+/** Fetch all published questions for an exam. */
+export async function getQuestionsByExamId(examId) {
   // Students only ever see published questions.
   const q = query(
     collection(db, "questions"),
     where("examId", "==", examId),
     where("published", "==", true)
   );
+
   const snap = await getDocs(q);
   return snap.docs.map((d) => ({ id: d.id, ...d.data() }));
 }
