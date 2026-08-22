@@ -35,7 +35,7 @@ export async function getExamsByIds(examIds) {
 }
 
 /** Fetch all published questions for an exam. */
-export async function getQuestionsByExamId(examId) {
+export async function getQuestionsForExam(examId) {
   // Students only ever see published questions.
   const q = query(
     collection(db, "questions"),
