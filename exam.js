@@ -7,7 +7,7 @@
 import { requireRole, wireLogoutButtons } from "./auth.js";
 import {
   getExamById,
-  getQuestionsForExam,
+  getQuestionsByExamId,
   getSubmission,
   startSubmission,
   saveAnswers,
@@ -78,7 +78,7 @@ async function loadExam() {
     if (existing && existing.status === "in-progress") {
       // They started but never finished, and the deadline has now passed
       // while they were away - finalize with whatever they had, marked absent.
-      questions = await getQuestionsForExam(examId);
+      questions = await getQuestionsByExamId(examId);
       answers = existing.answers || {};
       const { score, mcqScore, codingScore, totalMarks } = await gradeSubmission();
       const percentage = totalMarks ? Math.round((score / totalMarks) * 10000) / 100 : 0;
@@ -99,7 +99,7 @@ async function loadExam() {
     return;
   }
 
-  questions = await getQuestionsForExam(examId);
+  questions = await getQuestionsByExamId(examId);
   maxViolations = exam.maxViolations || 3;
 
   document.getElementById("startExamTitle").textContent = exam.title;
