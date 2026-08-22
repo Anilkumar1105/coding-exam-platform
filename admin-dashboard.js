@@ -29,8 +29,11 @@ import {
   renderSectionTable,
   renderSectionChart,
   renderResultsTable,
-  buildResultRows
+  buildResultRows,
+  buildReportTitle,
+  buildFiltersText
 } from "./dashboard.js";
+import { generateReportPDF } from "./pdf-export.js";
 import { auth } from "./firebase-config.js";
 import { listCodeSubmissionsForExam } from "./student.js";
 
@@ -157,36 +160,63 @@ function currentFilters() {
 }
 
 function applyFiltersAndRenderResults() {
-  const rows = buildResultRows(submissions, students, exams, currentFilters());
+  const filters = currentFilters();
+  const rows = buildResultRows(submissions, students, exams, filters);
   renderResultsTable(document.getElementById("resultsTableBody"), rows);
 
   document.querySelectorAll("[data-view-code]").forEach((btn) => {
     btn.addEventListener("click", () => openCodeSubmissionsModal(btn.dataset.viewCode, btn.dataset.examId));
   });
 
+  const reportTitle = buildReportTitle(filters, exams);
+  const filtersText = buildFiltersText(filters, exams, students);
+  const resultColumns = [
+    { key: "rollNumber", label: "Roll Number", width: 14, type: "text" },
+    { key: "name", label: "Name", width: 22, type: "text" },
+    { key: "section", label: "Section", width: 10, type: "text" },
+    { key: "examTitle", label: "Exam", width: 26, type: "text" },
+    { key: "score", label: "Score", width: 10, type: "number" },
+    { key: "percentage", label: "Percentage", width: 12, type: "percentage" },
+    { key: "result", label: "Result", width: 10, type: "status" },
+    { key: "status", label: "Status", width: 16, type: "text" },
+    { key: "violations", label: "Violations", width: 12, type: "number" },
+    { key: "submittedAt", label: "Submitted Time", width: 22, type: "date" }
+  ];
+
   document.getElementById("exportExcelBtn").onclick = async () => {
     const btn = document.getElementById("exportExcelBtn");
     btn.disabled = true;
     try {
-      await exportResultsToExcel(
-        rows,
-        [
-          { key: "rollNumber", label: "Roll Number", width: 14, type: "text" },
-          { key: "name", label: "Name", width: 22, type: "text" },
-          { key: "section", label: "Section", width: 10, type: "text" },
-          { key: "examTitle", label: "Exam", width: 26, type: "text" },
-          { key: "score", label: "Score", width: 10, type: "number" },
-          { key: "percentage", label: "Percentage", width: 12, type: "percentage" },
-          { key: "result", label: "Result", width: 10, type: "status" },
-          { key: "status", label: "Status", width: 16, type: "text" },
-          { key: "violations", label: "Violations", width: 12, type: "number" },
-          { key: "submittedAt", label: "Submitted Time", width: 22, type: "date" }
-        ],
-        { filename: "exam-results.xlsx", sheetName: "Results", title: "Coding Exam Platform - Student Results" }
-      );
+      await exportResultsToExcel(rows, resultColumns, {
+        filename: `${reportTitle.replace(/\s+/g, "-")}.xlsx`,
+        sheetName: "Results",
+        title: reportTitle,
+        filtersText
+      });
     } finally {
       btn.disabled = false;
     }
+  };
+
+  document.getElementById("exportResultsPdfBtn").onclick = () => {
+    const scores = rows.map((r) => Number(r.percentage)).filter((n) => !Number.isNaN(n));
+    const passCount = rows.filter((r) => r.result === "PASS").length;
+    const failCount = rows.filter((r) => r.result === "FAIL").length;
+    const avg = scores.length ? Math.round((scores.reduce((a, b) => a + b, 0) / scores.length) * 100) / 100 : 0;
+
+    generateReportPDF({
+      title: reportTitle,
+      filtersText,
+      summaryCards: [
+        { label: "Total Records", value: rows.length },
+        { label: "Average %", value: `${avg}%` },
+        { label: "Passed", value: passCount },
+        { label: "Failed", value: failCount }
+      ],
+      columns: resultColumns,
+      rows,
+      filename: `${reportTitle.replace(/\s+/g, "-")}.pdf`
+    });
   };
 }
 
@@ -228,42 +258,80 @@ function renderStudentsTable() {
 
   if (!filtered.length) {
     tbody.innerHTML = `<tr><td colspan="6" class="text-center text-muted py-4">No students in this section yet.</td></tr>`;
-    return;
+  } else {
+    tbody.innerHTML = filtered
+      .map(
+        (s) => `
+        <tr>
+          <td>${s.rollNumber}</td>
+          <td>${s.name}</td>
+          <td><span class="badge bg-secondary">${s.section}</span></td>
+          <td>${s.email}</td>
+          <td>
+            ${
+              s.passwordPlain
+                ? `<span class="password-mask" data-password-cell="${s.uid}">&bull;&bull;&bull;&bull;&bull;&bull;&bull;&bull;</span>
+                   <button class="btn btn-sm btn-link p-0 ms-1" data-reveal-password="${s.uid}" title="Show/hide"><i class="bi bi-eye"></i></button>`
+                : `<span class="text-muted small">Not set</span>
+                   <button class="btn btn-sm btn-link p-0 ms-1" data-set-password="${s.uid}">Set</button>`
+            }
+          </td>
+          <td class="text-end">
+            <button class="btn btn-sm btn-outline-primary me-1" data-edit="${s.uid}"><i class="bi bi-pencil"></i></button>
+            <button class="btn btn-sm btn-outline-danger" data-delete="${s.uid}"><i class="bi bi-trash"></i></button>
+          </td>
+        </tr>`
+      )
+      .join("");
+
+    tbody.querySelectorAll("[data-edit]").forEach((btn) => btn.addEventListener("click", () => openEditStudent(btn.dataset.edit)));
+    tbody.querySelectorAll("[data-delete]").forEach((btn) => btn.addEventListener("click", () => handleDeleteStudent(btn.dataset.delete)));
+    tbody.querySelectorAll("[data-reveal-password]").forEach((btn) =>
+      btn.addEventListener("click", () => togglePasswordCell(btn))
+    );
+    tbody.querySelectorAll("[data-set-password]").forEach((btn) =>
+      btn.addEventListener("click", () => openEditStudent(btn.dataset.setPassword))
+    );
   }
 
-  tbody.innerHTML = filtered
-    .map(
-      (s) => `
-      <tr>
-        <td>${s.rollNumber}</td>
-        <td>${s.name}</td>
-        <td><span class="badge bg-secondary">${s.section}</span></td>
-        <td>${s.email}</td>
-        <td>
-          ${
-            s.passwordPlain
-              ? `<span class="password-mask" data-password-cell="${s.uid}">&bull;&bull;&bull;&bull;&bull;&bull;&bull;&bull;</span>
-                 <button class="btn btn-sm btn-link p-0 ms-1" data-reveal-password="${s.uid}" title="Show/hide"><i class="bi bi-eye"></i></button>`
-              : `<span class="text-muted small">Not set</span>
-                 <button class="btn btn-sm btn-link p-0 ms-1" data-set-password="${s.uid}">Set</button>`
-          }
-        </td>
-        <td class="text-end">
-          <button class="btn btn-sm btn-outline-primary me-1" data-edit="${s.uid}"><i class="bi bi-pencil"></i></button>
-          <button class="btn btn-sm btn-outline-danger" data-delete="${s.uid}"><i class="bi bi-trash"></i></button>
-        </td>
-      </tr>`
-    )
-    .join("");
+  wireStudentExportButtons(filtered);
+}
 
-  tbody.querySelectorAll("[data-edit]").forEach((btn) => btn.addEventListener("click", () => openEditStudent(btn.dataset.edit)));
-  tbody.querySelectorAll("[data-delete]").forEach((btn) => btn.addEventListener("click", () => handleDeleteStudent(btn.dataset.delete)));
-  tbody.querySelectorAll("[data-reveal-password]").forEach((btn) =>
-    btn.addEventListener("click", () => togglePasswordCell(btn))
-  );
-  tbody.querySelectorAll("[data-set-password]").forEach((btn) =>
-    btn.addEventListener("click", () => openEditStudent(btn.dataset.setPassword))
-  );
+function wireStudentExportButtons(filtered) {
+  const title =
+    currentSectionFilter === "all" ? "All Students Report" : `Section ${currentSectionFilter} Students Report`;
+  const columns = [
+    { key: "rollNumber", label: "Roll Number", width: 14, type: "text" },
+    { key: "name", label: "Name", width: 22, type: "text" },
+    { key: "section", label: "Section", width: 10, type: "text" },
+    { key: "email", label: "Email", width: 28, type: "text" }
+  ];
+
+  document.getElementById("exportStudentsExcelBtn").onclick = async () => {
+    const btn = document.getElementById("exportStudentsExcelBtn");
+    btn.disabled = true;
+    try {
+      await exportResultsToExcel(filtered, columns, {
+        filename: `${title.replace(/\s+/g, "-")}.xlsx`,
+        sheetName: "Students",
+        title,
+        filtersText: `Section: ${currentSectionFilter === "all" ? "All" : currentSectionFilter}`
+      });
+    } finally {
+      btn.disabled = false;
+    }
+  };
+
+  document.getElementById("exportStudentsPdfBtn").onclick = () => {
+    generateReportPDF({
+      title,
+      filtersText: `Section: ${currentSectionFilter === "all" ? "All" : currentSectionFilter}`,
+      summaryCards: [{ label: "Total Students", value: filtered.length }],
+      columns,
+      rows: filtered,
+      filename: `${title.replace(/\s+/g, "-")}.pdf`
+    });
+  };
 }
 
 function togglePasswordCell(btn) {
