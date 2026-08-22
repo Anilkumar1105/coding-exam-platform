@@ -29,11 +29,12 @@ import {
   renderSectionTable,
   renderSectionChart,
   renderResultsTable,
-  buildResultRows,
+  buildResultRowsWithAbsent,
   buildReportTitle,
   buildFiltersText
 } from "./dashboard.js";
 import { generateReportPDF } from "./pdf-export.js";
+import { formatExamWindow } from "./grading.js";
 import { auth } from "./firebase-config.js";
 import { listCodeSubmissionsForExam } from "./student.js";
 
@@ -161,7 +162,7 @@ function currentFilters() {
 
 function applyFiltersAndRenderResults() {
   const filters = currentFilters();
-  const rows = buildResultRows(submissions, students, exams, filters);
+  const rows = buildResultRowsWithAbsent(submissions, students, exams, filters);
   renderResultsTable(document.getElementById("resultsTableBody"), rows);
 
   document.querySelectorAll("[data-view-code]").forEach((btn) => {
@@ -485,7 +486,7 @@ document.getElementById("studentForm").addEventListener("submit", async (e) => {
 function renderExamsTable() {
   const tbody = document.getElementById("examsTableBody");
   if (!exams.length) {
-    tbody.innerHTML = `<tr><td colspan="6" class="text-center text-muted py-4">No exams created yet.</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="7" class="text-center text-muted py-4">No exams created yet.</td></tr>`;
     return;
   }
   tbody.innerHTML = exams
@@ -496,6 +497,7 @@ function renderExamsTable() {
         <td><span class="badge exam-type-badge ${ex.examType || "mcq"}">${(ex.examType || "mcq").toUpperCase()}</span></td>
         <td>${ex.duration} min</td>
         <td>${ex.totalMarks}</td>
+        <td class="small">${formatExamWindow(ex)}</td>
         <td>${ex.active ? '<span class="badge bg-success">Active</span>' : '<span class="badge bg-secondary">Inactive</span>'}</td>
         <td class="text-end">
           <button class="btn btn-sm btn-outline-secondary me-1" data-questions="${ex.id}" title="Manage Questions"><i class="bi bi-list-check"></i></button>
@@ -515,6 +517,19 @@ function renderExamsTable() {
   tbody.querySelectorAll("[data-delete-exam]").forEach((btn) => btn.addEventListener("click", () => handleDeleteExam(btn.dataset.deleteExam)));
 }
 
+/** Converts a <input type="datetime-local"> value to ISO, or null if blank. */
+function toISOOrNull(datetimeLocalValue) {
+  return datetimeLocalValue ? new Date(datetimeLocalValue).toISOString() : null;
+}
+
+/** Converts an ISO string to the "YYYY-MM-DDTHH:mm" format datetime-local inputs expect. */
+function toDatetimeLocalValue(isoString) {
+  if (!isoString) return "";
+  const d = new Date(isoString);
+  const pad = (n) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
 document.getElementById("createExamBtn").addEventListener("click", () => {
   editingExamId = null;
   document.getElementById("examForm").reset();
@@ -523,6 +538,8 @@ document.getElementById("createExamBtn").addEventListener("click", () => {
   document.getElementById("examFormError").classList.add("d-none");
   document.getElementById("examTypeInput").disabled = false;
   document.getElementById("examMaxViolationsInput").value = 3;
+  document.getElementById("examStartTimeInput").value = "";
+  document.getElementById("examEndTimeInput").value = "";
   document.getElementById("examActiveInput").checked = true;
   document.getElementById("examShowResultInput").checked = true;
 });
@@ -541,6 +558,8 @@ function openEditExam(examId) {
   document.getElementById("examMaxViolationsInput").value = exam.maxViolations ?? 3;
   document.getElementById("examDurationInput").value = exam.duration;
   document.getElementById("examMarksInput").value = exam.totalMarks;
+  document.getElementById("examStartTimeInput").value = toDatetimeLocalValue(exam.startTime);
+  document.getElementById("examEndTimeInput").value = toDatetimeLocalValue(exam.endTime);
   document.getElementById("examActiveInput").checked = !!exam.active;
   document.getElementById("examShowResultInput").checked = exam.showResult !== false;
   new bootstrap.Modal(document.getElementById("examModal")).show();
@@ -568,6 +587,19 @@ document.getElementById("examForm").addEventListener("submit", async (e) => {
   const errorEl = document.getElementById("examFormError");
   errorEl.classList.add("d-none");
 
+  const startTime = toISOOrNull(document.getElementById("examStartTimeInput").value);
+  const endTime = toISOOrNull(document.getElementById("examEndTimeInput").value);
+  if ((startTime && !endTime) || (!startTime && endTime)) {
+    errorEl.textContent = "Set both Start Time and End Time, or leave both blank.";
+    errorEl.classList.remove("d-none");
+    return;
+  }
+  if (startTime && endTime && new Date(startTime) >= new Date(endTime)) {
+    errorEl.textContent = "End Time must be after Start Time.";
+    errorEl.classList.remove("d-none");
+    return;
+  }
+
   const data = {
     title: document.getElementById("examTitleInput").value.trim(),
     description: document.getElementById("examDescInput").value.trim(),
@@ -575,6 +607,8 @@ document.getElementById("examForm").addEventListener("submit", async (e) => {
     maxViolations: Number(document.getElementById("examMaxViolationsInput").value),
     duration: Number(document.getElementById("examDurationInput").value),
     totalMarks: Number(document.getElementById("examMarksInput").value),
+    startTime,
+    endTime,
     active: document.getElementById("examActiveInput").checked,
     showResult: document.getElementById("examShowResultInput").checked
   };
