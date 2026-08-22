@@ -225,13 +225,13 @@ export function renderResultsTable(tbodyEl, rows) {
         <td>${r.examTitle ?? "-"}</td>
         <td>${r.score ?? "-"}</td>
         <td>${r.percentage != null ? r.percentage + "%" : "-"}</td>
-        <td>${r.percentage != null ? passFailBadge(r.percentage) : "-"}</td>
+        <td>${resultBadge(r.result)}</td>
         <td>${statusBadge(r.status)}</td>
         <td>${r.violations ?? 0}</td>
         <td>${r.submittedAt ? new Date(r.submittedAt).toLocaleString() : "-"}</td>
         <td class="text-end">
           ${
-            r.examType === "coding"
+            r.examType === "coding" && r.status !== "absent"
               ? `<button class="btn btn-sm btn-outline-secondary" data-view-code="${r.studentId}" data-exam-id="${r.examId}"><i class="bi bi-code-slash"></i></button>`
               : ""
           }
@@ -241,17 +241,19 @@ export function renderResultsTable(tbodyEl, rows) {
     .join("");
 }
 
-function passFailBadge(percentage) {
-  return isPass(percentage)
-    ? '<span class="badge bg-success">PASS</span>'
-    : '<span class="badge bg-danger">FAIL</span>';
+function resultBadge(result) {
+  if (result === "PASS") return '<span class="badge bg-success">PASS</span>';
+  if (result === "FAIL") return '<span class="badge bg-danger">FAIL</span>';
+  if (result === "ABSENT") return '<span class="badge bg-dark">ABSENT</span>';
+  return '<span class="badge bg-secondary">-</span>';
 }
 
 function statusBadge(status) {
   const map = {
     submitted: "bg-success",
     "in-progress": "bg-warning text-dark",
-    "auto-submitted": "bg-danger"
+    "auto-submitted": "bg-danger",
+    absent: "bg-dark"
   };
   const cls = map[status] || "bg-secondary";
   return `<span class="badge ${cls}">${status || "unknown"}</span>`;
@@ -260,7 +262,7 @@ function statusBadge(status) {
 /**
  * Joins raw submissions with student + exam lookups and applies the
  * exam / section / student / date filters. Returns rows ready for
- * renderResultsTable / exportToCSV.
+ * renderResultsTable / Excel / PDF export.
  */
 export function buildResultRows(submissions, students, exams, filters = {}) {
   const studentById = new Map(students.map((s) => [s.uid, s]));
@@ -279,7 +281,7 @@ export function buildResultRows(submissions, students, exams, filters = {}) {
         examType: exam.examType,
         score: sub.score,
         percentage: sub.percentage,
-        result: sub.percentage != null ? (isPass(sub.percentage) ? "PASS" : "FAIL") : "-",
+        result: sub.status === "absent" ? "ABSENT" : sub.percentage != null ? (isPass(sub.percentage) ? "PASS" : "FAIL") : "-",
         status: sub.status,
         violations: sub.violations,
         submittedAt: sub.submittedAt,
@@ -296,4 +298,58 @@ export function buildResultRows(submissions, students, exams, filters = {}) {
       }
       return true;
     });
+}
+
+/**
+ * Synthesizes "ABSENT" rows for students with no completed submission
+ * on an exam whose time window has already closed. These are computed
+ * live from the current time - not written to Firestore - since there
+ * is no backend to detect and record absences for students who never
+ * even opened the app. Only exams with a configured start/end window
+ * produce absent rows; open-ended exams never do.
+ */
+export function buildAbsentRows(students, submissions, exams, filters = {}) {
+  const now = new Date();
+  if (filters.date) return []; // absent rows have no submission date to match against
+
+  const rows = [];
+  exams.forEach((exam) => {
+    if (!exam.startTime || !exam.endTime) return;
+    if (new Date(exam.endTime) > now) return;
+    if (filters.examId && filters.examId !== "all" && exam.id !== filters.examId) return;
+
+    const examSubs = submissions.filter((s) => s.examId === exam.id);
+
+    students.forEach((student) => {
+      if (filters.section && filters.section !== "all" && student.section !== filters.section) return;
+      if (filters.studentId && filters.studentId !== "all" && student.uid !== filters.studentId) return;
+
+      const sub = examSubs.find((s) => s.studentId === student.uid);
+      const isAbsent = !sub || sub.status === "in-progress";
+      if (!isAbsent) return;
+
+      rows.push({
+        rollNumber: student.rollNumber,
+        name: student.name,
+        section: student.section,
+        examId: exam.id,
+        examTitle: exam.title,
+        examType: exam.examType,
+        score: null,
+        percentage: null,
+        result: "ABSENT",
+        status: "absent",
+        violations: sub?.violations ?? 0,
+        submittedAt: null,
+        studentId: student.uid
+      });
+    });
+  });
+
+  return rows;
+}
+
+/** Real submission rows + synthesized absent rows, same filters applied to both. */
+export function buildResultRowsWithAbsent(submissions, students, exams, filters = {}) {
+  return [...buildResultRows(submissions, students, exams, filters), ...buildAbsentRows(students, submissions, exams, filters)];
 }
