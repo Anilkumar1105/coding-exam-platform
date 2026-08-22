@@ -162,11 +162,11 @@
               <table class="table table-striped mb-0 align-middle">
                 <thead>
                   <tr>
-                    <th>Title</th><th>Type</th><th>Duration</th><th>Marks</th><th>Status</th><th class="text-end">Actions</th>
+                    <th>Title</th><th>Type</th><th>Duration</th><th>Marks</th><th>Window</th><th>Status</th><th class="text-end">Actions</th>
                   </tr>
                 </thead>
                 <tbody id="examsTableBody">
-                  <tr><td colspan="6" class="text-center text-muted py-4">No exams created yet.</td></tr>
+                  <tr><td colspan="7" class="text-center text-muted py-4">No exams created yet.</td></tr>
                 </tbody>
               </table>
             </div>
@@ -290,6 +290,19 @@
               <label class="form-label">Total Marks</label>
               <input type="number" min="1" class="form-control" id="examMarksInput" required />
             </div>
+          </div>
+          <div class="row g-2 mt-1">
+            <div class="col-6">
+              <label class="form-label">Start Time</label>
+              <input type="datetime-local" class="form-control" id="examStartTimeInput" />
+            </div>
+            <div class="col-6">
+              <label class="form-label">End Time</label>
+              <input type="datetime-local" class="form-control" id="examEndTimeInput" />
+            </div>
+          </div>
+          <div class="form-text mb-1">
+            Leave both blank for no fixed window (exam stays open whenever it's Active). If set, students can only start or resume between these times, and the exam locks automatically once End Time passes.
           </div>
           <div class="form-check mt-3">
             <input class="form-check-input" type="checkbox" id="examActiveInput" checked />
