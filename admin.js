@@ -198,6 +198,7 @@ export async function listSubmissions() {
 const BRAND_FILL = { type: "pattern", pattern: "solid", fgColor: { argb: "FF4F46E5" } };
 const PASS_FILL = { type: "pattern", pattern: "solid", fgColor: { argb: "FFD1FAE5" } };
 const FAIL_FILL = { type: "pattern", pattern: "solid", fgColor: { argb: "FFFEE2E2" } };
+const ABSENT_FILL = { type: "pattern", pattern: "solid", fgColor: { argb: "FFE5E7EB" } };
 const THIN_BORDER = { style: "thin", color: { argb: "FFD1D5DB" } };
 const ALL_BORDERS = { top: THIN_BORDER, left: THIN_BORDER, bottom: THIN_BORDER, right: THIN_BORDER };
 
@@ -259,8 +260,8 @@ export async function exportResultsToExcel(
       applyCellValue(cell, raw, col.type);
       cell.border = ALL_BORDERS;
       if (col.type === "status") {
-        cell.font = { bold: true, color: { argb: raw === "PASS" ? "FF065F46" : "FF991B1B" } };
-        cell.fill = raw === "PASS" ? PASS_FILL : raw === "FAIL" ? FAIL_FILL : undefined;
+        cell.font = { bold: true, color: { argb: raw === "PASS" ? "FF065F46" : raw === "ABSENT" ? "FF374151" : "FF991B1B" } };
+        cell.fill = raw === "PASS" ? PASS_FILL : raw === "FAIL" ? FAIL_FILL : raw === "ABSENT" ? ABSENT_FILL : undefined;
         cell.alignment = { horizontal: "center" };
       } else if (col.type === "number" || col.type === "percentage") {
         cell.alignment = { horizontal: "right" };
