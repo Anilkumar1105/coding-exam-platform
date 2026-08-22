@@ -63,3 +63,50 @@ export const PASS_MARK = 40;
 export function isPass(percentage) {
   return Number(percentage) >= PASS_MARK;
 }
+
+/* ============================================================
+   EXAM TIME WINDOW (startTime / endTime)
+   ============================================================ */
+
+/**
+ * Resolves what a student can currently do with an exam, combining the
+ * admin's start/end time window with any existing submission.
+ * Returns one of: "upcoming" | "active" | "completed" | "absent".
+ *
+ * - Exams with no startTime/endTime configured are always "active" once
+ *   the admin's separate active/inactive toggle allows them (unchanged
+ *   behavior for older exams created before this feature existed).
+ * - "absent" covers both "never started" and "started but never
+ *   finished" once the window has closed - the caller decides how to
+ *   act on it (block access, show a badge, finalize a stale attempt).
+ */
+export function computeExamAccessStatus(exam, submission, now = new Date()) {
+  if (submission) {
+    if (submission.status === "submitted" || submission.status === "auto-submitted") return "completed";
+    if (submission.status === "absent") return "absent";
+    // else status === "in-progress" - fall through to the window check below
+  }
+
+  const hasWindow = !!(exam?.startTime && exam?.endTime);
+  if (!hasWindow) return "active";
+
+  const start = new Date(exam.startTime);
+  const end = new Date(exam.endTime);
+  if (now < start) return "upcoming";
+  if (now > end) return "absent";
+  return "active";
+}
+
+/** Human-readable "10 Aug 2026, 10:00 AM - 11:30 AM" window summary. */
+export function formatExamWindow(exam) {
+  if (!exam?.startTime || !exam?.endTime) return "No time limit set";
+  const start = new Date(exam.startTime);
+  const end = new Date(exam.endTime);
+  const dateOpts = { day: "2-digit", month: "short", year: "numeric" };
+  const timeOpts = { hour: "2-digit", minute: "2-digit" };
+  const sameDay = start.toDateString() === end.toDateString();
+
+  return sameDay
+    ? `${start.toLocaleDateString(undefined, dateOpts)}, ${start.toLocaleTimeString(undefined, timeOpts)} - ${end.toLocaleTimeString(undefined, timeOpts)}`
+    : `${start.toLocaleDateString(undefined, dateOpts)} ${start.toLocaleTimeString(undefined, timeOpts)} - ${end.toLocaleDateString(undefined, dateOpts)} ${end.toLocaleTimeString(undefined, timeOpts)}`;
+}
