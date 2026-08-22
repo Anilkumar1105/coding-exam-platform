@@ -70,6 +70,16 @@
       </table>
     </div>
   </div>
+
+  <div class="card mt-4">
+    <div class="card-header fw-semibold"><i class="bi bi-code-square me-1"></i>Coding History</div>
+    <div class="card-body">
+      <label class="form-label small mb-1">Select a coding exam to review</label>
+      <select id="codingHistorySelect" class="form-select mb-3"></select>
+      <div id="codingHistoryEmpty" class="text-muted small d-none">You haven't completed any coding exams yet.</div>
+      <div id="codingHistoryDetail"></div>
+    </div>
+  </div>
 </div>
 
 <!-- Confirm Start Exam Modal -->
@@ -124,17 +134,21 @@
     listActiveExams,
     getStudentSubmissions,
     findSubmissionForExam,
-    getExamsByIds
+    getExamsByIds,
+    getQuestionsForExam,
+    listCodeSubmissionsForExam
   } from "./student.js";
-  import { isPass, PASS_MARK, computeExamAccessStatus, formatExamWindow } from "./grading.js";
+  import { isPass, PASS_MARK, computeExamAccessStatus, formatExamWindow } from "./js/grading.js";
   import { generateReportPDF } from "./pdf-export.js";
 
   wireLogoutButtons();
 
   let studentProfile = null;
   let examById = {};
+  let currentUser = null;
 
   requireRole("student", async (user, profile) => {
+    currentUser = user;
     studentProfile = profile;
     document.getElementById("profileName").textContent = profile.name;
     document.getElementById("profileRoll").textContent = profile.rollNumber;
@@ -155,6 +169,7 @@
     renderExams(activeExams, submissions);
     renderHistory(submissions);
     wireDownloadReport(submissions);
+    renderCodingHistoryOptions(submissions);
   });
 
   /* ---------- Stats ---------- */
@@ -374,16 +389,51 @@
 
   function openResultModal(sub) {
     const exam = examById[sub.examId] || {};
-    const passed = sub.percentage != null && isPass(sub.percentage);
+    const pct = sub.percentage;
+    const passed = pct != null && isPass(pct);
+    const diff = pct != null ? Math.round((pct - PASS_MARK) * 10) / 10 : null;
+    const diffLabel = diff == null ? "" : diff >= 0 ? `${diff}% above pass mark` : `${Math.abs(diff)}% below pass mark`;
+    const barPct = pct != null ? Math.min(Math.max(pct, 0), 100) : 0;
+
     document.getElementById("viewResultTitle").textContent = exam.title || "Result";
     document.getElementById("viewResultBody").innerHTML = `
-      <div class="display-6 fw-bold">${sub.score ?? "-"}</div>
-      <div class="text-muted mb-2">out of ${sub.totalMarks ?? "-"} marks</div>
-      <span class="badge ${passed ? "bg-success" : "bg-danger"} fs-6 mb-2">${passed ? "PASS" : "FAIL"}</span>
+      <div class="result-badge-icon ${passed ? "pass" : "fail"} mx-auto mb-3">
+        <i class="bi ${passed ? "bi-trophy-fill" : "bi-x-lg"}"></i>
+      </div>
+      <span class="badge ${passed ? "bg-success" : "bg-danger"} fs-6 px-3 py-2 mb-2">
+        <i class="bi ${passed ? "bi-check-circle-fill" : "bi-x-circle-fill"} me-1"></i>${passed ? "PASS" : "FAIL"}
+      </span>
+      <div class="display-6 fw-bold mt-2">${sub.score ?? "-"} <span class="fs-5 text-muted fw-normal">/ ${sub.totalMarks ?? "-"}</span></div>
+      <div class="text-muted small mb-3">${pct != null ? pct + "%" : "-"} scored</div>
+
+      <div class="progress result-progress mb-1 mx-auto">
+        <div class="progress-bar ${passed ? "bg-success" : "bg-danger"}" style="width:${barPct}%"></div>
+        <div class="pass-mark-line" style="left:${PASS_MARK}%" title="Pass mark: ${PASS_MARK}%"></div>
+      </div>
+      <div class="small ${passed ? "text-success" : "text-danger"} fw-semibold mb-1">
+        <i class="bi ${passed ? "bi-arrow-up-circle" : "bi-arrow-down-circle"} me-1"></i>${diffLabel}
+      </div>
       <div class="small text-muted mb-3">Pass mark: ${PASS_MARK}%</div>
-      <div class="row text-start small border-top pt-3">
-        <div class="col-6"><i class="bi bi-list-check me-1"></i>MCQ: <strong>${sub.mcqScore ?? 0}</strong></div>
-        <div class="col-6"><i class="bi bi-code-slash me-1"></i>Coding: <strong>${sub.codingScore ?? 0}</strong></div>
+
+      <div class="row g-2 text-start border-top pt-3">
+        <div class="col-6">
+          <div class="breakdown-box">
+            <div class="stat-icon" style="background-color:#0ea5e9"><i class="bi bi-list-check"></i></div>
+            <div>
+              <div class="stat-label">MCQ Score</div>
+              <div class="stat-value">${sub.mcqScore ?? 0}</div>
+            </div>
+          </div>
+        </div>
+        <div class="col-6">
+          <div class="breakdown-box">
+            <div class="stat-icon" style="background-color:#8b5cf6"><i class="bi bi-code-slash"></i></div>
+            <div>
+              <div class="stat-label">Coding Score</div>
+              <div class="stat-value">${sub.codingScore ?? 0}</div>
+            </div>
+          </div>
+        </div>
       </div>
     `;
     new bootstrap.Modal(document.getElementById("viewResultModal")).show();
@@ -437,6 +487,98 @@
         filename: `${studentProfile.name.replace(/\s+/g, "-")}-Exam-Report.pdf`
       });
     });
+  }
+
+  /* ---------- Coding History ---------- */
+  function escapeHtml(str) {
+    return String(str ?? "")
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;");
+  }
+
+  function renderCodingHistoryOptions(submissions) {
+    const codingSubs = submissions.filter(
+      (s) => s.status !== "in-progress" && examById[s.examId]?.examType === "coding"
+    );
+    const select = document.getElementById("codingHistorySelect");
+
+    if (!codingSubs.length) {
+      document.getElementById("codingHistoryEmpty").classList.remove("d-none");
+      select.classList.add("d-none");
+      return;
+    }
+
+    select.innerHTML =
+      `<option value="">Select an exam...</option>` +
+      codingSubs
+        .map((s) => `<option value="${s.examId}">${examById[s.examId]?.title || "Exam"}</option>`)
+        .join("");
+
+    select.addEventListener("change", () => {
+      const detail = document.getElementById("codingHistoryDetail");
+      if (!select.value) {
+        detail.innerHTML = "";
+        return;
+      }
+      renderCodingHistoryDetail(select.value);
+    });
+  }
+
+  function bestCodeSubmission(codeSubs, questionId) {
+    const attempts = codeSubs.filter((s) => s.questionId === questionId);
+    if (!attempts.length) return null;
+    return attempts.reduce((best, s) => {
+      if (!best) return s;
+      if (s.marksObtained > best.marksObtained) return s;
+      if (s.marksObtained === best.marksObtained && new Date(s.submittedAt) > new Date(best.submittedAt)) return s;
+      return best;
+    }, null);
+  }
+
+  async function renderCodingHistoryDetail(examIdSelected) {
+    const detail = document.getElementById("codingHistoryDetail");
+    detail.innerHTML = `<div class="text-muted small">Loading questions and submissions...</div>`;
+
+    const [questions, codeSubs] = await Promise.all([
+      getQuestionsForExam(examIdSelected),
+      listCodeSubmissionsForExam(currentUser.uid, examIdSelected)
+    ]);
+
+    if (!questions.length) {
+      detail.innerHTML = `<div class="text-muted small">No questions found for this exam.</div>`;
+      return;
+    }
+
+    detail.innerHTML = questions
+      .map((q, i) => {
+        const best = bestCodeSubmission(codeSubs, q.id);
+        return `
+          <div class="question-card p-3 mb-2">
+            <div class="d-flex justify-content-between align-items-start mb-1">
+              <div>
+                <span class="badge bg-secondary me-2">Q${i + 1}</span>
+                <strong>${q.title}</strong>
+              </div>
+              <span class="badge bg-brand">${q.marks} marks</span>
+            </div>
+            <p class="small text-muted mb-2">${q.description || ""}</p>
+            ${
+              best
+                ? `
+              <div class="d-flex flex-wrap gap-3 small text-muted mb-2">
+                <span><i class="bi bi-check2-square me-1"></i>${best.testCasesPassed}/${best.totalTestCases} test cases passed</span>
+                <span><i class="bi bi-award me-1"></i>${best.marksObtained} marks scored</span>
+                <span><i class="bi bi-clock-history me-1"></i>${new Date(best.submittedAt).toLocaleString()}</span>
+              </div>
+              <label class="form-label small fw-semibold mb-1">Your Code</label>
+              <pre class="mono bg-light p-2 rounded coding-history-code">${escapeHtml(best.sourceCode)}</pre>
+            `
+                : `<div class="text-muted small"><i class="bi bi-dash-circle me-1"></i>No submission recorded for this question.</div>`
+            }
+          </div>`;
+      })
+      .join("");
   }
 </script>
 </body>
