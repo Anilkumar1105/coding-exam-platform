@@ -10,7 +10,7 @@
 <link href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/theme/dracula.min.css" rel="stylesheet" />
 <link href="style.css" rel="stylesheet" />
 </head>
-<body>
+<body class="learning-body">
 
 <nav class="navbar navbar-dark bg-brand mb-4">
   <div class="container-fluid">
@@ -24,20 +24,20 @@
 </div>
 
 <template id="tmplLoaded">
-  <div class="mb-4">
+  <div class="learning-hero mb-4">
     <h4 class="fw-bold mb-1" id="levelTitle"></h4>
-    <p class="text-muted mb-0" id="levelDesc"></p>
+    <p class="mb-0" id="levelDesc"></p>
   </div>
 
   <div class="row g-3">
     <div class="col-lg-3">
-      <div class="card p-2">
-        <div class="fw-semibold small mb-2 text-muted px-1">LEARNING PATH</div>
+      <div class="learning-card-glass p-2">
+        <div class="fw-semibold small mb-2 text-muted px-2 pt-1">LEARNING PATH</div>
         <div id="learningNav" class="d-flex flex-column gap-1"></div>
       </div>
     </div>
     <div class="col-lg-9">
-      <div class="card p-3" id="learningContent"></div>
+      <div class="learning-card-glass p-3" id="learningContent"></div>
     </div>
   </div>
 </template>
