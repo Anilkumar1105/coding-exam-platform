@@ -1142,6 +1142,7 @@ document.getElementById("createLevelBtn").addEventListener("click", () => {
   document.getElementById("levelOrderInput").value = 0;
   document.getElementById("levelPassMarkInput").value = 40;
   document.getElementById("levelActiveInput").checked = true;
+  new bootstrap.Modal(document.getElementById("levelModal")).show();
 });
 
 function openEditLevel(levelId) {
