@@ -49,6 +49,11 @@
     </div>
   </div>
 
+  <h5 class="mb-3"><i class="bi bi-mortarboard-fill me-1"></i>Learning Section</h5>
+  <div id="learningLevelsList" class="row g-3 mb-4">
+    <div class="col-12 text-muted">Fetching learning levels...</div>
+  </div>
+
   <h5 class="mb-3"><i class="bi bi-journal-code me-1"></i>Available Exams</h5>
   <div id="examsList" class="row g-3 mb-4">
     <div class="col-12 text-muted">Fetching your exams...</div>
@@ -140,6 +145,7 @@
   } from "./student.js";
   import { isPass, PASS_MARK, computeExamAccessStatus, formatExamWindow } from "./grading.js";
   import { generateReportPDF } from "./pdf-export.js";
+  import { listActiveLevels, listConcepts, getProgress, allConceptsCompleted } from "./learning.js";
 
   wireLogoutButtons();
 
@@ -170,6 +176,7 @@
     renderHistory(submissions);
     wireDownloadReport(submissions);
     renderCodingHistoryOptions(submissions);
+    renderLearningLevels();
   });
 
   /* ---------- Stats ---------- */
@@ -285,7 +292,7 @@
           if (exam.showResult !== false && submission.percentage != null) {
             const passed = isPass(submission.percentage);
             actionHtml =
-              `<span class="badge bg-success me-1"><i class="bi bi-check-circle me-1 mb-3 p-1"></i>Score: ${submission.percentage}%</span>` +
+              `<span class="badge bg-success me-1"><i class="bi bi-check-circle me-1"></i>Score: ${submission.percentage}%</span>` +
               `<span class="badge ${passed ? "bg-success" : "bg-danger"}">${passed ? "PASS" : "FAIL"}</span>`;
           } else {
             actionHtml = `<span class="badge bg-success"><i class="bi bi-check-circle me-1"></i>Submitted</span>`;
@@ -579,6 +586,63 @@
           </div>`;
       })
       .join("");
+  }
+  /* ---------- Learning Section ---------- */
+  async function renderLearningLevels() {
+    const container = document.getElementById("learningLevelsList");
+    const levels = await listActiveLevels();
+
+    if (!levels.length) {
+      container.innerHTML = `<div class="col-12 text-center text-muted py-4">No learning levels are available yet.</div>`;
+      return;
+    }
+
+    const cards = await Promise.all(
+      levels.map(async (level) => {
+        const [concepts, progress] = await Promise.all([
+          listConcepts(level.id),
+          getProgress(level.id, currentUser.uid)
+        ]);
+        const completedCount = progress?.completedConceptIds?.length || 0;
+        const conceptsDone = allConceptsCompleted(concepts, progress);
+        const pct = concepts.length ? Math.round((completedCount / concepts.length) * 100) : 0;
+
+        let statusBadge;
+        let ctaLabel = "Start Learning";
+        if (progress?.codingUnlocked) {
+          statusBadge = '<span class="badge bg-success"><i class="bi bi-check-circle me-1"></i>Coding Unlocked</span>';
+          ctaLabel = "Continue";
+        } else if (progress?.mcqUnlocked) {
+          statusBadge = conceptsDone
+            ? '<span class="badge bg-warning text-dark"><i class="bi bi-list-check me-1"></i>MCQ Test Ready</span>'
+            : '<span class="badge bg-primary"><i class="bi bi-play-fill me-1"></i>In Progress</span>';
+          ctaLabel = "Continue";
+        } else if (completedCount > 0) {
+          statusBadge = '<span class="badge bg-primary"><i class="bi bi-play-fill me-1"></i>In Progress</span>';
+          ctaLabel = "Continue";
+        } else {
+          statusBadge = '<span class="badge bg-secondary">Not Started</span>';
+        }
+
+        return `
+          <div class="col-md-6 col-lg-4">
+            <div class="card h-100 learning-level-card">
+              <div class="card-body d-flex flex-column">
+                <div class="d-flex justify-content-between align-items-start mb-2">
+                  <h6 class="card-title mb-0">${level.title}</h6>
+                  ${statusBadge}
+                </div>
+                <p class="card-text text-muted small flex-grow-1">${level.description || ""}</p>
+                <div class="small text-muted mb-1">${completedCount}/${concepts.length} concepts completed</div>
+                <div class="progress mb-3"><div class="progress-bar bg-brand" style="width:${pct}%"></div></div>
+                <a href="learning.html?levelId=${level.id}" class="btn btn-brand btn-sm"><i class="bi bi-mortarboard me-1"></i>${ctaLabel}</a>
+              </div>
+            </div>
+          </div>`;
+      })
+    );
+
+    container.innerHTML = cards.join("");
   }
 </script>
 </body>
