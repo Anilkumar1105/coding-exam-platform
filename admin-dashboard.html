@@ -20,6 +20,7 @@
       <a class="nav-link" data-pane="resultsPane"><i class="bi bi-table"></i> Results</a>
       <a class="nav-link" data-pane="studentsPane"><i class="bi bi-people"></i> Students</a>
       <a class="nav-link" data-pane="examsPane"><i class="bi bi-journal-code"></i> Exams</a>
+      <a class="nav-link" data-pane="learningPane"><i class="bi bi-mortarboard"></i> Learning</a>
     </nav>
     <div class="sidebar-footer">Signed in as<br /><span id="adminName" class="text-light"></span></div>
   </aside>
@@ -183,6 +184,75 @@
             <button class="btn btn-brand btn-sm" id="addQuestionBtn"><i class="bi bi-plus-lg me-1"></i>Add Question</button>
           </div>
           <div id="questionsList" class="d-flex flex-column gap-2"></div>
+        </div>
+
+      </div>
+
+      <!-- ===================== LEARNING PANE ===================== -->
+      <div class="tab-pane d-none" id="learningPane">
+
+        <!-- Levels list view -->
+        <div id="levelsListView">
+          <div class="d-flex justify-content-between align-items-center mb-3">
+            <h6 class="mb-0"><i class="bi bi-mortarboard me-1"></i>Learning Levels</h6>
+            <button class="btn btn-brand btn-sm" id="createLevelBtn"><i class="bi bi-plus-lg me-1"></i>Create Level</button>
+          </div>
+          <div class="card">
+            <div class="table-responsive">
+              <table class="table table-striped mb-0 align-middle">
+                <thead>
+                  <tr><th>Title</th><th>Concepts</th><th>MCQs</th><th>Coding Qs</th><th>Pass Mark</th><th>Status</th><th class="text-end">Actions</th></tr>
+                </thead>
+                <tbody id="levelsTableBody">
+                  <tr><td colspan="7" class="text-center text-muted py-4">No learning levels created yet.</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- Level detail view -->
+        <div id="levelDetailView" class="d-none">
+          <button class="btn btn-sm btn-outline-secondary mb-3" id="backToLevelsBtn"><i class="bi bi-arrow-left me-1"></i>Back to Levels</button>
+          <h6 class="mb-3" id="levelDetailTitle">Level</h6>
+
+          <div class="card mb-3">
+            <div class="card-header d-flex justify-content-between align-items-center">
+              <span class="fw-semibold"><i class="bi bi-journal-text me-1"></i>Concepts</span>
+              <button class="btn btn-brand btn-sm" id="addConceptBtn"><i class="bi bi-plus-lg me-1"></i>Add Concept</button>
+            </div>
+            <div id="conceptsListWrap" class="list-group list-group-flush"></div>
+          </div>
+
+          <div class="card mb-3">
+            <div class="card-header d-flex justify-content-between align-items-center">
+              <span class="fw-semibold"><i class="bi bi-list-check me-1"></i>MCQ Questions</span>
+              <button class="btn btn-brand btn-sm" id="addLearningMcqBtn"><i class="bi bi-plus-lg me-1"></i>Add Question</button>
+            </div>
+            <div id="learningMcqListWrap" class="d-flex flex-column gap-2 p-3"></div>
+          </div>
+
+          <div class="card mb-3">
+            <div class="card-header d-flex justify-content-between align-items-center">
+              <span class="fw-semibold"><i class="bi bi-code-slash me-1"></i>Coding Questions</span>
+              <button class="btn btn-brand btn-sm" id="addLearningCodingBtn"><i class="bi bi-plus-lg me-1"></i>Add Question</button>
+            </div>
+            <div id="learningCodingListWrap" class="d-flex flex-column gap-2 p-3"></div>
+          </div>
+
+          <div class="card">
+            <div class="card-header fw-semibold"><i class="bi bi-graph-up me-1"></i>Student Progress</div>
+            <div class="table-responsive">
+              <table class="table table-striped mb-0 align-middle">
+                <thead>
+                  <tr><th>Roll No.</th><th>Name</th><th>Section</th><th>Concepts</th><th>MCQ</th><th>Coding</th></tr>
+                </thead>
+                <tbody id="learningProgressTableBody">
+                  <tr><td colspan="6" class="text-center text-muted py-4">No progress recorded yet.</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
         </div>
 
       </div>
@@ -487,6 +557,193 @@
         <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
       </div>
       <div class="modal-body" id="codeSubmissionsBody"></div>
+    </div>
+  </div>
+</div>
+
+<!-- Create/Edit Level Modal -->
+<div class="modal fade" id="levelModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <form id="levelForm">
+        <div class="modal-header">
+          <h5 class="modal-title" id="levelModalTitle">Create Level</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <div id="levelFormError" class="alert alert-danger py-2 d-none small"></div>
+          <div class="mb-3">
+            <label class="form-label">Title</label>
+            <input type="text" class="form-control" id="levelTitleInput" placeholder="e.g. Python Basics" required />
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Description</label>
+            <textarea class="form-control" id="levelDescInput" rows="2"></textarea>
+          </div>
+          <div class="row g-2">
+            <div class="col-6">
+              <label class="form-label">Order</label>
+              <input type="number" min="0" class="form-control" id="levelOrderInput" value="0" />
+            </div>
+            <div class="col-6">
+              <label class="form-label">MCQ Pass Mark (%)</label>
+              <input type="number" min="1" max="100" class="form-control" id="levelPassMarkInput" value="40" required />
+            </div>
+          </div>
+          <div class="form-check mt-3">
+            <input class="form-check-input" type="checkbox" id="levelActiveInput" checked />
+            <label class="form-check-label" for="levelActiveInput">Active (visible to students)</label>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-brand" id="levelSubmitBtn">Create Level</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- Add/Edit Concept Modal -->
+<div class="modal fade" id="conceptModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <form id="conceptForm">
+        <div class="modal-header">
+          <h5 class="modal-title" id="conceptModalTitle">Add Concept</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <div id="conceptFormError" class="alert alert-danger py-2 d-none small"></div>
+          <div class="mb-3">
+            <label class="form-label">Title</label>
+            <input type="text" class="form-control" id="conceptTitleInput" placeholder="e.g. Variables" required />
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Content</label>
+            <textarea class="form-control" id="conceptContentInput" rows="8" placeholder="Explain the concept here..." required></textarea>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Order (students read concepts in this order)</label>
+            <input type="number" min="0" class="form-control" id="conceptOrderInput" value="0" />
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-brand">Save Concept</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- Add/Edit Learning MCQ Modal -->
+<div class="modal fade" id="learningMcqModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <form id="learningMcqForm">
+        <div class="modal-header">
+          <h5 class="modal-title">MCQ Question</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <div id="learningMcqFormError" class="alert alert-danger py-2 d-none small"></div>
+          <div class="mb-3">
+            <label class="form-label">Question</label>
+            <textarea class="form-control" id="lmQuestionText" rows="2" required></textarea>
+          </div>
+          <label class="form-label">Options (select the correct one)</label>
+          <div id="lmOptionsWrap" class="d-flex flex-column gap-2 mb-3"></div>
+          <button type="button" class="btn btn-sm btn-outline-secondary mb-3" id="lmAddOptionBtn"><i class="bi bi-plus"></i> Add Option</button>
+          <div class="row g-2">
+            <div class="col-6">
+              <label class="form-label">Marks</label>
+              <input type="number" min="1" class="form-control" id="lmMarksInput" required />
+            </div>
+            <div class="col-6">
+              <label class="form-label">Order</label>
+              <input type="number" min="0" class="form-control" id="lmOrderInput" value="0" />
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-brand">Save Question</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- Add/Edit Learning Coding Question Modal -->
+<div class="modal fade" id="learningCodingModal" tabindex="-1">
+  <div class="modal-dialog modal-xl modal-dialog-scrollable">
+    <div class="modal-content">
+      <form id="learningCodingForm">
+        <div class="modal-header">
+          <h5 class="modal-title">Coding Question</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <div id="learningCodingFormError" class="alert alert-danger py-2 d-none small"></div>
+          <div class="row g-3">
+            <div class="col-md-8">
+              <div class="mb-3">
+                <label class="form-label">Question Title</label>
+                <input type="text" class="form-control" id="lcTitleInput" required />
+              </div>
+              <div class="mb-3">
+                <label class="form-label">Problem Statement</label>
+                <textarea class="form-control" id="lcDescInput" rows="3" required></textarea>
+              </div>
+              <div class="row g-2">
+                <div class="col-6">
+                  <label class="form-label">Input Description</label>
+                  <textarea class="form-control" id="lcInputDescInput" rows="2"></textarea>
+                </div>
+                <div class="col-6">
+                  <label class="form-label">Output Description</label>
+                  <textarea class="form-control" id="lcOutputDescInput" rows="2"></textarea>
+                </div>
+              </div>
+            </div>
+            <div class="col-md-4">
+              <div class="mb-3">
+                <label class="form-label">Marks</label>
+                <input type="number" min="1" class="form-control" id="lcMarksInput" required />
+              </div>
+              <div class="mb-3">
+                <label class="form-label">Time Limit (seconds)</label>
+                <input type="number" min="1" class="form-control" id="lcTimeLimitInput" value="5" required />
+              </div>
+              <div class="mb-3">
+                <label class="form-label">Order</label>
+                <input type="number" min="0" class="form-control" id="lcOrderInput" value="0" />
+              </div>
+            </div>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Starter Code (Python)</label>
+            <textarea class="form-control mono" id="lcStarterInput" rows="4"></textarea>
+          </div>
+
+          <label class="form-label fw-semibold">Sample Input / Output</label>
+          <div id="lcExamplesWrap" class="d-flex flex-column gap-2 mb-2"></div>
+          <button type="button" class="btn btn-sm btn-outline-secondary mb-3" data-add-row="lcExamplesWrap" data-row-type="example"><i class="bi bi-plus"></i> Add Sample</button>
+
+          <label class="form-label fw-semibold">Public Test Cases</label>
+          <div id="lcVisibleTestsWrap" class="d-flex flex-column gap-2 mb-2"></div>
+          <button type="button" class="btn btn-sm btn-outline-secondary mb-3" data-add-row="lcVisibleTestsWrap" data-row-type="test"><i class="bi bi-plus"></i> Add Public Test Case</button>
+
+          <label class="form-label fw-semibold">Hidden Test Cases</label>
+          <div id="lcHiddenTestsWrap" class="d-flex flex-column gap-2 mb-2"></div>
+          <button type="button" class="btn btn-sm btn-outline-secondary" data-add-row="lcHiddenTestsWrap" data-row-type="test"><i class="bi bi-plus"></i> Add Hidden Test Case</button>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-brand">Save Question</button>
+        </div>
+      </form>
     </div>
   </div>
 </div>
