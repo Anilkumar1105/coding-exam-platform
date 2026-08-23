@@ -81,5 +81,66 @@ service cloud.firestore {
       allow update: if false;
       allow delete: if isAdmin();
     }
+
+    // ===================== Learning Section =====================
+    // Self-paced learning: levels -> concepts (read in order) -> MCQ
+    // test (must pass) -> coding questions. No proctoring/timers here,
+    // so rules are simpler than the exam collections above.
+
+    // learningLevels/{levelId}
+    match /learningLevels/{levelId} {
+      allow read: if isSignedIn();
+      allow create, update, delete: if isAdmin();
+    }
+
+    // learningConcepts/{conceptId}
+    match /learningConcepts/{conceptId} {
+      allow read: if isSignedIn();
+      allow create, update, delete: if isAdmin();
+    }
+
+    // learningMcqQuestions/{questionId}
+    match /learningMcqQuestions/{questionId} {
+      allow read: if isSignedIn();
+      allow create, update, delete: if isAdmin();
+    }
+
+    // learningCodingQuestions/{questionId}
+    // Same "hidden test cases are UI-hidden, not secret" limitation as
+    // the exam questions collection above.
+    match /learningCodingQuestions/{questionId} {
+      allow read: if isSignedIn();
+      allow create, update, delete: if isAdmin();
+    }
+
+    // learningProgress/{progressId}  (doc id: {levelId}_{studentId})
+    // Not proctored, so unlike exam submissions a student can freely
+    // update their own progress as they read concepts / retake the MCQ.
+    match /learningProgress/{progressId} {
+      allow read: if isAdmin() ||
+        (isSignedIn() && resource.data.studentId == request.auth.uid);
+
+      allow create: if isSignedIn() &&
+        request.resource.data.studentId == request.auth.uid;
+
+      allow update: if isAdmin() ||
+        (isSignedIn() && resource.data.studentId == request.auth.uid);
+
+      allow delete: if isAdmin();
+    }
+
+    // learningCodeSubmissions/{submissionId}
+    // Mirrors codeSubmissions, but for practice coding questions inside
+    // a learning level instead of an exam.
+    match /learningCodeSubmissions/{submissionId} {
+      allow read: if isAdmin() ||
+        (isSignedIn() && resource.data.studentId == request.auth.uid);
+
+      allow create: if isSignedIn() &&
+        request.resource.data.studentId == request.auth.uid;
+
+      allow update: if false;
+      allow delete: if isAdmin();
+    }
   }
 }
