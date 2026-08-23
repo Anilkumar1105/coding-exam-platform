@@ -595,3 +595,35 @@ body {
   word-break: break-word;
   font-size: 0.82rem;
 }
+
+/* ---------- Learning section ---------- */
+.learning-nav-item {
+  border: 1px solid transparent;
+  border-radius: 0.5rem;
+  padding: 0.5rem 0.6rem;
+  color: #374151;
+}
+
+.learning-nav-item:hover:not(.disabled) {
+  background: #f5f6fb;
+}
+
+.learning-nav-item.active {
+  background: #eef2ff;
+  border-color: #c7d2fe;
+  font-weight: 600;
+}
+
+.learning-nav-item.disabled {
+  color: #9ca3af;
+  cursor: not-allowed;
+}
+
+.concept-content {
+  line-height: 1.7;
+  color: #374151;
+}
+
+.learning-level-card .progress {
+  height: 8px;
+}
