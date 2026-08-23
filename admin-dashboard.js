@@ -37,6 +37,25 @@ import { generateReportPDF } from "./pdf-export.js";
 import { formatExamWindow } from "./grading.js";
 import { auth } from "./firebase-config.js";
 import { listCodeSubmissionsForExam } from "./student.js";
+import {
+  listLevels,
+  createLevel,
+  updateLevel,
+  deleteLevel,
+  listConcepts,
+  createConcept,
+  updateConcept,
+  deleteConcept,
+  listMcqQuestions,
+  createMcqQuestion,
+  updateMcqQuestion,
+  deleteMcqQuestion,
+  listLearningCodingQuestions,
+  createLearningCodingQuestion,
+  updateLearningCodingQuestion,
+  deleteLearningCodingQuestion,
+  listProgressForLevel
+} from "./learning.js";
 
 wireLogoutButtons();
 
@@ -50,6 +69,15 @@ let activeExamForQuestions = null;
 let questions = [];
 let editingQuestionId = null;
 let sectionChartInstance = null;
+let levels = [];
+let activeLevel = null;
+let editingLevelId = null;
+let levelConcepts = [];
+let editingConceptId = null;
+let levelMcqQuestions = [];
+let editingLearningMcqId = null;
+let levelCodingQuestions = [];
+let editingLearningCodingId = null;
 
 /* ============================================================
    AUTH + INITIAL LOAD
@@ -79,7 +107,8 @@ const paneTitles = {
   analyticsPane: "Analytics",
   resultsPane: "Results",
   studentsPane: "Students",
-  examsPane: "Exams"
+  examsPane: "Exams",
+  learningPane: "Learning"
 };
 
 document.querySelectorAll(".app-sidebar .nav-link").forEach((link) => {
@@ -93,6 +122,10 @@ document.querySelectorAll(".app-sidebar .nav-link").forEach((link) => {
     document.getElementById("pageTitle").textContent = paneTitles[paneId];
 
     document.getElementById("appSidebar").classList.remove("show");
+
+    if (paneId === "learningPane" && !levels.length) {
+      renderLevelsTable();
+    }
   });
 });
 
@@ -1043,6 +1076,469 @@ async function openCodeSubmissionsModal(studentId, examIdForCode) {
           )
           .join("")}
       `;
+    })
+    .join("");
+}
+
+/* ============================================================
+   LEARNING SECTION - LEVELS
+   ============================================================ */
+function escapeHtmlL(str) {
+  return String(str ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+}
+
+async function renderLevelsTable() {
+  levels = await listLevels();
+  const tbody = document.getElementById("levelsTableBody");
+
+  if (!levels.length) {
+    tbody.innerHTML = `<tr><td colspan="7" class="text-center text-muted py-4">No learning levels created yet.</td></tr>`;
+    return;
+  }
+
+  const counts = await Promise.all(
+    levels.map(async (lvl) => ({
+      id: lvl.id,
+      concepts: (await listConcepts(lvl.id)).length,
+      mcqs: (await listMcqQuestions(lvl.id)).length,
+      coding: (await listLearningCodingQuestions(lvl.id)).length
+    }))
+  );
+  const countsById = Object.fromEntries(counts.map((c) => [c.id, c]));
+
+  tbody.innerHTML = levels
+    .map(
+      (lvl) => `
+      <tr>
+        <td>${escapeHtmlL(lvl.title)}</td>
+        <td>${countsById[lvl.id]?.concepts ?? 0}</td>
+        <td>${countsById[lvl.id]?.mcqs ?? 0}</td>
+        <td>${countsById[lvl.id]?.coding ?? 0}</td>
+        <td>${lvl.passMark ?? 40}%</td>
+        <td>${lvl.active ? '<span class="badge bg-success">Active</span>' : '<span class="badge bg-secondary">Inactive</span>'}</td>
+        <td class="text-end">
+          <button class="btn btn-sm btn-outline-secondary me-1" data-manage-level="${lvl.id}" title="Manage"><i class="bi bi-gear"></i></button>
+          <button class="btn btn-sm btn-outline-primary me-1" data-edit-level="${lvl.id}" title="Edit"><i class="bi bi-pencil"></i></button>
+          <button class="btn btn-sm btn-outline-danger" data-delete-level="${lvl.id}" title="Delete"><i class="bi bi-trash"></i></button>
+        </td>
+      </tr>`
+    )
+    .join("");
+
+  tbody.querySelectorAll("[data-manage-level]").forEach((btn) => btn.addEventListener("click", () => openLevelDetail(btn.dataset.manageLevel)));
+  tbody.querySelectorAll("[data-edit-level]").forEach((btn) => btn.addEventListener("click", () => openEditLevel(btn.dataset.editLevel)));
+  tbody.querySelectorAll("[data-delete-level]").forEach((btn) => btn.addEventListener("click", () => handleDeleteLevel(btn.dataset.deleteLevel)));
+}
+
+document.getElementById("createLevelBtn").addEventListener("click", () => {
+  editingLevelId = null;
+  document.getElementById("levelForm").reset();
+  document.getElementById("levelModalTitle").textContent = "Create Level";
+  document.getElementById("levelSubmitBtn").textContent = "Create Level";
+  document.getElementById("levelFormError").classList.add("d-none");
+  document.getElementById("levelOrderInput").value = 0;
+  document.getElementById("levelPassMarkInput").value = 40;
+  document.getElementById("levelActiveInput").checked = true;
+});
+
+function openEditLevel(levelId) {
+  const lvl = levels.find((l) => l.id === levelId);
+  if (!lvl) return;
+  editingLevelId = levelId;
+  document.getElementById("levelModalTitle").textContent = "Edit Level";
+  document.getElementById("levelSubmitBtn").textContent = "Save Changes";
+  document.getElementById("levelFormError").classList.add("d-none");
+  document.getElementById("levelTitleInput").value = lvl.title;
+  document.getElementById("levelDescInput").value = lvl.description || "";
+  document.getElementById("levelOrderInput").value = lvl.order ?? 0;
+  document.getElementById("levelPassMarkInput").value = lvl.passMark ?? 40;
+  document.getElementById("levelActiveInput").checked = !!lvl.active;
+  new bootstrap.Modal(document.getElementById("levelModal")).show();
+}
+
+async function handleDeleteLevel(levelId) {
+  if (!confirm("Delete this learning level? Its concepts and questions will remain orphaned unless removed separately. This cannot be undone.")) return;
+  await deleteLevel(levelId);
+  await renderLevelsTable();
+}
+
+document.getElementById("levelForm").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const errorEl = document.getElementById("levelFormError");
+  errorEl.classList.add("d-none");
+
+  const data = {
+    title: document.getElementById("levelTitleInput").value.trim(),
+    description: document.getElementById("levelDescInput").value.trim(),
+    order: Number(document.getElementById("levelOrderInput").value),
+    passMark: Number(document.getElementById("levelPassMarkInput").value),
+    active: document.getElementById("levelActiveInput").checked
+  };
+
+  try {
+    if (editingLevelId) {
+      await updateLevel(editingLevelId, data);
+    } else {
+      await createLevel(data);
+    }
+    bootstrap.Modal.getInstance(document.getElementById("levelModal"))?.hide();
+    await renderLevelsTable();
+  } catch (err) {
+    errorEl.textContent = err.message || "Could not save level.";
+    errorEl.classList.remove("d-none");
+  }
+});
+
+/* ============================================================
+   LEVEL DETAIL: CONCEPTS + MCQ + CODING + PROGRESS
+   ============================================================ */
+async function openLevelDetail(levelId) {
+  activeLevel = levels.find((l) => l.id === levelId);
+  if (!activeLevel) return;
+
+  document.getElementById("levelsListView").classList.add("d-none");
+  document.getElementById("levelDetailView").classList.remove("d-none");
+  document.getElementById("levelDetailTitle").textContent = activeLevel.title;
+
+  await Promise.all([renderConceptsList(), renderLearningMcqList(), renderLearningCodingList(), renderLearningProgress()]);
+}
+
+document.getElementById("backToLevelsBtn").addEventListener("click", () => {
+  document.getElementById("levelDetailView").classList.add("d-none");
+  document.getElementById("levelsListView").classList.remove("d-none");
+  renderLevelsTable();
+});
+
+/* ---------- Concepts ---------- */
+async function renderConceptsList() {
+  levelConcepts = await listConcepts(activeLevel.id);
+  const wrap = document.getElementById("conceptsListWrap");
+
+  if (!levelConcepts.length) {
+    wrap.innerHTML = `<div class="text-center text-muted py-3">No concepts added yet.</div>`;
+    return;
+  }
+
+  wrap.innerHTML = levelConcepts
+    .map(
+      (c, i) => `
+      <div class="list-group-item d-flex justify-content-between align-items-center">
+        <div><span class="badge bg-secondary me-2">${i + 1}</span>${escapeHtmlL(c.title)}</div>
+        <div>
+          <button class="btn btn-sm btn-outline-primary me-1" data-edit-concept="${c.id}"><i class="bi bi-pencil"></i></button>
+          <button class="btn btn-sm btn-outline-danger" data-delete-concept="${c.id}"><i class="bi bi-trash"></i></button>
+        </div>
+      </div>`
+    )
+    .join("");
+
+  wrap.querySelectorAll("[data-edit-concept]").forEach((btn) => btn.addEventListener("click", () => openConceptModal(levelConcepts.find((c) => c.id === btn.dataset.editConcept))));
+  wrap.querySelectorAll("[data-delete-concept]").forEach((btn) =>
+    btn.addEventListener("click", async () => {
+      if (!confirm("Delete this concept? This cannot be undone.")) return;
+      await deleteConcept(btn.dataset.deleteConcept);
+      await renderConceptsList();
+    })
+  );
+}
+
+document.getElementById("addConceptBtn").addEventListener("click", () => openConceptModal());
+
+function openConceptModal(concept = null) {
+  editingConceptId = concept?.id || null;
+  document.getElementById("conceptForm").reset();
+  document.getElementById("conceptFormError").classList.add("d-none");
+  document.getElementById("conceptModalTitle").textContent = concept ? "Edit Concept" : "Add Concept";
+  document.getElementById("conceptTitleInput").value = concept?.title || "";
+  document.getElementById("conceptContentInput").value = concept?.content || "";
+  document.getElementById("conceptOrderInput").value = concept?.order ?? levelConcepts.length;
+  new bootstrap.Modal(document.getElementById("conceptModal")).show();
+}
+
+document.getElementById("conceptForm").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const errorEl = document.getElementById("conceptFormError");
+  errorEl.classList.add("d-none");
+
+  const data = {
+    levelId: activeLevel.id,
+    title: document.getElementById("conceptTitleInput").value.trim(),
+    content: document.getElementById("conceptContentInput").value,
+    order: Number(document.getElementById("conceptOrderInput").value)
+  };
+
+  try {
+    if (editingConceptId) {
+      await updateConcept(editingConceptId, data);
+    } else {
+      await createConcept(data);
+    }
+    bootstrap.Modal.getInstance(document.getElementById("conceptModal"))?.hide();
+    await renderConceptsList();
+  } catch (err) {
+    errorEl.textContent = err.message || "Could not save concept.";
+    errorEl.classList.remove("d-none");
+  }
+});
+
+/* ---------- Learning MCQ ---------- */
+async function renderLearningMcqList() {
+  levelMcqQuestions = await listMcqQuestions(activeLevel.id);
+  const wrap = document.getElementById("learningMcqListWrap");
+
+  if (!levelMcqQuestions.length) {
+    wrap.innerHTML = `<div class="text-center text-muted py-3">No MCQ questions added yet.</div>`;
+    return;
+  }
+
+  wrap.innerHTML = levelMcqQuestions
+    .map(
+      (q, i) => `
+      <div class="question-card p-3">
+        <div class="d-flex justify-content-between">
+          <div>
+            <span class="badge bg-secondary me-2">Q${i + 1}</span>
+            <strong>${escapeHtmlL(q.questionText)}</strong>
+            <div class="text-muted small mt-1">${q.marks} marks &middot; ${q.options.length} options</div>
+          </div>
+          <div class="text-nowrap">
+            <button class="btn btn-sm btn-outline-primary me-1" data-edit-lmcq="${q.id}"><i class="bi bi-pencil"></i></button>
+            <button class="btn btn-sm btn-outline-danger" data-delete-lmcq="${q.id}"><i class="bi bi-trash"></i></button>
+          </div>
+        </div>
+      </div>`
+    )
+    .join("");
+
+  wrap.querySelectorAll("[data-edit-lmcq]").forEach((btn) => btn.addEventListener("click", () => openLearningMcqModal(levelMcqQuestions.find((q) => q.id === btn.dataset.editLmcq))));
+  wrap.querySelectorAll("[data-delete-lmcq]").forEach((btn) =>
+    btn.addEventListener("click", async () => {
+      if (!confirm("Delete this question? This cannot be undone.")) return;
+      await deleteMcqQuestion(btn.dataset.deleteLmcq);
+      await renderLearningMcqList();
+    })
+  );
+}
+
+document.getElementById("addLearningMcqBtn").addEventListener("click", () => openLearningMcqModal());
+
+function addLmOptionRow(value = "", checked = false) {
+  const wrap = document.getElementById("lmOptionsWrap");
+  const row = document.createElement("div");
+  row.className = "input-group";
+  row.innerHTML = `
+    <span class="input-group-text"><input type="radio" name="lmCorrect" class="form-check-input mt-0" ${checked ? "checked" : ""}></span>
+    <input type="text" class="form-control" placeholder="Option text" value="${value.replace(/"/g, "&quot;")}" required />
+    <button type="button" class="btn btn-outline-danger" data-remove-option><i class="bi bi-x"></i></button>
+  `;
+  row.querySelector("[data-remove-option]").addEventListener("click", () => row.remove());
+  wrap.appendChild(row);
+}
+
+document.getElementById("lmAddOptionBtn").addEventListener("click", () => addLmOptionRow());
+
+function openLearningMcqModal(question = null) {
+  editingLearningMcqId = question?.id || null;
+  document.getElementById("learningMcqForm").reset();
+  document.getElementById("learningMcqFormError").classList.add("d-none");
+  document.getElementById("lmOptionsWrap").innerHTML = "";
+
+  const options = question?.options || ["", "", "", ""];
+  options.forEach((val, i) => addLmOptionRow(val, question?.correctOptionIndex === i));
+
+  document.getElementById("lmQuestionText").value = question?.questionText || "";
+  document.getElementById("lmMarksInput").value = question?.marks || "";
+  document.getElementById("lmOrderInput").value = question?.order ?? levelMcqQuestions.length;
+
+  new bootstrap.Modal(document.getElementById("learningMcqModal")).show();
+}
+
+document.getElementById("learningMcqForm").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const errorEl = document.getElementById("learningMcqFormError");
+  errorEl.classList.add("d-none");
+
+  const rows = [...document.querySelectorAll("#lmOptionsWrap .input-group")];
+  const options = rows.map((r) => r.querySelector("input[type=text]").value.trim());
+  const correctIndex = rows.findIndex((r) => r.querySelector("input[type=radio]").checked);
+
+  if (options.some((o) => !o) || options.length < 2) {
+    errorEl.textContent = "Please fill in at least 2 options.";
+    errorEl.classList.remove("d-none");
+    return;
+  }
+  if (correctIndex === -1) {
+    errorEl.textContent = "Please mark the correct option.";
+    errorEl.classList.remove("d-none");
+    return;
+  }
+
+  const data = {
+    levelId: activeLevel.id,
+    questionText: document.getElementById("lmQuestionText").value.trim(),
+    options,
+    correctOptionIndex: correctIndex,
+    marks: Number(document.getElementById("lmMarksInput").value),
+    order: Number(document.getElementById("lmOrderInput").value)
+  };
+
+  try {
+    if (editingLearningMcqId) {
+      await updateMcqQuestion(editingLearningMcqId, data);
+    } else {
+      await createMcqQuestion(data);
+    }
+    bootstrap.Modal.getInstance(document.getElementById("learningMcqModal"))?.hide();
+    await renderLearningMcqList();
+  } catch (err) {
+    errorEl.textContent = err.message || "Could not save question.";
+    errorEl.classList.remove("d-none");
+  }
+});
+
+/* ---------- Learning Coding Questions ---------- */
+async function renderLearningCodingList() {
+  levelCodingQuestions = await listLearningCodingQuestions(activeLevel.id);
+  const wrap = document.getElementById("learningCodingListWrap");
+
+  if (!levelCodingQuestions.length) {
+    wrap.innerHTML = `<div class="text-center text-muted py-3">No coding questions added yet.</div>`;
+    return;
+  }
+
+  wrap.innerHTML = levelCodingQuestions
+    .map(
+      (q, i) => `
+      <div class="question-card p-3">
+        <div class="d-flex justify-content-between">
+          <div>
+            <span class="badge bg-secondary me-2">Q${i + 1}</span>
+            <strong>${escapeHtmlL(q.title)}</strong>
+            <div class="text-muted small mt-1">
+              ${q.marks} marks &middot; ${(q.visibleTestCases || []).length} public / ${(q.hiddenTestCases || []).length} hidden test cases
+            </div>
+          </div>
+          <div class="text-nowrap">
+            <button class="btn btn-sm btn-outline-primary me-1" data-edit-lcoding="${q.id}"><i class="bi bi-pencil"></i></button>
+            <button class="btn btn-sm btn-outline-danger" data-delete-lcoding="${q.id}"><i class="bi bi-trash"></i></button>
+          </div>
+        </div>
+      </div>`
+    )
+    .join("");
+
+  wrap.querySelectorAll("[data-edit-lcoding]").forEach((btn) => btn.addEventListener("click", () => openLearningCodingModal(levelCodingQuestions.find((q) => q.id === btn.dataset.editLcoding))));
+  wrap.querySelectorAll("[data-delete-lcoding]").forEach((btn) =>
+    btn.addEventListener("click", async () => {
+      if (!confirm("Delete this question? This cannot be undone.")) return;
+      await deleteLearningCodingQuestion(btn.dataset.deleteLcoding);
+      await renderLearningCodingList();
+    })
+  );
+}
+
+document.getElementById("addLearningCodingBtn").addEventListener("click", () => openLearningCodingModal());
+
+function openLearningCodingModal(question = null) {
+  editingLearningCodingId = question?.id || null;
+  document.getElementById("learningCodingForm").reset();
+  document.getElementById("learningCodingFormError").classList.add("d-none");
+
+  document.getElementById("lcTitleInput").value = question?.title || "";
+  document.getElementById("lcDescInput").value = question?.description || "";
+  document.getElementById("lcInputDescInput").value = question?.inputDescription || "";
+  document.getElementById("lcOutputDescInput").value = question?.outputDescription || "";
+  document.getElementById("lcMarksInput").value = question?.marks || "";
+  document.getElementById("lcTimeLimitInput").value = question?.timeLimit || 5;
+  document.getElementById("lcOrderInput").value = question?.order ?? levelCodingQuestions.length;
+  document.getElementById("lcStarterInput").value = question?.starterCode || "";
+
+  ["lcExamplesWrap", "lcVisibleTestsWrap", "lcHiddenTestsWrap"].forEach((id) => {
+    document.getElementById(id).innerHTML = "";
+  });
+
+  (question?.examples || [{}]).forEach((ex) => addDynamicRow("lcExamplesWrap", "example", ex));
+  (question?.visibleTestCases || [{}]).forEach((tc) => addDynamicRow("lcVisibleTestsWrap", "test", tc));
+  (question?.hiddenTestCases || [{}]).forEach((tc) => addDynamicRow("lcHiddenTestsWrap", "test", tc));
+
+  new bootstrap.Modal(document.getElementById("learningCodingModal")).show();
+}
+
+document.getElementById("learningCodingForm").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const errorEl = document.getElementById("learningCodingFormError");
+  errorEl.classList.add("d-none");
+
+  const data = {
+    levelId: activeLevel.id,
+    language: "python",
+    title: document.getElementById("lcTitleInput").value.trim(),
+    description: document.getElementById("lcDescInput").value.trim(),
+    inputDescription: document.getElementById("lcInputDescInput").value.trim(),
+    outputDescription: document.getElementById("lcOutputDescInput").value.trim(),
+    marks: Number(document.getElementById("lcMarksInput").value),
+    timeLimit: Number(document.getElementById("lcTimeLimitInput").value),
+    order: Number(document.getElementById("lcOrderInput").value),
+    starterCode: document.getElementById("lcStarterInput").value,
+    examples: collectDynamicRows("lcExamplesWrap", false).filter((r) => r.input || r.output),
+    visibleTestCases: collectDynamicRows("lcVisibleTestsWrap", true).filter((r) => r.input || r.expectedOutput),
+    hiddenTestCases: collectDynamicRows("lcHiddenTestsWrap", true).filter((r) => r.input || r.expectedOutput)
+  };
+
+  if (!data.visibleTestCases.length && !data.hiddenTestCases.length) {
+    errorEl.textContent = "Add at least one test case (public or hidden).";
+    errorEl.classList.remove("d-none");
+    return;
+  }
+
+  try {
+    if (editingLearningCodingId) {
+      await updateLearningCodingQuestion(editingLearningCodingId, data);
+    } else {
+      await createLearningCodingQuestion(data);
+    }
+    bootstrap.Modal.getInstance(document.getElementById("learningCodingModal"))?.hide();
+    await renderLearningCodingList();
+  } catch (err) {
+    errorEl.textContent = err.message || "Could not save question.";
+    errorEl.classList.remove("d-none");
+  }
+});
+
+/* ---------- Student Progress ---------- */
+async function renderLearningProgress() {
+  const tbody = document.getElementById("learningProgressTableBody");
+  const [progressDocs, totalConcepts] = await Promise.all([listProgressForLevel(activeLevel.id), listConcepts(activeLevel.id).then((c) => c.length)]);
+
+  if (!progressDocs.length) {
+    tbody.innerHTML = `<tr><td colspan="6" class="text-center text-muted py-4">No student progress recorded yet.</td></tr>`;
+    return;
+  }
+
+  tbody.innerHTML = progressDocs
+    .map((p) => {
+      const student = students.find((s) => s.uid === p.studentId);
+      const mcqCell = p.mcqPassed
+        ? `<span class="badge bg-success">Passed (${p.mcqPercentage}%)</span>`
+        : p.mcqAttempts
+        ? `<span class="badge bg-danger">Failed (${p.mcqPercentage}%)</span>`
+        : `<span class="badge bg-secondary">Not attempted</span>`;
+      const codingCell = p.codingUnlocked
+        ? '<span class="badge bg-success">Unlocked</span>'
+        : '<span class="badge bg-secondary">Locked</span>';
+
+      return `
+        <tr>
+          <td>${student?.rollNumber ?? "-"}</td>
+          <td>${student?.name ?? "Unknown"}</td>
+          <td><span class="badge bg-secondary">${student?.section ?? "-"}</span></td>
+          <td>${(p.completedConceptIds || []).length}/${totalConcepts}</td>
+          <td>${mcqCell}</td>
+          <td>${codingCell}</td>
+        </tr>`;
     })
     .join("");
 }
