@@ -59,6 +59,12 @@
     <div class="col-12 text-muted">Fetching your exams...</div>
   </div>
 
+  <div id="absentExamsSection" class="d-none">
+    <h5 class="mb-3"><i class="bi bi-file-earmark-text me-1"></i>Absent Exam Questions</h5>
+    <p class="text-muted small mb-3">You were marked absent for these exams. You can still review the questions and correct answers for reference - no submission or scoring is possible.</p>
+    <div id="absentExamsList" class="row g-3 mb-4"></div>
+  </div>
+
   <div class="card">
     <div class="card-header fw-semibold"><i class="bi bi-clock-history me-1"></i>Exam History</div>
     <div class="table-responsive">
@@ -143,7 +149,7 @@
     getQuestionsForExam,
     listCodeSubmissionsForExam
   } from "./student.js";
-  import { isPass, PASS_MARK, computeExamAccessStatus, formatExamWindow } from "./grading.js";
+  import { isPass, PASS_MARK, computeExamAccessStatus, formatExamWindow } from "./js/grading.js";
   import { generateReportPDF } from "./pdf-export.js";
   import { listActiveLevels, listConcepts, getProgress, allConceptsCompleted } from "./learning.js";
 
@@ -177,6 +183,7 @@
     wireDownloadReport(submissions);
     renderCodingHistoryOptions(submissions);
     renderLearningLevels();
+    renderAbsentExams(allExams, submissions);
   });
 
   /* ---------- Stats ---------- */
@@ -706,6 +713,44 @@
     );
 
     container.innerHTML = cards.join("");
+  }
+  /* ---------- Absent Exam Questions (reference only) ---------- */
+  function renderAbsentExams(allExams, submissions) {
+    const section = document.getElementById("absentExamsSection");
+    const container = document.getElementById("absentExamsList");
+
+    const absentExams = allExams.filter(
+      (exam) => computeExamAccessStatus(exam, findSubmissionForExam(submissions, exam.id)) === "absent"
+    );
+
+    if (!absentExams.length) {
+      section.classList.add("d-none");
+      return;
+    }
+
+    section.classList.remove("d-none");
+    container.innerHTML = absentExams
+      .map((exam) => {
+        const typeLabel = (exam.examType || "mcq").toUpperCase();
+        const typeBadgeClass = exam.examType === "coding" ? "coding" : "mcq";
+        return `
+          <div class="col-md-6 col-lg-4">
+            <div class="card h-100">
+              <div class="card-body d-flex flex-column">
+                <div class="d-flex justify-content-between align-items-start mb-2">
+                  <h6 class="card-title mb-0">${exam.title}</h6>
+                  <span class="badge exam-type-badge ${typeBadgeClass}">${typeLabel}</span>
+                </div>
+                <span class="badge bg-dark align-self-start mb-2"><i class="bi bi-x-circle me-1"></i>Absent</span>
+                <p class="card-text text-muted small flex-grow-1">${exam.description || ""}</p>
+                <a href="refer-questions.html?examId=${exam.id}" class="btn btn-outline-secondary btn-sm">
+                  <i class="bi bi-file-earmark-text me-1"></i>Refer Questions
+                </a>
+              </div>
+            </div>
+          </div>`;
+      })
+      .join("");
   }
 </script>
 </body>
