@@ -149,7 +149,7 @@
     getQuestionsForExam,
     listCodeSubmissionsForExam
   } from "./student.js";
-  import { isPass, PASS_MARK, computeExamAccessStatus, describeExamWindow } from "./grading.js";
+  import { isPass, PASS_MARK, computeExamAccessStatus, describeExamWindow, filterSchedulesForSection } from "./grading.js";
   import { listSchedulesForExam } from "./student.js";
   import { generateReportPDF } from "./pdf-export.js";
   import { listActiveLevels, listConcepts, getProgress, allConceptsCompleted } from "./learning.js";
@@ -181,9 +181,19 @@
     const scheduleEntries = await Promise.all(allExams.map(async (e) => [e.id, await listSchedulesForExam(e.id)]));
     schedulesByExamId = Object.fromEntries(scheduleEntries);
 
-    renderStats(activeExams, submissions);
+    // Exams whose schedules exist but never include this student's
+    // section (and that the student has no submission for) aren't
+    // theirs at all - filter them out everywhere rather than showing
+    // them as some kind of locked/absent state.
+    const relevantActiveExams = activeExams.filter((e) => {
+      const sub = findSubmissionForExam(submissions, e.id);
+      const status = computeExamAccessStatus(e, sub, schedulesByExamId[e.id] || [], studentProfile.section);
+      return status !== "not-assigned";
+    });
+
+    renderStats(relevantActiveExams, submissions);
     renderCharts(submissions);
-    renderExams(activeExams, submissions);
+    renderExams(relevantActiveExams, submissions);
     renderHistory(submissions);
     wireDownloadReport(submissions);
     renderCodingHistoryOptions(submissions);
@@ -195,7 +205,7 @@
   function renderStats(activeExams, submissions) {
     const completed = submissions.filter((s) => s.status === "submitted" || s.status === "auto-submitted");
     const available = activeExams.filter(
-      (e) => computeExamAccessStatus(e, findSubmissionForExam(submissions, e.id), schedulesByExamId[e.id] || []) === "active"
+      (e) => computeExamAccessStatus(e, findSubmissionForExam(submissions, e.id), schedulesByExamId[e.id] || [], studentProfile.section) === "active"
     );
     const totalExamIds = new Set([...activeExams.map((e) => e.id), ...submissions.map((s) => s.examId)]);
     const visibleCompleted = completed.filter((s) => examById[s.examId]?.showResult !== false && s.percentage != null);
@@ -295,8 +305,8 @@
     container.innerHTML = exams
       .map((exam) => {
         const submission = findSubmissionForExam(submissions, exam.id);
-        const schedules = schedulesByExamId[exam.id] || [];
-        const status = computeExamAccessStatus(exam, submission, schedules);
+        const schedules = filterSchedulesForSection(schedulesByExamId[exam.id] || [], studentProfile.section);
+        const status = computeExamAccessStatus(exam, submission, schedules, studentProfile.section);
         const typeLabel = (exam.examType || "mcq").toUpperCase();
         const typeBadgeClass = exam.examType === "coding" ? "coding" : "mcq";
 
@@ -727,7 +737,7 @@
     const container = document.getElementById("absentExamsList");
 
     const absentExams = allExams.filter(
-      (exam) => computeExamAccessStatus(exam, findSubmissionForExam(submissions, exam.id), schedulesByExamId[exam.id] || []) === "absent"
+      (exam) => computeExamAccessStatus(exam, findSubmissionForExam(submissions, exam.id), schedulesByExamId[exam.id] || [], studentProfile.section) === "absent"
     );
 
     if (!absentExams.length) {
