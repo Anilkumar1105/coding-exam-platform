@@ -5,7 +5,7 @@
 // this app). No editor, no timer, no submission - purely for review.
 
 import { requireRole, wireLogoutButtons } from "./auth.js";
-import { getExamById, getQuestionsForExam, getSubmission } from "./student.js";
+import { getExamById, getQuestionsForExam, getSubmission, listSchedulesForExam } from "./student.js";
 import { computeExamAccessStatus } from "./grading.js";
 
 wireLogoutButtons();
@@ -25,7 +25,8 @@ requireRole("student", async (user) => {
   }
 
   const submission = await getSubmission(examId, user.uid);
-  const status = computeExamAccessStatus(exam, submission);
+  const schedules = await listSchedulesForExam(examId);
+  const status = computeExamAccessStatus(exam, submission, schedules);
 
   // This reference view is only for exams the student was actually
   // marked absent for - never for exams still upcoming/active (that
