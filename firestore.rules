@@ -52,6 +52,16 @@ service cloud.firestore {
       allow create, update, delete: if isAdmin();
     }
 
+    // examSchedules/{scheduleId}
+    // Up to 7 date/time schedules per exam (an alternative to the
+    // single startTime/endTime pair on the exam doc itself). Students
+    // need read access to compute which schedule window is currently
+    // open; only admins can add/edit/remove schedules.
+    match /examSchedules/{scheduleId} {
+      allow read: if isSignedIn();
+      allow create, update, delete: if isAdmin();
+    }
+
     // submissions/{submissionId}
     match /submissions/{submissionId} {
       allow read: if isAdmin() ||
