@@ -69,11 +69,29 @@ export function isPass(percentage) {
    ============================================================ */
 
 /**
+ * A schedule with no `sections` (or an empty array) applies to every
+ * section - that's the "same slot for all sections" case. Otherwise it
+ * only applies to the sections explicitly listed.
+ */
+export function scheduleAppliesToSection(schedule, section) {
+  return !schedule.sections || schedule.sections.length === 0 || (section && schedule.sections.includes(section));
+}
+
+/** Schedules relevant to a given section (or all of them if `section` isn't provided). */
+export function filterSchedulesForSection(schedules = [], section = null) {
+  if (!section) return schedules;
+  return schedules.filter((s) => scheduleAppliesToSection(s, section));
+}
+
+/**
  * Normalizes an exam's timing into a list of { start: Date, end: Date }
  * windows, regardless of whether it uses the newer multiple-schedules
  * model or the older single startTime/endTime pair:
- *   - `schedules` (array of { startTime }) takes priority when given -
- *     each schedule's window is [startTime, startTime + exam.duration].
+ *   - `schedules` (array of { startTime, sections? }) takes priority
+ *     when given - each schedule's window is
+ *     [startTime, startTime + exam.duration]. Pass only the schedules
+ *     already relevant to the student (see filterSchedulesForSection)
+ *     if you want section-restricted slots excluded.
  *   - Falls back to the legacy exam.startTime/exam.endTime pair when no
  *     schedules exist, so exams created before schedules existed keep
  *     working exactly as before.
@@ -85,37 +103,51 @@ export function resolveExamWindows(exam, schedules = []) {
       .map((s) => {
         const start = new Date(s.startTime);
         const end = new Date(start.getTime() + (Number(exam?.duration) || 0) * 60000);
-        return { id: s.id, start, end };
+        return { id: s.id, start, end, sections: s.sections || [] };
       })
       .sort((a, b) => a.start - b.start);
   }
   if (exam?.startTime && exam?.endTime) {
-    return [{ id: "legacy", start: new Date(exam.startTime), end: new Date(exam.endTime) }];
+    return [{ id: "legacy", start: new Date(exam.startTime), end: new Date(exam.endTime), sections: [] }];
   }
   return [];
 }
 
 /**
  * Resolves what a student can currently do with an exam, combining its
- * time window(s) with any existing submission.
- * Returns one of: "upcoming" | "active" | "completed" | "absent".
+ * time window(s), any section restriction per schedule, and any
+ * existing submission.
+ * Returns one of: "upcoming" | "active" | "completed" | "absent" | "not-assigned".
  *
  * - Exams with no schedules and no legacy startTime/endTime are always
  *   "active" once the admin's separate active/inactive toggle allows
  *   them (unchanged behavior for exams with no time restriction).
  * - With multiple schedules, being between two windows (missed one
  *   slot but a later one hasn't started yet) is "upcoming", not
- *   "absent" - a student isn't absent until every scheduled window
- *   has passed.
+ *   "absent" - a student isn't absent until every window relevant to
+ *   their section has passed.
+ * - "not-assigned": the exam has schedules, but none of them include
+ *   this student's section - it was never scheduled for them at all,
+ *   which is different from being absent (they were never expected to
+ *   attend). Only applies before any submission exists; a submission
+ *   already on record always takes priority so historical attempts
+ *   still show correctly even if section assignments changed later.
  * - "absent" covers both "never started" and "started but never
- *   finished" once every window has closed - the caller decides how to
- *   act on it (block access, show a badge, finalize a stale attempt).
+ *   finished" once every relevant window has closed - the caller
+ *   decides how to act on it (block access, show a badge, finalize a
+ *   stale attempt).
  */
-export function computeExamAccessStatus(exam, submission, schedules = [], now = new Date()) {
+export function computeExamAccessStatus(exam, submission, schedules = [], section = null, now = new Date()) {
   if (submission) {
     if (submission.status === "submitted" || submission.status === "auto-submitted") return "completed";
     if (submission.status === "absent") return "absent";
     // else status === "in-progress" - fall through to the window check below
+  }
+
+  if (schedules.length && section) {
+    const relevant = filterSchedulesForSection(schedules, section);
+    if (!relevant.length) return "not-assigned";
+    schedules = relevant;
   }
 
   const windows = resolveExamWindows(exam, schedules);
@@ -153,18 +185,24 @@ export function formatExamWindow(exam) {
   return formatWindowRange(new Date(exam.startTime), new Date(exam.endTime));
 }
 
-/** Human-readable summary of one schedule's window (its start + the exam's duration). */
+/** Human-readable summary of one schedule's window plus which sections it's for. */
 export function formatScheduleWindow(schedule, duration) {
   const start = new Date(schedule.startTime);
   const end = new Date(start.getTime() + (Number(duration) || 0) * 60000);
   return formatWindowRange(start, end);
 }
 
+/** "All Sections" or "Sections: A, C" summary for a schedule. */
+export function formatScheduleSections(schedule) {
+  return !schedule.sections || schedule.sections.length === 0 ? "All Sections" : `Sections: ${schedule.sections.join(", ")}`;
+}
+
 /**
  * Best available description of an exam's timing for a student-facing
  * card: the currently-open or next-upcoming schedule/window, falling
  * back to the most recent one if every window has passed, or "No time
- * limit set" if the exam has no time restriction at all.
+ * limit set" if the exam has no time restriction at all. Pass
+ * already-section-filtered schedules if relevant.
  */
 export function describeExamWindow(exam, schedules = [], now = new Date()) {
   const windows = resolveExamWindows(exam, schedules);
