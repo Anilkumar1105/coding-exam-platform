@@ -23,7 +23,7 @@ import {
   orderBy
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
-export const SECTIONS = ["IT-A", "IT-B", "IT-C", "AIDS-A", "AIDS-B", "AIML", "CYS","OTHERS"];
+export const SECTIONS = ["IT-A", "IT-B", "IT-C", "AIDS-A", "AIDS-B", "CYS", "AIML"];
 
 /* ============================================================
    STUDENTS
@@ -165,12 +165,12 @@ export const MAX_SCHEDULES_PER_EXAM = 7;
 // this admin-only module just for a read).
 export { listSchedulesForExam } from "./student.js";
 
-export function createSchedule(examId, startTime) {
-  return addDoc(collection(db, "examSchedules"), { examId, startTime, createdAt: new Date().toISOString() });
+export function createSchedule(examId, startTime, sections = []) {
+  return addDoc(collection(db, "examSchedules"), { examId, startTime, sections, createdAt: new Date().toISOString() });
 }
 
-export function updateSchedule(scheduleId, startTime) {
-  return updateDoc(doc(db, "examSchedules", scheduleId), { startTime });
+export function updateSchedule(scheduleId, startTime, sections = []) {
+  return updateDoc(doc(db, "examSchedules", scheduleId), { startTime, sections });
 }
 
 export function deleteSchedule(scheduleId) {
