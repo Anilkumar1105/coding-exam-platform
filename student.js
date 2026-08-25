@@ -52,7 +52,7 @@ export async function getExamById(examId) {
 
 /** Fetch multiple exams by IDs. */
 export async function getExamsByIds(examIds) {
-  const uniqueIds = [...new Set(examIds)];
+  const uniqueIds = [...new Set(examIds || [])];
 
   const exams = await Promise.all(
     uniqueIds.map((id) => getExamById(id))
@@ -114,6 +114,17 @@ export async function listPublishedQuestions(examId) {
 }
 
 
+/**
+ * Fetch questions for an exam.
+ *
+ * This function is used by student-dashboard.html.
+ * It returns only published questions.
+ */
+export async function getQuestionsForExam(examId) {
+  return await listPublishedQuestions(examId);
+}
+
+
 /* ============================================================
    STUDENT SUBMISSIONS
    ============================================================ */
@@ -162,7 +173,10 @@ export async function getSubmission(examId, studentId) {
   );
 
   return snap.exists()
-    ? snap.data()
+    ? {
+        id: snap.id,
+        ...snap.data()
+      }
     : null;
 }
 
@@ -186,12 +200,15 @@ export function startSubmission(
     {
       examId,
       studentId: student.uid,
-      rollNumber: student.rollNumber,
-      section: student.section,
+      rollNumber: student.rollNumber || "",
+      section: student.section || "",
 
       answers: {},
 
       score: null,
+      mcqScore: null,
+      codingScore: null,
+      totalMarks: null,
       percentage: null,
 
       violations: 0,
@@ -287,8 +304,7 @@ export function finalizeSubmission(
 
 /* ============================================================
    CODE SUBMISSIONS
-   "Submit Code" attempts
-   One document per attempt
+   One document per "Submit Code" attempt
    ============================================================ */
 
 /**
@@ -321,20 +337,20 @@ export async function createCodeSubmission({
     examId,
     questionId,
 
-    language,
-    sourceCode,
+    language: language || "",
+    sourceCode: sourceCode || "",
 
     submittedAt: new Date().toISOString(),
 
-    compilationStatus,
-    executionStatus,
+    compilationStatus: compilationStatus || "unknown",
+    executionStatus: executionStatus || "unknown",
 
-    testCasesPassed,
-    totalTestCases,
+    testCasesPassed: testCasesPassed ?? 0,
+    totalTestCases: totalTestCases ?? 0,
 
-    marksObtained,
+    marksObtained: marksObtained ?? 0,
 
-    executionTimeMs,
+    executionTimeMs: executionTimeMs ?? null,
 
     memoryUsage: memoryUsage ?? null,
 
@@ -346,7 +362,7 @@ export async function createCodeSubmission({
 
 
 /**
- * Fetch all of one student's attempts
+ * Fetch all attempts by one student
  * for one coding question.
  * Newest attempt comes first.
  */
@@ -356,18 +372,8 @@ export async function listCodeSubmissions(
 ) {
   const q = query(
     collection(db, "codeSubmissions"),
-
-    where(
-      "studentId",
-      "==",
-      studentId
-    ),
-
-    where(
-      "questionId",
-      "==",
-      questionId
-    )
+    where("studentId", "==", studentId),
+    where("questionId", "==", questionId)
   );
 
   const snap = await getDocs(q);
@@ -395,24 +401,20 @@ export async function listCodeSubmissionsForExam(
 ) {
   const q = query(
     collection(db, "codeSubmissions"),
-
-    where(
-      "studentId",
-      "==",
-      studentId
-    ),
-
-    where(
-      "examId",
-      "==",
-      examId
-    )
+    where("studentId", "==", studentId),
+    where("examId", "==", examId)
   );
 
   const snap = await getDocs(q);
 
-  return snap.docs.map((d) => ({
-    id: d.id,
-    ...d.data()
-  }));
+  return snap.docs
+    .map((d) => ({
+      id: d.id,
+      ...d.data()
+    }))
+    .sort(
+      (a, b) =>
+        new Date(b.submittedAt) -
+        new Date(a.submittedAt)
+    );
 }
