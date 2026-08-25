@@ -186,6 +186,19 @@
           <div id="questionsList" class="d-flex flex-column gap-2"></div>
         </div>
 
+        <!-- Exam schedules view -->
+        <div id="examSchedulesView" class="d-none">
+          <div class="d-flex justify-content-between align-items-center mb-3">
+            <div>
+              <button class="btn btn-sm btn-outline-secondary mb-2" id="backToExamsFromSchedulesBtn"><i class="bi bi-arrow-left me-1"></i>Back to Exams</button>
+              <h6 class="mb-0" id="schedulesExamTitle">Manage Schedules</h6>
+            </div>
+            <button class="btn btn-brand btn-sm" id="addScheduleBtn"><i class="bi bi-plus-lg me-1"></i>Add Schedule</button>
+          </div>
+          <p class="text-muted small">Add up to 7 date/time schedules for this exam. Dates and times can repeat or differ - each is an independent window students can start within (open for the exam's Duration from that Start Time).</p>
+          <div id="schedulesList" class="d-flex flex-column gap-2"></div>
+        </div>
+
       </div>
 
       <!-- ===================== LEARNING PANE ===================== -->
@@ -361,18 +374,8 @@
               <input type="number" min="1" class="form-control" id="examMarksInput" required />
             </div>
           </div>
-          <div class="row g-2 mt-1">
-            <div class="col-6">
-              <label class="form-label">Start Time</label>
-              <input type="datetime-local" class="form-control" id="examStartTimeInput" />
-            </div>
-            <div class="col-6">
-              <label class="form-label">End Time</label>
-              <input type="datetime-local" class="form-control" id="examEndTimeInput" />
-            </div>
-          </div>
           <div class="form-text mb-1">
-            Leave both blank for no fixed window (exam stays open whenever it's Active). If set, students can only start or resume between these times, and the exam locks automatically once End Time passes.
+            <i class="bi bi-info-circle me-1"></i>Exam timing is set via <strong>Schedules</strong> (up to 7 date/time slots) after you save this exam - use the calendar icon on the Exams list.
           </div>
           <div class="form-check mt-3">
             <input class="form-check-input" type="checkbox" id="examActiveInput" checked />
@@ -386,6 +389,38 @@
         <div class="modal-footer">
           <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
           <button type="submit" class="btn btn-brand" id="examSubmitBtn">Create Exam</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- Add/Edit Schedule Modal -->
+<div class="modal fade" id="scheduleModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <form id="scheduleForm">
+        <div class="modal-header">
+          <h5 class="modal-title" id="scheduleModalTitle">Add Schedule</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <div id="scheduleFormError" class="alert alert-danger py-2 d-none small"></div>
+          <div class="row g-2">
+            <div class="col-6">
+              <label class="form-label">Date</label>
+              <input type="date" class="form-control" id="scheduleDateInput" required />
+            </div>
+            <div class="col-6">
+              <label class="form-label">Start Time</label>
+              <input type="time" class="form-control" id="scheduleTimeInput" required />
+            </div>
+          </div>
+          <div class="form-text mt-2">The exam will be open for its full Duration starting from this date/time.</div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-brand">Save Schedule</button>
         </div>
       </form>
     </div>
