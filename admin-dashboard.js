@@ -20,7 +20,12 @@ import {
   updateQuestionDoc,
   deleteQuestionDoc,
   listSubmissions,
-  exportResultsToExcel
+  exportResultsToExcel,
+  MAX_SCHEDULES_PER_EXAM,
+  listSchedulesForExam,
+  createSchedule,
+  updateSchedule,
+  deleteSchedule
 } from "./admin.js";
 import {
   computeOverallStats,
@@ -34,7 +39,7 @@ import {
   buildFiltersText
 } from "./dashboard.js";
 import { generateReportPDF } from "./pdf-export.js";
-import { formatExamWindow } from "./grading.js";
+import { formatExamWindow, describeExamWindow, formatScheduleWindow } from "./grading.js";
 import { auth } from "./firebase-config.js";
 import { listCodeSubmissionsForExam } from "./student.js";
 import {
@@ -69,6 +74,10 @@ let activeExamForQuestions = null;
 let questions = [];
 let editingQuestionId = null;
 let sectionChartInstance = null;
+let schedulesByExamId = {};
+let activeExamForSchedules = null;
+let examSchedules = [];
+let editingScheduleId = null;
 let levels = [];
 let activeLevel = null;
 let editingLevelId = null;
@@ -94,10 +103,16 @@ async function loadEverything() {
     listExams(),
     listSubmissions()
   ]);
+  await loadSchedules();
   renderStudentsTable();
   renderExamsTable();
   populateFilterOptions();
   renderAnalytics();
+}
+
+async function loadSchedules() {
+  const entries = await Promise.all(exams.map(async (ex) => [ex.id, await listSchedulesForExam(ex.id)]));
+  schedulesByExamId = Object.fromEntries(entries);
 }
 
 /* ============================================================
@@ -195,7 +210,7 @@ function currentFilters() {
 
 function applyFiltersAndRenderResults() {
   const filters = currentFilters();
-  const rows = buildResultRowsWithAbsent(submissions, students, exams, filters);
+  const rows = buildResultRowsWithAbsent(submissions, students, exams, filters, schedulesByExamId);
   renderResultsTable(document.getElementById("resultsTableBody"), rows);
 
   document.querySelectorAll("[data-view-code]").forEach((btn) => {
@@ -527,16 +542,20 @@ function renderExamsTable() {
     return;
   }
   tbody.innerHTML = exams
-    .map(
-      (ex) => `
+    .map((ex) => {
+      const schedules = schedulesByExamId[ex.id] || [];
+      const windowText = describeExamWindow(ex, schedules);
+      const windowSuffix = schedules.length > 1 ? ` <span class="text-muted">(+${schedules.length - 1} more)</span>` : "";
+      return `
       <tr>
         <td>${ex.title}</td>
         <td><span class="badge exam-type-badge ${ex.examType || "mcq"}">${(ex.examType || "mcq").toUpperCase()}</span></td>
         <td>${ex.duration} min</td>
         <td>${ex.totalMarks}</td>
-        <td class="small">${formatExamWindow(ex)}</td>
+        <td class="small">${windowText}${windowSuffix}</td>
         <td>${ex.active ? '<span class="badge bg-success">Active</span>' : '<span class="badge bg-secondary">Inactive</span>'}</td>
         <td class="text-end">
+          <button class="btn btn-sm btn-outline-secondary me-1" data-schedules="${ex.id}" title="Manage Schedules"><i class="bi bi-calendar-week"></i></button>
           <button class="btn btn-sm btn-outline-secondary me-1" data-questions="${ex.id}" title="Manage Questions"><i class="bi bi-list-check"></i></button>
           <button class="btn btn-sm btn-outline-primary me-1" data-edit-exam="${ex.id}" title="Edit"><i class="bi bi-pencil"></i></button>
           <button class="btn btn-sm ${ex.active ? "btn-outline-warning" : "btn-outline-success"} me-1" data-toggle-exam="${ex.id}" title="${ex.active ? "Deactivate" : "Activate"}">
@@ -544,27 +563,15 @@ function renderExamsTable() {
           </button>
           <button class="btn btn-sm btn-outline-danger" data-delete-exam="${ex.id}" title="Delete"><i class="bi bi-trash"></i></button>
         </td>
-      </tr>`
-    )
+      </tr>`;
+    })
     .join("");
 
+  tbody.querySelectorAll("[data-schedules]").forEach((btn) => btn.addEventListener("click", () => openSchedulesView(btn.dataset.schedules)));
   tbody.querySelectorAll("[data-questions]").forEach((btn) => btn.addEventListener("click", () => openQuestionsView(btn.dataset.questions)));
   tbody.querySelectorAll("[data-edit-exam]").forEach((btn) => btn.addEventListener("click", () => openEditExam(btn.dataset.editExam)));
   tbody.querySelectorAll("[data-toggle-exam]").forEach((btn) => btn.addEventListener("click", () => handleToggleExam(btn.dataset.toggleExam)));
   tbody.querySelectorAll("[data-delete-exam]").forEach((btn) => btn.addEventListener("click", () => handleDeleteExam(btn.dataset.deleteExam)));
-}
-
-/** Converts a <input type="datetime-local"> value to ISO, or null if blank. */
-function toISOOrNull(datetimeLocalValue) {
-  return datetimeLocalValue ? new Date(datetimeLocalValue).toISOString() : null;
-}
-
-/** Converts an ISO string to the "YYYY-MM-DDTHH:mm" format datetime-local inputs expect. */
-function toDatetimeLocalValue(isoString) {
-  if (!isoString) return "";
-  const d = new Date(isoString);
-  const pad = (n) => String(n).padStart(2, "0");
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
 document.getElementById("createExamBtn").addEventListener("click", () => {
@@ -575,8 +582,6 @@ document.getElementById("createExamBtn").addEventListener("click", () => {
   document.getElementById("examFormError").classList.add("d-none");
   document.getElementById("examTypeInput").disabled = false;
   document.getElementById("examMaxViolationsInput").value = 3;
-  document.getElementById("examStartTimeInput").value = "";
-  document.getElementById("examEndTimeInput").value = "";
   document.getElementById("examActiveInput").checked = true;
   document.getElementById("examShowResultInput").checked = true;
 });
@@ -595,8 +600,6 @@ function openEditExam(examId) {
   document.getElementById("examMaxViolationsInput").value = exam.maxViolations ?? 3;
   document.getElementById("examDurationInput").value = exam.duration;
   document.getElementById("examMarksInput").value = exam.totalMarks;
-  document.getElementById("examStartTimeInput").value = toDatetimeLocalValue(exam.startTime);
-  document.getElementById("examEndTimeInput").value = toDatetimeLocalValue(exam.endTime);
   document.getElementById("examActiveInput").checked = !!exam.active;
   document.getElementById("examShowResultInput").checked = exam.showResult !== false;
   new bootstrap.Modal(document.getElementById("examModal")).show();
@@ -611,9 +614,10 @@ async function handleToggleExam(examId) {
 }
 
 async function handleDeleteExam(examId) {
-  if (!confirm("Delete this exam? Its questions will remain orphaned unless removed separately. This cannot be undone.")) return;
+  if (!confirm("Delete this exam? Its questions and schedules will remain orphaned unless removed separately. This cannot be undone.")) return;
   await deleteExamDoc(examId);
   exams = exams.filter((e) => e.id !== examId);
+  delete schedulesByExamId[examId];
   renderExamsTable();
   populateFilterOptions();
   renderAnalytics();
@@ -624,19 +628,6 @@ document.getElementById("examForm").addEventListener("submit", async (e) => {
   const errorEl = document.getElementById("examFormError");
   errorEl.classList.add("d-none");
 
-  const startTime = toISOOrNull(document.getElementById("examStartTimeInput").value);
-  const endTime = toISOOrNull(document.getElementById("examEndTimeInput").value);
-  if ((startTime && !endTime) || (!startTime && endTime)) {
-    errorEl.textContent = "Set both Start Time and End Time, or leave both blank.";
-    errorEl.classList.remove("d-none");
-    return;
-  }
-  if (startTime && endTime && new Date(startTime) >= new Date(endTime)) {
-    errorEl.textContent = "End Time must be after Start Time.";
-    errorEl.classList.remove("d-none");
-    return;
-  }
-
   const data = {
     title: document.getElementById("examTitleInput").value.trim(),
     description: document.getElementById("examDescInput").value.trim(),
@@ -644,8 +635,6 @@ document.getElementById("examForm").addEventListener("submit", async (e) => {
     maxViolations: Number(document.getElementById("examMaxViolationsInput").value),
     duration: Number(document.getElementById("examDurationInput").value),
     totalMarks: Number(document.getElementById("examMarksInput").value),
-    startTime,
-    endTime,
     active: document.getElementById("examActiveInput").checked,
     showResult: document.getElementById("examShowResultInput").checked
   };
@@ -660,6 +649,118 @@ document.getElementById("examForm").addEventListener("submit", async (e) => {
     await loadEverything();
   } catch (err) {
     errorEl.textContent = err.message || "Could not save exam.";
+    errorEl.classList.remove("d-none");
+  }
+});
+
+/* ============================================================
+   EXAM SCHEDULES (up to 7 date/time slots per exam)
+   ============================================================ */
+async function openSchedulesView(examId) {
+  activeExamForSchedules = exams.find((e) => e.id === examId);
+  if (!activeExamForSchedules) return;
+
+  document.getElementById("examsListView").classList.add("d-none");
+  document.getElementById("examSchedulesView").classList.remove("d-none");
+  document.getElementById("schedulesExamTitle").textContent = `Manage Schedules - ${activeExamForSchedules.title}`;
+
+  examSchedules = await listSchedulesForExam(examId);
+  schedulesByExamId[examId] = examSchedules;
+  renderSchedulesList();
+}
+
+document.getElementById("backToExamsFromSchedulesBtn").addEventListener("click", () => {
+  document.getElementById("examSchedulesView").classList.add("d-none");
+  document.getElementById("examsListView").classList.remove("d-none");
+  renderExamsTable();
+});
+
+function renderSchedulesList() {
+  const wrap = document.getElementById("schedulesList");
+  const addBtn = document.getElementById("addScheduleBtn");
+  addBtn.disabled = examSchedules.length >= MAX_SCHEDULES_PER_EXAM;
+  addBtn.title = addBtn.disabled ? `Maximum of ${MAX_SCHEDULES_PER_EXAM} schedules reached` : "";
+
+  if (!examSchedules.length) {
+    wrap.innerHTML = `<div class="text-center text-muted py-3">No schedules added yet. This exam has no time restriction until you add at least one.</div>`;
+    return;
+  }
+
+  wrap.innerHTML = examSchedules
+    .map(
+      (s, i) => `
+      <div class="question-card p-3 d-flex justify-content-between align-items-center">
+        <div>
+          <span class="badge bg-secondary me-2">${i + 1}</span>
+          <strong>${formatScheduleWindow(s, activeExamForSchedules.duration)}</strong>
+        </div>
+        <div class="text-nowrap">
+          <button class="btn btn-sm btn-outline-primary me-1" data-edit-schedule="${s.id}"><i class="bi bi-pencil"></i></button>
+          <button class="btn btn-sm btn-outline-danger" data-delete-schedule="${s.id}"><i class="bi bi-trash"></i></button>
+        </div>
+      </div>`
+    )
+    .join("");
+
+  wrap.querySelectorAll("[data-edit-schedule]").forEach((btn) =>
+    btn.addEventListener("click", () => openScheduleModal(examSchedules.find((s) => s.id === btn.dataset.editSchedule)))
+  );
+  wrap.querySelectorAll("[data-delete-schedule]").forEach((btn) =>
+    btn.addEventListener("click", async () => {
+      if (!confirm("Delete this schedule? Students will no longer be able to start the exam during this window.")) return;
+      await deleteSchedule(btn.dataset.deleteSchedule);
+      examSchedules = await listSchedulesForExam(activeExamForSchedules.id);
+      schedulesByExamId[activeExamForSchedules.id] = examSchedules;
+      renderSchedulesList();
+    })
+  );
+}
+
+document.getElementById("addScheduleBtn").addEventListener("click", () => openScheduleModal());
+
+function openScheduleModal(schedule = null) {
+  editingScheduleId = schedule?.id || null;
+  document.getElementById("scheduleForm").reset();
+  document.getElementById("scheduleFormError").classList.add("d-none");
+  document.getElementById("scheduleModalTitle").textContent = schedule ? "Edit Schedule" : "Add Schedule";
+
+  if (schedule) {
+    const d = new Date(schedule.startTime);
+    const pad = (n) => String(n).padStart(2, "0");
+    document.getElementById("scheduleDateInput").value = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+    document.getElementById("scheduleTimeInput").value = `${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  }
+
+  new bootstrap.Modal(document.getElementById("scheduleModal")).show();
+}
+
+document.getElementById("scheduleForm").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const errorEl = document.getElementById("scheduleFormError");
+  errorEl.classList.add("d-none");
+
+  const date = document.getElementById("scheduleDateInput").value;
+  const time = document.getElementById("scheduleTimeInput").value;
+  const startTime = new Date(`${date}T${time}`).toISOString();
+
+  if (!editingScheduleId && examSchedules.length >= MAX_SCHEDULES_PER_EXAM) {
+    errorEl.textContent = `This exam already has the maximum of ${MAX_SCHEDULES_PER_EXAM} schedules.`;
+    errorEl.classList.remove("d-none");
+    return;
+  }
+
+  try {
+    if (editingScheduleId) {
+      await updateSchedule(editingScheduleId, startTime);
+    } else {
+      await createSchedule(activeExamForSchedules.id, startTime);
+    }
+    bootstrap.Modal.getInstance(document.getElementById("scheduleModal"))?.hide();
+    examSchedules = await listSchedulesForExam(activeExamForSchedules.id);
+    schedulesByExamId[activeExamForSchedules.id] = examSchedules;
+    renderSchedulesList();
+  } catch (err) {
+    errorEl.textContent = err.message || "Could not save schedule.";
     errorEl.classList.remove("d-none");
   }
 });
