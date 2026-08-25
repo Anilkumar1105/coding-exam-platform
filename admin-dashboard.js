@@ -210,8 +210,15 @@ function currentFilters() {
 
 function applyFiltersAndRenderResults() {
   const filters = currentFilters();
-  const rows = buildResultRowsWithAbsent(submissions, students, exams, filters, schedulesByExamId);
-  renderResultsTable(document.getElementById("resultsTableBody"), rows);
+  const rows = buildResultRowsWithAbsent(
+  submissions,
+  students,
+  exams,
+  filters,
+  schedulesByExamId
+).sort((a, b) => Number(b.percentage || 0) - Number(a.percentage || 0));
+
+renderResultsTable(document.getElementById("resultsTableBody"), rows);
 
   document.querySelectorAll("[data-view-code]").forEach((btn) => {
     btn.addEventListener("click", () => openCodeSubmissionsModal(btn.dataset.viewCode, btn.dataset.examId));
