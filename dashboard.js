@@ -5,7 +5,7 @@
 // and paints them into the DOM.
 
 import { SECTIONS } from "./admin.js";
-import { PASS_MARK, isPass } from "./grading.js";
+import { PASS_MARK, isPass, resolveExamWindows } from "./grading.js";
 
 function round(n) {
   return Math.round(n * 100) / 100;
@@ -302,20 +302,26 @@ export function buildResultRows(submissions, students, exams, filters = {}) {
 
 /**
  * Synthesizes "ABSENT" rows for students with no completed submission
- * on an exam whose time window has already closed. These are computed
- * live from the current time - not written to Firestore - since there
- * is no backend to detect and record absences for students who never
- * even opened the app. Only exams with a configured start/end window
- * produce absent rows; open-ended exams never do.
+ * on an exam whose time window(s) have all already closed. These are
+ * computed live from the current time - not written to Firestore -
+ * since there is no backend to detect and record absences for
+ * students who never even opened the app. Only exams with at least
+ * one schedule or a legacy start/end window produce absent rows;
+ * open-ended exams never do.
+ *
+ * `schedulesByExamId` is a { [examId]: schedule[] } map - pass an
+ * empty object if schedules haven't been loaded (exams with only a
+ * legacy startTime/endTime still work via resolveExamWindows' fallback).
  */
-export function buildAbsentRows(students, submissions, exams, filters = {}) {
+export function buildAbsentRows(students, submissions, exams, filters = {}, schedulesByExamId = {}) {
   const now = new Date();
   if (filters.date) return []; // absent rows have no submission date to match against
 
   const rows = [];
   exams.forEach((exam) => {
-    if (!exam.startTime || !exam.endTime) return;
-    if (new Date(exam.endTime) > now) return;
+    const windows = resolveExamWindows(exam, schedulesByExamId[exam.id] || []);
+    if (!windows.length) return; // no time restriction configured - never "absent"
+    if (windows.some((w) => w.end > now)) return; // at least one window is still current or upcoming
     if (filters.examId && filters.examId !== "all" && exam.id !== filters.examId) return;
 
     const examSubs = submissions.filter((s) => s.examId === exam.id);
@@ -350,6 +356,9 @@ export function buildAbsentRows(students, submissions, exams, filters = {}) {
 }
 
 /** Real submission rows + synthesized absent rows, same filters applied to both. */
-export function buildResultRowsWithAbsent(submissions, students, exams, filters = {}) {
-  return [...buildResultRows(submissions, students, exams, filters), ...buildAbsentRows(students, submissions, exams, filters)];
+export function buildResultRowsWithAbsent(submissions, students, exams, filters = {}, schedulesByExamId = {}) {
+  return [
+    ...buildResultRows(submissions, students, exams, filters),
+    ...buildAbsentRows(students, submissions, exams, filters, schedulesByExamId)
+  ];
 }
