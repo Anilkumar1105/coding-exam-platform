@@ -23,7 +23,7 @@ import {
   orderBy
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
-export const SECTIONS = ["IT-A", "IT-B", "IT-C", "AIDS-A", "AIDS-B", "AIML", "CYS"];
+export const SECTIONS = ["IT-A", "IT-B", "IT_C", "AIDS-A", "AIDS-B", "AIML", "CYS","OTHERS"];
 
 /* ============================================================
    STUDENTS
@@ -152,6 +152,29 @@ export function toggleExamActive(examId, active) {
 
 export function deleteExamDoc(examId) {
   return deleteDoc(doc(db, "exams", examId));
+}
+
+/* ============================================================
+   EXAM SCHEDULES (up to 7 date/time slots per exam)
+   ============================================================ */
+
+export const MAX_SCHEDULES_PER_EXAM = 7;
+
+// Read-only listSchedulesForExam lives in student.js (both admin and
+// student pages need it, and student pages shouldn't have to import
+// this admin-only module just for a read).
+export { listSchedulesForExam } from "./student.js";
+
+export function createSchedule(examId, startTime) {
+  return addDoc(collection(db, "examSchedules"), { examId, startTime, createdAt: new Date().toISOString() });
+}
+
+export function updateSchedule(scheduleId, startTime) {
+  return updateDoc(doc(db, "examSchedules", scheduleId), { startTime });
+}
+
+export function deleteSchedule(scheduleId) {
+  return deleteDoc(doc(db, "examSchedules", scheduleId));
 }
 
 /* ============================================================
