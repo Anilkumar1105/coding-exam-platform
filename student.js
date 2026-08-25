@@ -10,7 +10,7 @@ import {
   updateDoc,
   query,
   where,
-  getDocs  
+  getDocs
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
 /** Fetch all exams currently marked active (visible to students). */
@@ -34,15 +34,22 @@ export async function getExamsByIds(examIds) {
   return exams.filter(Boolean);
 }
 
-/** Fetch all published questions for an exam. */
-export async function getQuestionsForExam(examId) {
+/** Read-only: fetch an exam's schedules, sorted earliest-first. Both
+ *  admin.js (management UI) and student-facing pages import this from
+ *  here so student pages never need to pull in admin-only Auth code. */
+export async function listSchedulesForExam(examId) {
+  const q = query(collection(db, "examSchedules"), where("examId", "==", examId));
+  const snap = await getDocs(q);
+  return snap.docs
+    .map((d) => ({ id: d.id, ...d.data() }))
+    .sort((a, b) => new Date(a.startTime) - new Date(b.startTime));
+}
   // Students only ever see published questions.
   const q = query(
     collection(db, "questions"),
     where("examId", "==", examId),
     where("published", "==", true)
   );
-
   const snap = await getDocs(q);
   return snap.docs.map((d) => ({ id: d.id, ...d.data() }));
 }
