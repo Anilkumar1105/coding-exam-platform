@@ -65,48 +65,112 @@ export function isPass(percentage) {
 }
 
 /* ============================================================
-   EXAM TIME WINDOW (startTime / endTime)
+   EXAM TIME WINDOW (up to 7 schedules, or the older single window)
    ============================================================ */
 
 /**
- * Resolves what a student can currently do with an exam, combining the
- * admin's start/end time window with any existing submission.
+ * Normalizes an exam's timing into a list of { start: Date, end: Date }
+ * windows, regardless of whether it uses the newer multiple-schedules
+ * model or the older single startTime/endTime pair:
+ *   - `schedules` (array of { startTime }) takes priority when given -
+ *     each schedule's window is [startTime, startTime + exam.duration].
+ *   - Falls back to the legacy exam.startTime/exam.endTime pair when no
+ *     schedules exist, so exams created before schedules existed keep
+ *     working exactly as before.
+ *   - Returns [] when neither is set (exam is always open).
+ */
+export function resolveExamWindows(exam, schedules = []) {
+  if (schedules && schedules.length) {
+    return schedules
+      .map((s) => {
+        const start = new Date(s.startTime);
+        const end = new Date(start.getTime() + (Number(exam?.duration) || 0) * 60000);
+        return { id: s.id, start, end };
+      })
+      .sort((a, b) => a.start - b.start);
+  }
+  if (exam?.startTime && exam?.endTime) {
+    return [{ id: "legacy", start: new Date(exam.startTime), end: new Date(exam.endTime) }];
+  }
+  return [];
+}
+
+/**
+ * Resolves what a student can currently do with an exam, combining its
+ * time window(s) with any existing submission.
  * Returns one of: "upcoming" | "active" | "completed" | "absent".
  *
- * - Exams with no startTime/endTime configured are always "active" once
- *   the admin's separate active/inactive toggle allows them (unchanged
- *   behavior for older exams created before this feature existed).
+ * - Exams with no schedules and no legacy startTime/endTime are always
+ *   "active" once the admin's separate active/inactive toggle allows
+ *   them (unchanged behavior for exams with no time restriction).
+ * - With multiple schedules, being between two windows (missed one
+ *   slot but a later one hasn't started yet) is "upcoming", not
+ *   "absent" - a student isn't absent until every scheduled window
+ *   has passed.
  * - "absent" covers both "never started" and "started but never
- *   finished" once the window has closed - the caller decides how to
+ *   finished" once every window has closed - the caller decides how to
  *   act on it (block access, show a badge, finalize a stale attempt).
  */
-export function computeExamAccessStatus(exam, submission, now = new Date()) {
+export function computeExamAccessStatus(exam, submission, schedules = [], now = new Date()) {
   if (submission) {
     if (submission.status === "submitted" || submission.status === "auto-submitted") return "completed";
     if (submission.status === "absent") return "absent";
     // else status === "in-progress" - fall through to the window check below
   }
 
-  const hasWindow = !!(exam?.startTime && exam?.endTime);
-  if (!hasWindow) return "active";
+  const windows = resolveExamWindows(exam, schedules);
+  if (!windows.length) return "active";
 
-  const start = new Date(exam.startTime);
-  const end = new Date(exam.endTime);
-  if (now < start) return "upcoming";
-  if (now > end) return "absent";
-  return "active";
+  if (windows.some((w) => now >= w.start && now <= w.end)) return "active";
+  if (windows.some((w) => w.start > now)) return "upcoming";
+  return "absent";
 }
 
-/** Human-readable "10 Aug 2026, 10:00 AM - 11:30 AM" window summary. */
-export function formatExamWindow(exam) {
-  if (!exam?.startTime || !exam?.endTime) return "No time limit set";
-  const start = new Date(exam.startTime);
-  const end = new Date(exam.endTime);
+/** The window a student is currently inside, or the next upcoming one, or null if none apply. */
+export function findRelevantWindow(exam, schedules = [], now = new Date()) {
+  const windows = resolveExamWindows(exam, schedules);
+  return windows.find((w) => now >= w.start && now <= w.end) || windows.find((w) => w.start > now) || null;
+}
+
+/** The window that contains a given timestamp - used to cap a resumed session's remaining time to the schedule the student actually started in. */
+export function findWindowContaining(exam, schedules = [], at) {
+  const windows = resolveExamWindows(exam, schedules);
+  return windows.find((w) => at >= w.start && at <= w.end) || null;
+}
+
+function formatWindowRange(start, end) {
   const dateOpts = { day: "2-digit", month: "short", year: "numeric" };
   const timeOpts = { hour: "2-digit", minute: "2-digit" };
   const sameDay = start.toDateString() === end.toDateString();
-
   return sameDay
     ? `${start.toLocaleDateString(undefined, dateOpts)}, ${start.toLocaleTimeString(undefined, timeOpts)} - ${end.toLocaleTimeString(undefined, timeOpts)}`
     : `${start.toLocaleDateString(undefined, dateOpts)} ${start.toLocaleTimeString(undefined, timeOpts)} - ${end.toLocaleDateString(undefined, dateOpts)} ${end.toLocaleTimeString(undefined, timeOpts)}`;
+}
+
+/** Human-readable "10 Aug 2026, 10:00 AM - 11:30 AM" summary of the legacy single window. */
+export function formatExamWindow(exam) {
+  if (!exam?.startTime || !exam?.endTime) return "No time limit set";
+  return formatWindowRange(new Date(exam.startTime), new Date(exam.endTime));
+}
+
+/** Human-readable summary of one schedule's window (its start + the exam's duration). */
+export function formatScheduleWindow(schedule, duration) {
+  const start = new Date(schedule.startTime);
+  const end = new Date(start.getTime() + (Number(duration) || 0) * 60000);
+  return formatWindowRange(start, end);
+}
+
+/**
+ * Best available description of an exam's timing for a student-facing
+ * card: the currently-open or next-upcoming schedule/window, falling
+ * back to the most recent one if every window has passed, or "No time
+ * limit set" if the exam has no time restriction at all.
+ */
+export function describeExamWindow(exam, schedules = [], now = new Date()) {
+  const windows = resolveExamWindows(exam, schedules);
+  if (!windows.length) return "No time limit set";
+  const relevant = findRelevantWindow(exam, schedules, now);
+  if (relevant) return formatWindowRange(relevant.start, relevant.end);
+  const last = windows[windows.length - 1];
+  return formatWindowRange(last.start, last.end);
 }
