@@ -23,7 +23,7 @@ import {
   orderBy
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
-export const SECTIONS = ["IT-A", "IT-B", "IT_C", "AIDS-A", "AIDS-B", "AIML", "CYS","OTHERS"];
+export const SECTIONS = ["IT-A", "IT-B", "IT-C", "AIDS-A", "AIDS-B", "AIML", "CYS","OTHERS"];
 
 /* ============================================================
    STUDENTS
