@@ -5,7 +5,7 @@
 // and paints them into the DOM.
 
 import { SECTIONS } from "./admin.js";
-import { PASS_MARK, isPass, resolveExamWindows } from "./grading.js";
+import { PASS_MARK, isPass, resolveExamWindows, filterSchedulesForSection } from "./grading.js";
 
 function round(n) {
   return Math.round(n * 100) / 100;
@@ -319,9 +319,7 @@ export function buildAbsentRows(students, submissions, exams, filters = {}, sche
 
   const rows = [];
   exams.forEach((exam) => {
-    const windows = resolveExamWindows(exam, schedulesByExamId[exam.id] || []);
-    if (!windows.length) return; // no time restriction configured - never "absent"
-    if (windows.some((w) => w.end > now)) return; // at least one window is still current or upcoming
+    const allSchedules = schedulesByExamId[exam.id] || [];
     if (filters.examId && filters.examId !== "all" && exam.id !== filters.examId) return;
 
     const examSubs = submissions.filter((s) => s.examId === exam.id);
@@ -329,6 +327,17 @@ export function buildAbsentRows(students, submissions, exams, filters = {}, sche
     students.forEach((student) => {
       if (filters.section && filters.section !== "all" && student.section !== filters.section) return;
       if (filters.studentId && filters.studentId !== "all" && student.uid !== filters.studentId) return;
+
+      // Only the schedules that actually include this student's
+      // section (or apply to everyone) count toward their absence -
+      // a section that was never assigned any slot was never expected
+      // to attend, so it can't be "absent".
+      const relevantSchedules = allSchedules.length ? filterSchedulesForSection(allSchedules, student.section) : allSchedules;
+      if (allSchedules.length && !relevantSchedules.length) return; // not scheduled for this section at all
+
+      const windows = resolveExamWindows(exam, relevantSchedules);
+      if (!windows.length) return; // no time restriction configured - never "absent"
+      if (windows.some((w) => w.end > now)) return; // at least one relevant window is still current or upcoming
 
       const sub = examSubs.find((s) => s.studentId === student.uid);
       const isAbsent = !sub || sub.status === "in-progress";
