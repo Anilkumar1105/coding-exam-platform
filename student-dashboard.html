@@ -149,7 +149,8 @@
     getQuestionsForExam,
     listCodeSubmissionsForExam
   } from "./student.js";
-  import { isPass, PASS_MARK, computeExamAccessStatus, formatExamWindow } from "./grading.js";
+  import { isPass, PASS_MARK, computeExamAccessStatus, describeExamWindow } from "./grading.js";
+  import { listSchedulesForExam } from "./student.js";
   import { generateReportPDF } from "./pdf-export.js";
   import { listActiveLevels, listConcepts, getProgress, allConceptsCompleted } from "./learning.js";
 
@@ -157,6 +158,7 @@
 
   let studentProfile = null;
   let examById = {};
+  let schedulesByExamId = {};
   let currentUser = null;
 
   requireRole("student", async (user, profile) => {
@@ -176,6 +178,9 @@
     const allExams = [...activeExams, ...extraExams];
     examById = Object.fromEntries(allExams.map((e) => [e.id, e]));
 
+    const scheduleEntries = await Promise.all(allExams.map(async (e) => [e.id, await listSchedulesForExam(e.id)]));
+    schedulesByExamId = Object.fromEntries(scheduleEntries);
+
     renderStats(activeExams, submissions);
     renderCharts(submissions);
     renderExams(activeExams, submissions);
@@ -190,7 +195,7 @@
   function renderStats(activeExams, submissions) {
     const completed = submissions.filter((s) => s.status === "submitted" || s.status === "auto-submitted");
     const available = activeExams.filter(
-      (e) => computeExamAccessStatus(e, findSubmissionForExam(submissions, e.id)) === "active"
+      (e) => computeExamAccessStatus(e, findSubmissionForExam(submissions, e.id), schedulesByExamId[e.id] || []) === "active"
     );
     const totalExamIds = new Set([...activeExams.map((e) => e.id), ...submissions.map((s) => s.examId)]);
     const visibleCompleted = completed.filter((s) => examById[s.examId]?.showResult !== false && s.percentage != null);
@@ -290,7 +295,8 @@
     container.innerHTML = exams
       .map((exam) => {
         const submission = findSubmissionForExam(submissions, exam.id);
-        const status = computeExamAccessStatus(exam, submission);
+        const schedules = schedulesByExamId[exam.id] || [];
+        const status = computeExamAccessStatus(exam, submission, schedules);
         const typeLabel = (exam.examType || "mcq").toUpperCase();
         const typeBadgeClass = exam.examType === "coding" ? "coding" : "mcq";
 
@@ -307,7 +313,8 @@
         } else if (status === "upcoming") {
           actionHtml =
             `<span class="badge bg-warning text-dark d-block mb-1"><i class="bi bi-hourglass-split me-1"></i>Upcoming</span>` +
-            `<span class="small text-muted">Opens ${formatExamWindow(exam)}</span>`;
+            `<span class="small text-muted">Opens ${describeExamWindow(exam, schedules)}</span>` +
+            (schedules.length > 1 ? `<span class="small text-muted d-block">${schedules.length} scheduled slots</span>` : "");
         } else if (status === "absent") {
           actionHtml = `<span class="badge bg-dark"><i class="bi bi-x-circle me-1"></i>Absent - window closed</span>`;
         } else {
@@ -332,7 +339,7 @@
                   <span><i class="bi bi-clock me-1"></i>${exam.duration} min</span>
                   <span><i class="bi bi-award me-1"></i>${exam.totalMarks} marks</span>
                 </div>
-                ${exam.startTime && exam.endTime && status === "active" ? `<div class="small text-muted mb-2"><i class="bi bi-calendar-event me-1"></i>Closes ${formatExamWindow(exam).split(" - ").pop()}</div>` : ""}
+                ${(schedules.length || (exam.startTime && exam.endTime)) && status === "active" ? `<div class="small text-muted mb-2"><i class="bi bi-calendar-event me-1"></i>Closes ${describeExamWindow(exam, schedules).split(" - ").pop()}</div>` : ""}
                 ${actionHtml}
               </div>
             </div>
@@ -720,7 +727,7 @@
     const container = document.getElementById("absentExamsList");
 
     const absentExams = allExams.filter(
-      (exam) => computeExamAccessStatus(exam, findSubmissionForExam(submissions, exam.id)) === "absent"
+      (exam) => computeExamAccessStatus(exam, findSubmissionForExam(submissions, exam.id), schedulesByExamId[exam.id] || []) === "absent"
     );
 
     if (!absentExams.length) {
