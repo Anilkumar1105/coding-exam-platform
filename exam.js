@@ -15,10 +15,18 @@ import {
   finalizeSubmission,
   createCodeSubmission,
   listCodeSubmissions,
-  listCodeSubmissionsForExam
+  listCodeSubmissionsForExam,
+  listSchedulesForExam
 } from "./student.js";
 import { ensurePyodide, runAllTestCases } from "./python-runner.js";
-import { computeCodingMarks, isPass, PASS_MARK, computeExamAccessStatus, formatExamWindow } from "./grading.js";
+import {
+  computeCodingMarks,
+  isPass,
+  PASS_MARK,
+  computeExamAccessStatus,
+  describeExamWindow,
+  findWindowContaining
+} from "./grading.js";
 
 wireLogoutButtons();
 
@@ -28,6 +36,7 @@ const examId = params.get("examId");
 let currentUser = null;
 let studentProfile = null;
 let exam = null;
+let schedules = [];
 let questions = [];
 let answers = {}; // { [questionId]: number (mcq) | { code } (coding, code text only - marks live in codeSubmissions) }
 let currentIndex = 0;
@@ -60,8 +69,9 @@ async function loadExam() {
     return;
   }
 
+  schedules = await listSchedulesForExam(examId);
   const existing = await getSubmission(examId, currentUser.uid);
-  const accessStatus = computeExamAccessStatus(exam, existing);
+  const accessStatus = computeExamAccessStatus(exam, existing, schedules);
 
   if (accessStatus === "completed") {
     alert("You have already submitted this exam.");
@@ -70,7 +80,7 @@ async function loadExam() {
   }
 
   if (accessStatus === "upcoming") {
-    showStartError(`This exam hasn't started yet. It opens at ${formatExamWindow(exam)}.`);
+    showStartError(`This exam hasn't started yet. It opens at ${describeExamWindow(exam, schedules)}.`);
     return;
   }
 
@@ -108,9 +118,9 @@ async function loadExam() {
   document.getElementById("startMarks").textContent = exam.totalMarks;
   document.getElementById("startMaxViolations").textContent = maxViolations;
 
-  if (exam.startTime && exam.endTime) {
+  if (schedules.length || (exam.startTime && exam.endTime)) {
     const windowNote = document.createElement("li");
-    windowNote.innerHTML = `<i class="bi bi-calendar-event me-1"></i> Window: ${formatExamWindow(exam)}`;
+    windowNote.innerHTML = `<i class="bi bi-calendar-event me-1"></i> Window: ${describeExamWindow(exam, schedules)}`;
     document.querySelector("#startScreen ul.list-unstyled").appendChild(windowNote);
   }
 
@@ -150,8 +160,9 @@ async function handleStart() {
   const elapsedSeconds = (Date.now() - new Date(submission.startedAt).getTime()) / 1000;
   remainingSeconds = Math.max(Math.round(exam.duration * 60 - elapsedSeconds), 0);
 
-  if (exam.endTime) {
-    const windowRemainingSeconds = Math.round((new Date(exam.endTime).getTime() - Date.now()) / 1000);
+  const sessionWindow = findWindowContaining(exam, schedules, new Date(submission.startedAt));
+  if (sessionWindow) {
+    const windowRemainingSeconds = Math.round((sessionWindow.end.getTime() - Date.now()) / 1000);
     remainingSeconds = Math.max(Math.min(remainingSeconds, windowRemainingSeconds), 0);
   }
 
