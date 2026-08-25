@@ -39,7 +39,7 @@ import {
   buildFiltersText
 } from "./dashboard.js";
 import { generateReportPDF } from "./pdf-export.js";
-import { formatExamWindow, describeExamWindow, formatScheduleWindow } from "./grading.js";
+import { formatExamWindow, describeExamWindow, formatScheduleWindow, formatScheduleSections } from "./grading.js";
 import { auth } from "./firebase-config.js";
 import { listCodeSubmissionsForExam } from "./student.js";
 import {
@@ -210,15 +210,8 @@ function currentFilters() {
 
 function applyFiltersAndRenderResults() {
   const filters = currentFilters();
-  const rows = buildResultRowsWithAbsent(
-  submissions,
-  students,
-  exams,
-  filters,
-  schedulesByExamId
-).sort((a, b) => Number(b.percentage || 0) - Number(a.percentage || 0));
-
-renderResultsTable(document.getElementById("resultsTableBody"), rows);
+  const rows = buildResultRowsWithAbsent(submissions, students, exams, filters, schedulesByExamId);
+  renderResultsTable(document.getElementById("resultsTableBody"), rows);
 
   document.querySelectorAll("[data-view-code]").forEach((btn) => {
     btn.addEventListener("click", () => openCodeSubmissionsModal(btn.dataset.viewCode, btn.dataset.examId));
@@ -700,6 +693,7 @@ function renderSchedulesList() {
         <div>
           <span class="badge bg-secondary me-2">${i + 1}</span>
           <strong>${formatScheduleWindow(s, activeExamForSchedules.duration)}</strong>
+          <div class="small text-muted mt-1">${formatScheduleSections(s)}</div>
         </div>
         <div class="text-nowrap">
           <button class="btn btn-sm btn-outline-primary me-1" data-edit-schedule="${s.id}"><i class="bi bi-pencil"></i></button>
@@ -725,11 +719,31 @@ function renderSchedulesList() {
 
 document.getElementById("addScheduleBtn").addEventListener("click", () => openScheduleModal());
 
+function populateScheduleSectionCheckboxes(selectedSections = []) {
+  const wrap = document.getElementById("scheduleSectionsWrap");
+  wrap.innerHTML = SECTIONS.map(
+    (s) => `
+    <div class="form-check">
+      <input class="form-check-input schedule-section-checkbox" type="checkbox" value="${s}" id="scheduleSection${s}" ${selectedSections.includes(s) ? "checked" : ""} />
+      <label class="form-check-label" for="scheduleSection${s}">${s}</label>
+    </div>`
+  ).join("");
+}
+
+document.getElementById("scheduleAllSectionsInput").addEventListener("change", (e) => {
+  document.getElementById("scheduleSectionsWrap").classList.toggle("d-none", e.target.checked);
+});
+
 function openScheduleModal(schedule = null) {
   editingScheduleId = schedule?.id || null;
   document.getElementById("scheduleForm").reset();
   document.getElementById("scheduleFormError").classList.add("d-none");
   document.getElementById("scheduleModalTitle").textContent = schedule ? "Edit Schedule" : "Add Schedule";
+
+  const hasRestriction = !!(schedule?.sections && schedule.sections.length);
+  document.getElementById("scheduleAllSectionsInput").checked = !hasRestriction;
+  document.getElementById("scheduleSectionsWrap").classList.toggle("d-none", !hasRestriction);
+  populateScheduleSectionCheckboxes(schedule?.sections || []);
 
   if (schedule) {
     const d = new Date(schedule.startTime);
@@ -750,6 +764,17 @@ document.getElementById("scheduleForm").addEventListener("submit", async (e) => 
   const time = document.getElementById("scheduleTimeInput").value;
   const startTime = new Date(`${date}T${time}`).toISOString();
 
+  const allSections = document.getElementById("scheduleAllSectionsInput").checked;
+  const sections = allSections
+    ? []
+    : [...document.querySelectorAll(".schedule-section-checkbox:checked")].map((cb) => cb.value);
+
+  if (!allSections && !sections.length) {
+    errorEl.textContent = 'Select at least one section, or check "All Sections".';
+    errorEl.classList.remove("d-none");
+    return;
+  }
+
   if (!editingScheduleId && examSchedules.length >= MAX_SCHEDULES_PER_EXAM) {
     errorEl.textContent = `This exam already has the maximum of ${MAX_SCHEDULES_PER_EXAM} schedules.`;
     errorEl.classList.remove("d-none");
@@ -758,9 +783,9 @@ document.getElementById("scheduleForm").addEventListener("submit", async (e) => 
 
   try {
     if (editingScheduleId) {
-      await updateSchedule(editingScheduleId, startTime);
+      await updateSchedule(editingScheduleId, startTime, sections);
     } else {
-      await createSchedule(activeExamForSchedules.id, startTime);
+      await createSchedule(activeExamForSchedules.id, startTime, sections);
     }
     bootstrap.Modal.getInstance(document.getElementById("scheduleModal"))?.hide();
     examSchedules = await listSchedulesForExam(activeExamForSchedules.id);
