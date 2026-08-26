@@ -13,91 +13,63 @@
 </head>
 <body class="login-page">
 
-<div class="login-shell">
-
-  <!-- Decorative dark brand panel - hidden on small screens, form stays centered -->
-  <div class="login-visual d-none d-lg-flex">
-    <div>
-      <div class="login-brand mb-4">
-        <i class="bi bi-code-square me-2"></i>CodeExam
-      </div>
-      <h2 class="login-visual-title mb-3">Proctored coding exams,<br />built for the way you teach.</h2>
-      <p class="login-visual-sub mb-4">
-        Fullscreen enforcement, live violation tracking, and instant Python
-        grading &mdash; all in one place for admins and students.
-      </p>
-
-      <div class="position-relative mb-4">
-        <div class="code-window">
-          <div class="code-window-bar">
-            <span class="code-window-dot" style="background:#ff5f56"></span>
-            <span class="code-window-dot" style="background:#ffbd2e"></span>
-            <span class="code-window-dot" style="background:#27c93f"></span>
-            <span class="mono text-white-50 ms-2" style="font-size:0.75rem;">auth.py</span>
-          </div>
-          <div class="code-window-body mono">
-            <div><span class="c-com"># Verifying your credentials</span></div>
-            <div><span class="c-key">def</span> <span class="c-fn">authenticate</span>(email, password):</div>
-            <div>&nbsp;&nbsp;user = auth.sign_in(email, password)</div>
-            <div>&nbsp;&nbsp;<span class="c-key">if</span> user.role == <span class="c-str">"admin"</span>:</div>
-            <div>&nbsp;&nbsp;&nbsp;&nbsp;<span class="c-key">return</span> redirect(<span class="c-str">"/admin"</span>)</div>
-            <div>&nbsp;&nbsp;<span class="c-key">return</span> redirect(<span class="c-str">"/student"</span>)<span class="code-cursor"></span></div>
-          </div>
-        </div>
-        <div class="live-badge">
-          <span class="live-dot"></span>
-          Secure session &middot; encrypted
-        </div>
-      </div>
-
-      <div class="login-feature-list">
-        <div><i class="bi bi-shield-check me-2"></i>Fullscreen &amp; tab-switch monitoring</div>
-        <div><i class="bi bi-lightning-charge me-2"></i>Instant Python auto-grading</div>
-        <div><i class="bi bi-bar-chart-line me-2"></i>Section-wise analytics &amp; reports</div>
-      </div>
+<!-- Decorative background texture only - absolutely positioned, never affects centering -->
+<div class="login-bg-decor d-none d-md-block">
+  <div class="code-window">
+    <div class="code-window-bar">
+      <span class="code-window-dot" style="background:#ff5f56"></span>
+      <span class="code-window-dot" style="background:#ffbd2e"></span>
+      <span class="code-window-dot" style="background:#27c93f"></span>
+      <span class="mono text-white-50 ms-2" style="font-size:0.75rem;">auth.py</span>
+    </div>
+    <div class="code-window-body mono">
+      <div><span class="c-com"># Verifying your credentials</span></div>
+      <div><span class="c-key">def</span> <span class="c-fn">authenticate</span>(email, password):</div>
+      <div>&nbsp;&nbsp;user = auth.sign_in(email, password)</div>
+      <div>&nbsp;&nbsp;<span class="c-key">if</span> user.role == <span class="c-str">"admin"</span>:</div>
+      <div>&nbsp;&nbsp;&nbsp;&nbsp;<span class="c-key">return</span> redirect(<span class="c-str">"/admin"</span>)<span class="code-cursor"></span></div>
     </div>
   </div>
+</div>
 
-  <!-- Login form panel -->
-  <div class="login-form-panel">
-    <div class="login-card">
-      <div class="text-center text-lg-start mb-4">
-        <div class="login-brand-mobile d-lg-none mb-3">
-          <i class="bi bi-code-square me-2"></i>CodeExam
-        </div>
-        <h4 class="fw-bold mb-1">Welcome back</h4>
-        <p class="text-muted small mb-0">Sign in to continue to your dashboard</p>
+<div class="login-center-wrap">
+  <div class="login-card">
+    <div class="text-center mb-4">
+      <div class="login-brand mb-3">
+        <i class="bi bi-code-square me-2"></i>CodeExam
       </div>
-
-      <div id="loginError" class="alert alert-danger py-2 d-none" role="alert"></div>
-
-      <form id="loginForm">
-        <div class="mb-3">
-          <label for="email" class="form-label">Email address</label>
-          <div class="input-group login-input-group">
-            <span class="input-group-text"><i class="bi bi-envelope"></i></span>
-            <input type="email" class="form-control" id="email" placeholder="you@example.com" required autocomplete="username" />
-          </div>
-        </div>
-        <div class="mb-3">
-          <label for="password" class="form-label">Password</label>
-          <div class="input-group login-input-group">
-            <span class="input-group-text"><i class="bi bi-lock"></i></span>
-            <input type="password" class="form-control" id="password" placeholder="Enter your password" required autocomplete="current-password" />
-            <button class="btn btn-outline-secondary" type="button" id="togglePasswordBtn" tabindex="-1" title="Show/hide password">
-              <i class="bi bi-eye" id="togglePasswordIcon"></i>
-            </button>
-          </div>
-        </div>
-        <button type="submit" class="btn btn-brand w-100" id="loginBtn">
-          <span id="loginBtnText">Login</span>
-        </button>
-      </form>
-
-      <p class="text-center text-muted small mt-4 mb-0">
-        Students and Admins use the same login. You will be redirected automatically.
-      </p>
+      <h4 class="fw-bold mb-1">Welcome back</h4>
+      <p class="text-muted small mb-0">Sign in to continue to your dashboard</p>
     </div>
+
+    <div id="loginError" class="alert alert-danger py-2 d-none" role="alert"></div>
+
+    <form id="loginForm">
+      <div class="mb-3">
+        <label for="email" class="form-label">Email address</label>
+        <div class="input-group login-input-group">
+          <span class="input-group-text"><i class="bi bi-envelope"></i></span>
+          <input type="email" class="form-control" id="email" placeholder="you@example.com" required autocomplete="username" />
+        </div>
+      </div>
+      <div class="mb-3">
+        <label for="password" class="form-label">Password</label>
+        <div class="input-group login-input-group">
+          <span class="input-group-text"><i class="bi bi-lock"></i></span>
+          <input type="password" class="form-control" id="password" placeholder="Enter your password" required autocomplete="current-password" />
+          <button class="btn btn-outline-secondary" type="button" id="togglePasswordBtn" tabindex="-1" title="Show/hide password">
+            <i class="bi bi-eye" id="togglePasswordIcon"></i>
+          </button>
+        </div>
+      </div>
+      <button type="submit" class="btn btn-brand w-100" id="loginBtn">
+        <span id="loginBtnText">Login</span>
+      </button>
+    </form>
+
+    <p class="text-center text-muted small mt-4 mb-0">
+      Students and Admins use the same login. You will be redirected automatically.
+    </p>
   </div>
 </div>
 
