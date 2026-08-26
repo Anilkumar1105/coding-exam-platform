@@ -254,7 +254,12 @@
           </div>
 
           <div class="card">
-            <div class="card-header fw-semibold"><i class="bi bi-graph-up me-1"></i>Student Progress</div>
+            <div class="card-header d-flex flex-wrap justify-content-between align-items-center gap-2">
+              <span class="fw-semibold"><i class="bi bi-graph-up me-1"></i>Student Progress</span>
+              <select id="learningProgressSectionFilter" class="form-select form-select-sm w-auto">
+                <option value="all">All Sections</option>
+              </select>
+            </div>
             <div class="table-responsive">
               <table class="table table-striped mb-0 align-middle">
                 <thead>
