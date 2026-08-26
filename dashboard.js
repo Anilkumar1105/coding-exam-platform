@@ -365,9 +365,57 @@ export function buildAbsentRows(students, submissions, exams, filters = {}, sche
 }
 
 /** Real submission rows + synthesized absent rows, same filters applied to both. */
+/**
+ * Finds this week's top scorer(s) per section, for the "Toppers of the
+ * Week" carousel. "This week" = submissions from the last 7 days.
+ * If more than one student in a section ties for the top percentage,
+ * ALL of them are included (no arbitrary pick).
+ * Returns [{ section, percentage, toppers: [{ name, rollNumber, examTitle }] }, ...]
+ * for sections that had at least one completed submission this week,
+ * sorted by percentage descending.
+ */
+export function computeWeeklyToppers(students, submissions, exams) {
+  const oneWeekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+  const examById = new Map(exams.map((e) => [e.id, e]));
+  const studentById = new Map(students.map((s) => [s.uid, s]));
+
+  const recent = submissions.filter(
+    (s) =>
+      (s.status === "submitted" || s.status === "auto-submitted") &&
+      s.percentage != null &&
+      s.submittedAt &&
+      new Date(s.submittedAt) >= oneWeekAgo
+  );
+
+  const bySection = {};
+  recent.forEach((sub) => {
+    const student = studentById.get(sub.studentId);
+    if (!student) return;
+    (bySection[student.section] = bySection[student.section] || []).push({ sub, student });
+  });
+
+  const results = Object.entries(bySection).map(([section, entries]) => {
+    const topPercentage = Math.max(...entries.map((e) => e.sub.percentage));
+    const toppers = entries
+      .filter((e) => e.sub.percentage === topPercentage)
+      .map((e) => ({
+        name: e.student.name,
+        rollNumber: e.student.rollNumber,
+        examTitle: examById.get(e.sub.examId)?.title || "Exam"
+      }));
+    return { section, percentage: topPercentage, toppers };
+  });
+
+  return results.sort((a, b) => b.percentage - a.percentage || a.section.localeCompare(b.section));
+}
+
+/** Real submission rows + synthesized absent rows, sorted by percentage
+ *  descending (highest score first; rows with no percentage - e.g.
+ *  ABSENT - sort to the bottom). Same filters applied to both. */
 export function buildResultRowsWithAbsent(submissions, students, exams, filters = {}, schedulesByExamId = {}) {
-  return [
+  const rows = [
     ...buildResultRows(submissions, students, exams, filters),
     ...buildAbsentRows(students, submissions, exams, filters, schedulesByExamId)
   ];
+  return rows.sort((a, b) => (b.percentage ?? -1) - (a.percentage ?? -1));
 }
