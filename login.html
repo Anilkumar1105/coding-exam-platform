@@ -4,108 +4,176 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Login - Coding Exam Platform</title>
-<link
-  href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"
-  rel="stylesheet"
-/>
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" />
+<link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
 <link href="style.css" rel="stylesheet" />
 </head>
-<body>
-  <div class="auth-wrapper">
-    <div class="card auth-card shadow-sm">
-      <div class="card-body p-4">
-        <div class="text-center mb-4">
-          <h4 class="fw-bold mb-1">Coding Exam Platform</h4>
-          <p class="text-muted small mb-0">Sign in to continue</p>
+<body class="login-page">
+
+<div class="login-shell">
+
+  <!-- Decorative dark brand panel - hidden on small screens, form stays centered -->
+  <div class="login-visual d-none d-lg-flex">
+    <div>
+      <div class="login-brand mb-4">
+        <i class="bi bi-code-square me-2"></i>CodeExam
+      </div>
+      <h2 class="login-visual-title mb-3">Proctored coding exams,<br />built for the way you teach.</h2>
+      <p class="login-visual-sub mb-4">
+        Fullscreen enforcement, live violation tracking, and instant Python
+        grading &mdash; all in one place for admins and students.
+      </p>
+
+      <div class="position-relative mb-4">
+        <div class="code-window">
+          <div class="code-window-bar">
+            <span class="code-window-dot" style="background:#ff5f56"></span>
+            <span class="code-window-dot" style="background:#ffbd2e"></span>
+            <span class="code-window-dot" style="background:#27c93f"></span>
+            <span class="mono text-white-50 ms-2" style="font-size:0.75rem;">auth.py</span>
+          </div>
+          <div class="code-window-body mono">
+            <div><span class="c-com"># Verifying your credentials</span></div>
+            <div><span class="c-key">def</span> <span class="c-fn">authenticate</span>(email, password):</div>
+            <div>&nbsp;&nbsp;user = auth.sign_in(email, password)</div>
+            <div>&nbsp;&nbsp;<span class="c-key">if</span> user.role == <span class="c-str">"admin"</span>:</div>
+            <div>&nbsp;&nbsp;&nbsp;&nbsp;<span class="c-key">return</span> redirect(<span class="c-str">"/admin"</span>)</div>
+            <div>&nbsp;&nbsp;<span class="c-key">return</span> redirect(<span class="c-str">"/student"</span>)<span class="code-cursor"></span></div>
+          </div>
         </div>
+        <div class="live-badge">
+          <span class="live-dot"></span>
+          Secure session &middot; encrypted
+        </div>
+      </div>
 
-        <div id="loginError" class="alert alert-danger py-2 d-none" role="alert"></div>
-
-        <form id="loginForm">
-          <div class="mb-3">
-            <label for="email" class="form-label">Email address</label>
-            <input type="email" class="form-control" id="email" required autocomplete="username" />
-          </div>
-          <div class="mb-3">
-            <label for="password" class="form-label">Password</label>
-            <input type="password" class="form-control" id="password" required autocomplete="current-password" />
-          </div>
-          <button type="submit" class="btn btn-brand w-100" id="loginBtn">
-            <span id="loginBtnText">Login</span>
-          </button>
-        </form>
-
-        <p class="text-center text-muted small mt-4 mb-0">
-          Students and Admins use the same login. You will be redirected automatically.
-        </p>
+      <div class="login-feature-list">
+        <div><i class="bi bi-shield-check me-2"></i>Fullscreen &amp; tab-switch monitoring</div>
+        <div><i class="bi bi-lightning-charge me-2"></i>Instant Python auto-grading</div>
+        <div><i class="bi bi-bar-chart-line me-2"></i>Section-wise analytics &amp; reports</div>
       </div>
     </div>
   </div>
 
-  <script type="module">
-    import { loginUser, getUserProfile, showError, hideError } from "./auth.js";
-    import { auth } from "./firebase-config.js";
-    import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+  <!-- Login form panel -->
+  <div class="login-form-panel">
+    <div class="login-card">
+      <div class="text-center text-lg-start mb-4">
+        <div class="login-brand-mobile d-lg-none mb-3">
+          <i class="bi bi-code-square me-2"></i>CodeExam
+        </div>
+        <h4 class="fw-bold mb-1">Welcome back</h4>
+        <p class="text-muted small mb-0">Sign in to continue to your dashboard</p>
+      </div>
 
-    // If already logged in, skip the login form.
-    onAuthStateChanged(auth, async (user) => {
-      if (!user) return;
-      const profile = await getUserProfile(user.uid);
-      if (profile) {
-        window.location.href =
-          profile.role === "admin" ? "admin-dashboard.html" : "student-dashboard.html";
-      }
-    });
+      <div id="loginError" class="alert alert-danger py-2 d-none" role="alert"></div>
 
-    const form = document.getElementById("loginForm");
-    const loginBtn = document.getElementById("loginBtn");
-    const loginBtnText = document.getElementById("loginBtnText");
+      <form id="loginForm">
+        <div class="mb-3">
+          <label for="email" class="form-label">Email address</label>
+          <div class="input-group login-input-group">
+            <span class="input-group-text"><i class="bi bi-envelope"></i></span>
+            <input type="email" class="form-control" id="email" placeholder="you@example.com" required autocomplete="username" />
+          </div>
+        </div>
+        <div class="mb-3">
+          <label for="password" class="form-label">Password</label>
+          <div class="input-group login-input-group">
+            <span class="input-group-text"><i class="bi bi-lock"></i></span>
+            <input type="password" class="form-control" id="password" placeholder="Enter your password" required autocomplete="current-password" />
+            <button class="btn btn-outline-secondary" type="button" id="togglePasswordBtn" tabindex="-1" title="Show/hide password">
+              <i class="bi bi-eye" id="togglePasswordIcon"></i>
+            </button>
+          </div>
+        </div>
+        <button type="submit" class="btn btn-brand w-100" id="loginBtn">
+          <span id="loginBtnText">Login</span>
+        </button>
+      </form>
 
-    function setLoading(isLoading) {
-      loginBtn.disabled = isLoading;
-      loginBtnText.textContent = isLoading ? "Signing in..." : "Login";
+      <p class="text-center text-muted small mt-4 mb-0">
+        Students and Admins use the same login. You will be redirected automatically.
+      </p>
+    </div>
+  </div>
+</div>
+
+<script type="module">
+  import { loginUser, getUserProfile, showError, hideError } from "./auth.js";
+  import { auth } from "./firebase-config.js";
+  import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+
+  // If already logged in, skip the login form.
+  onAuthStateChanged(auth, async (user) => {
+    if (!user) return;
+    const profile = await getUserProfile(user.uid);
+    if (profile) {
+      window.location.href =
+        profile.role === "admin" ? "admin-dashboard.html" : "student-dashboard.html";
     }
+  });
 
-    form.addEventListener("submit", async (e) => {
-      e.preventDefault();
-      hideError("loginError");
-      setLoading(true);
+  const form = document.getElementById("loginForm");
+  const loginBtn = document.getElementById("loginBtn");
+  const loginBtnText = document.getElementById("loginBtnText");
 
-      const email = document.getElementById("email").value.trim();
-      const password = document.getElementById("password").value;
+  function setLoading(isLoading) {
+    loginBtn.disabled = isLoading;
+    loginBtnText.textContent = isLoading ? "Signing in..." : "Login";
+  }
 
-      try {
-        const cred = await loginUser(email, password);
-        const profile = await getUserProfile(cred.user.uid);
+  form.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    hideError("loginError");
+    setLoading(true);
 
-        if (!profile) {
-          showError("loginError", "No profile found for this account. Contact your admin.");
-          setLoading(false);
-          return;
-        }
+    const email = document.getElementById("email").value.trim();
+    const password = document.getElementById("password").value;
 
-        window.location.href =
-          profile.role === "admin" ? "admin-dashboard.html" : "student-dashboard.html";
-      } catch (err) {
-        showError("loginError", friendlyAuthError(err.code));
+    try {
+      const cred = await loginUser(email, password);
+      const profile = await getUserProfile(cred.user.uid);
+
+      if (!profile) {
+        showError("loginError", "No profile found for this account. Contact your admin.");
         setLoading(false);
+        return;
       }
-    });
 
-    function friendlyAuthError(code) {
-      switch (code) {
-        case "auth/invalid-email":
-          return "That email address looks invalid.";
-        case "auth/user-not-found":
-        case "auth/wrong-password":
-        case "auth/invalid-credential":
-          return "Incorrect email or password.";
-        case "auth/too-many-requests":
-          return "Too many attempts. Please wait a moment and try again.";
-        default:
-          return "Login failed. Please try again.";
-      }
+      window.location.href =
+        profile.role === "admin" ? "admin-dashboard.html" : "student-dashboard.html";
+    } catch (err) {
+      showError("loginError", friendlyAuthError(err.code));
+      setLoading(false);
     }
-  </script>
+  });
+
+  function friendlyAuthError(code) {
+    switch (code) {
+      case "auth/invalid-email":
+        return "That email address looks invalid.";
+      case "auth/user-not-found":
+      case "auth/wrong-password":
+      case "auth/invalid-credential":
+        return "Incorrect email or password.";
+      case "auth/too-many-requests":
+        return "Too many attempts. Please wait a moment and try again.";
+      default:
+        return "Login failed. Please try again.";
+    }
+  }
+
+  // Show/hide password toggle - purely presentational, doesn't touch login logic above.
+  document.getElementById("togglePasswordBtn").addEventListener("click", () => {
+    const input = document.getElementById("password");
+    const icon = document.getElementById("togglePasswordIcon");
+    const show = input.type === "password";
+    input.type = show ? "text" : "password";
+    icon.className = show ? "bi bi-eye-slash" : "bi bi-eye";
+  });
+</script>
 </body>
 </html>
