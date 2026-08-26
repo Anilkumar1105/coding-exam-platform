@@ -1643,16 +1643,42 @@ document.getElementById("learningCodingForm").addEventListener("submit", async (
 });
 
 /* ---------- Student Progress ---------- */
-async function renderLearningProgress() {
-  const tbody = document.getElementById("learningProgressTableBody");
-  const [progressDocs, totalConcepts] = await Promise.all([listProgressForLevel(activeLevel.id), listConcepts(activeLevel.id).then((c) => c.length)]);
+let learningProgressDocs = [];
+let learningProgressTotalConcepts = 0;
 
-  if (!progressDocs.length) {
-    tbody.innerHTML = `<tr><td colspan="6" class="text-center text-muted py-4">No student progress recorded yet.</td></tr>`;
+async function renderLearningProgress() {
+  const [progressDocs, totalConcepts] = await Promise.all([
+    listProgressForLevel(activeLevel.id),
+    listConcepts(activeLevel.id).then((c) => c.length)
+  ]);
+  learningProgressDocs = progressDocs;
+  learningProgressTotalConcepts = totalConcepts;
+
+  const filterEl = document.getElementById("learningProgressSectionFilter");
+  const previousValue = filterEl.value || "all";
+  filterEl.innerHTML = `<option value="all">All Sections</option>` + SECTIONS.map((s) => `<option value="${s}">${s}</option>`).join("");
+  filterEl.value = [...filterEl.options].some((o) => o.value === previousValue) ? previousValue : "all";
+  filterEl.onchange = renderLearningProgressTable;
+
+  renderLearningProgressTable();
+}
+
+function renderLearningProgressTable() {
+  const tbody = document.getElementById("learningProgressTableBody");
+  const sectionFilter = document.getElementById("learningProgressSectionFilter").value;
+
+  const rows = learningProgressDocs.filter((p) => {
+    if (sectionFilter === "all") return true;
+    const student = students.find((s) => s.uid === p.studentId);
+    return student?.section === sectionFilter;
+  });
+
+  if (!rows.length) {
+    tbody.innerHTML = `<tr><td colspan="6" class="text-center text-muted py-4">No student progress recorded${sectionFilter === "all" ? " yet" : ` for Section ${sectionFilter}`}.</td></tr>`;
     return;
   }
 
-  tbody.innerHTML = progressDocs
+  tbody.innerHTML = rows
     .map((p) => {
       const student = students.find((s) => s.uid === p.studentId);
       const mcqCell = p.mcqPassed
@@ -1669,7 +1695,7 @@ async function renderLearningProgress() {
           <td>${student?.rollNumber ?? "-"}</td>
           <td>${student?.name ?? "Unknown"}</td>
           <td><span class="badge bg-secondary">${student?.section ?? "-"}</span></td>
-          <td>${(p.completedConceptIds || []).length}/${totalConcepts}</td>
+          <td>${(p.completedConceptIds || []).length}/${learningProgressTotalConcepts}</td>
           <td>${mcqCell}</td>
           <td>${codingCell}</td>
         </tr>`;
