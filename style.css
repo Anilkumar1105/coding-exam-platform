@@ -856,3 +856,106 @@ body.login-page {
     display: none;
   }
 }
+
+/* ---------- Toppers of the Week carousel ---------- */
+.topper-carousel-card {
+  background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 55%, #c026d3 100%);
+  border-radius: 1rem;
+  overflow: hidden;
+  box-shadow: 0 14px 34px rgba(124, 58, 237, 0.25);
+}
+
+.topper-carousel-header {
+  color: #fff;
+  font-weight: 700;
+  font-size: 0.95rem;
+  padding: 1rem 1.25rem 0.25rem;
+  letter-spacing: 0.02em;
+}
+
+.topper-slide {
+  padding: 0.5rem 2.75rem 1.5rem;
+  min-height: 150px;
+}
+
+.topper-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  justify-content: center;
+}
+
+.topper-chip {
+  background: rgba(255, 255, 255, 0.14);
+  backdrop-filter: blur(4px);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  border-radius: 0.9rem;
+  padding: 0.9rem 1.1rem;
+  min-width: 170px;
+  text-align: center;
+  color: #fff;
+  transition: transform 0.18s ease;
+}
+
+.topper-chip:hover {
+  transform: translateY(-3px);
+}
+
+.topper-avatar {
+  width: 46px;
+  height: 46px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.9);
+  color: #7c3aed;
+  font-weight: 700;
+  font-size: 1rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 0.5rem;
+}
+
+.topper-name {
+  font-weight: 700;
+  font-size: 0.95rem;
+}
+
+.topper-meta {
+  font-size: 0.78rem;
+  color: rgba(255, 255, 255, 0.8);
+  margin-top: 0.15rem;
+}
+
+.topper-percentage {
+  display: inline-block;
+  margin-top: 0.5rem;
+  background: #fff;
+  color: #7c3aed;
+  font-weight: 700;
+  font-size: 0.85rem;
+  border-radius: 999px;
+  padding: 0.15rem 0.7rem;
+}
+
+.topper-section-label {
+  text-align: center;
+  color: rgba(255, 255, 255, 0.85);
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 0.75rem;
+}
+
+#topperCarouselIndicators [data-bs-target] {
+  background-color: rgba(255, 255, 255, 0.5);
+}
+
+#topperCarouselIndicators .active {
+  background-color: #fff;
+}
+
+.carousel-control-prev,
+.carousel-control-next {
+  width: 2.5rem;
+  opacity: 0.7;
+}
