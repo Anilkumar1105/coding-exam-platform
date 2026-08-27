@@ -62,6 +62,17 @@ service cloud.firestore {
       allow create, update, delete: if isAdmin();
     }
 
+    // weeklyToppers/current
+    // A single small, admin-curated leaderboard doc (section, top
+    // percentage, tied students' name/roll number only) that any
+    // signed-in user can read. This exists specifically so students
+    // can see the "Toppers of the Week" carousel without needing
+    // read access to other students' actual submissions.
+    match /weeklyToppers/{docId} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin();
+    }
+
     // submissions/{submissionId}
     match /submissions/{submissionId} {
       allow read: if isAdmin() ||
