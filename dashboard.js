@@ -421,9 +421,22 @@ export function computeWeeklyToppers(students, submissions, exams) {
  * blow up the compact card - so past that threshold it collapses into
  * one short "N students tied" summary instead of N individual chips.
  */
-const MAX_INDIVIDUAL_TOPPER_CHIPS = 4;
-
-export function renderTopperSlides(innerEl, indicatorsEl, entries) {
+/**
+ * Renders one small, independent card PER SECTION - each with its own
+ * auto-rotating carousel cycling through that section's tied
+ * topper(s), completely decoupled from every other section's card
+ * (this is intentionally NOT one shared carousel). A section with a
+ * single topper just displays them statically, no pointless animation.
+ * Ties of any size are all included - the carousel just rotates
+ * through them one at a time, so there's no overflow risk even for a
+ * whole section tied at #1.
+ *
+ * Returns the bootstrap.Carousel instances created, so the caller can
+ * dispose them before the next re-render (dynamically-inserted
+ * carousels need manual init/disposal - Bootstrap's data-api only
+ * wires up elements present at initial page load).
+ */
+export function renderTopperGrid(containerEl, entries) {
   const initials = (name) =>
     (name || "?")
       .trim()
@@ -438,44 +451,42 @@ export function renderTopperSlides(innerEl, indicatorsEl, entries) {
       .replace(/</g, "&lt;")
       .replace(/>/g, "&gt;");
 
-  innerEl.innerHTML = entries
-    .map((entry, i) => {
-      const isCrowded = entry.toppers.length > MAX_INDIVIDUAL_TOPPER_CHIPS;
-      const body = isCrowded
-        ? `<div class="topper-crowd-card">
-             <div class="topper-crowd-count">${entry.toppers.length}</div>
-             <div class="topper-crowd-label">students tied at ${entry.percentage}%!</div>
-           </div>`
-        : `<div class="topper-chips">
-            ${entry.toppers
-              .map(
-                (t) => `
-              <div class="topper-chip">
-                <div class="topper-avatar">${initials(t.name)}</div>
-                <div class="topper-name">${esc(t.name)}</div>
-                <div class="topper-meta">${esc(t.rollNumber)}</div>
-                <div class="topper-percentage">${entry.percentage}%</div>
-              </div>`
-              )
-              .join("")}
-          </div>`;
+  const slideContent = (t, percentage) => `
+    <div class="topper-mini-avatar">${initials(t.name)}</div>
+    <div class="topper-mini-medal">&#129351;</div>
+    <div class="topper-mini-name">${esc(t.name)}</div>
+    <div class="topper-mini-roll">${esc(t.rollNumber)}</div>
+    <div class="topper-mini-pct">${percentage}%</div>
+  `;
+
+  containerEl.innerHTML = entries
+    .map((entry, idx) => {
+      const carouselId = `topperMini${idx}`;
+      const body =
+        entry.toppers.length <= 1
+          ? `<div class="topper-mini-slide">${slideContent(entry.toppers[0], entry.percentage)}</div>`
+          : `<div id="${carouselId}" class="carousel slide carousel-fade topper-mini-carousel" data-bs-interval="2500">
+               <div class="carousel-inner">
+                 ${entry.toppers
+                   .map(
+                     (t, i) =>
+                       `<div class="carousel-item ${i === 0 ? "active" : ""}"><div class="topper-mini-slide">${slideContent(t, entry.percentage)}</div></div>`
+                   )
+                   .join("")}
+               </div>
+             </div>`;
 
       return `
-        <div class="carousel-item ${i === 0 ? "active" : ""}">
-          <div class="topper-slide">
-            <div class="topper-section-label">Section ${esc(entry.section)}</div>
-            ${body}
-          </div>
+        <div class="topper-mini-card">
+          <div class="topper-mini-section">${esc(entry.section)}</div>
+          ${body}
         </div>`;
     })
     .join("");
 
-  indicatorsEl.innerHTML = entries
-    .map(
-      (_, i) =>
-        `<button type="button" data-bs-target="#topperCarousel" data-bs-slide-to="${i}" class="${i === 0 ? "active" : ""}" ${i === 0 ? 'aria-current="true"' : ""}></button>`
-    )
-    .join("");
+  return [...containerEl.querySelectorAll(".topper-mini-carousel")].map(
+    (el) => new bootstrap.Carousel(el, { ride: "carousel", interval: Number(el.dataset.bsInterval) || 2500 })
+  );
 }
 
 /** Real submission rows + synthesized absent rows, sorted by percentage
