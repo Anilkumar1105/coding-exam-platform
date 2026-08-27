@@ -857,31 +857,32 @@ body.login-page {
   }
 }
 
-/* ---------- Toppers of the Week carousel ---------- */
+/* ---------- Toppers of the Week carousel (kept small/cute on purpose) ---------- */
 .topper-carousel-card {
   background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 55%, #c026d3 100%);
-  border-radius: 1rem;
+  border-radius: 0.85rem;
   overflow: hidden;
-  box-shadow: 0 14px 34px rgba(124, 58, 237, 0.25);
+  box-shadow: 0 10px 24px rgba(124, 58, 237, 0.22);
+  max-width: 480px;
 }
 
 .topper-carousel-header {
   color: #fff;
   font-weight: 700;
-  font-size: 0.95rem;
-  padding: 1rem 1.25rem 0.25rem;
+  font-size: 0.8rem;
+  padding: 0.65rem 1rem 0.15rem;
   letter-spacing: 0.02em;
 }
 
 .topper-slide {
-  padding: 0.5rem 2.75rem 1.5rem;
-  min-height: 150px;
+  padding: 0.25rem 2.25rem 1rem;
+  min-height: 108px;
 }
 
 .topper-chips {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.75rem;
+  gap: 0.5rem;
   justify-content: center;
 }
 
@@ -889,58 +890,83 @@ body.login-page {
   background: rgba(255, 255, 255, 0.14);
   backdrop-filter: blur(4px);
   border: 1px solid rgba(255, 255, 255, 0.25);
-  border-radius: 0.9rem;
-  padding: 0.9rem 1.1rem;
-  min-width: 170px;
+  border-radius: 0.7rem;
+  padding: 0.55rem 0.65rem;
+  min-width: 108px;
+  max-width: 120px;
   text-align: center;
   color: #fff;
   transition: transform 0.18s ease;
 }
 
 .topper-chip:hover {
-  transform: translateY(-3px);
+  transform: translateY(-2px);
 }
 
 .topper-avatar {
-  width: 46px;
-  height: 46px;
+  width: 32px;
+  height: 32px;
   border-radius: 50%;
   background: rgba(255, 255, 255, 0.9);
   color: #7c3aed;
   font-weight: 700;
-  font-size: 1rem;
+  font-size: 0.75rem;
   display: flex;
   align-items: center;
   justify-content: center;
-  margin: 0 auto 0.5rem;
+  margin: 0 auto 0.35rem;
 }
 
 .topper-name {
   font-weight: 700;
-  font-size: 0.95rem;
+  font-size: 0.78rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .topper-meta {
-  font-size: 0.78rem;
-  color: rgba(255, 255, 255, 0.8);
-  margin-top: 0.15rem;
+  font-size: 0.68rem;
+  color: rgba(255, 255, 255, 0.75);
+  margin-top: 0.1rem;
 }
 
 .topper-percentage {
   display: inline-block;
-  margin-top: 0.5rem;
+  margin-top: 0.35rem;
   background: #fff;
   color: #7c3aed;
   font-weight: 700;
-  font-size: 0.85rem;
+  font-size: 0.72rem;
   border-radius: 999px;
-  padding: 0.15rem 0.7rem;
+  padding: 0.1rem 0.55rem;
+}
+
+/* Shown instead of individual chips when a section has more than a
+   handful of students tied for #1 - e.g. a whole class of 30 at 100% -
+   so the widget stays small instead of overflowing with chips. */
+.topper-crowd-card {
+  text-align: center;
+  color: #fff;
+  padding: 0.25rem 0 0.1rem;
+}
+
+.topper-crowd-count {
+  font-size: 1.9rem;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.topper-crowd-label {
+  font-size: 0.78rem;
+  color: rgba(255, 255, 255, 0.85);
+  margin-top: 0.15rem;
 }
 
 .topper-section-label {
   text-align: center;
   color: rgba(255, 255, 255, 0.85);
-  font-size: 0.8rem;
+  font-size: 0.7rem;
   text-transform: uppercase;
   letter-spacing: 0.05em;
   margin-bottom: 0.75rem;
