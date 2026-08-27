@@ -39,7 +39,7 @@ import {
   buildReportTitle,
   buildFiltersText,
   computeWeeklyToppers,
-  renderTopperSlides
+  renderTopperGrid
 } from "./dashboard.js";
 import { generateReportPDF } from "./pdf-export.js";
 import { formatExamWindow, describeExamWindow, formatScheduleWindow, formatScheduleSections } from "./grading.js";
@@ -166,7 +166,7 @@ function renderAnalytics() {
   applyFiltersAndRenderResults();
 }
 
-let topperCarouselInstance = null;
+let topperCarouselInstances = [];
 
 function renderToppersCarousel() {
   const section = document.getElementById("toppersSection");
@@ -179,10 +179,8 @@ function renderToppersCarousel() {
   }
   section.classList.remove("d-none");
 
-  renderTopperSlides(document.getElementById("topperCarouselInner"), document.getElementById("topperCarouselIndicators"), entries);
-
-  topperCarouselInstance?.dispose();
-  topperCarouselInstance = new bootstrap.Carousel(document.getElementById("topperCarousel"), { interval: 4000, ride: "carousel" });
+  topperCarouselInstances.forEach((c) => c.dispose());
+  topperCarouselInstances = renderTopperGrid(document.getElementById("topperGrid"), entries);
 
   // Publish a trimmed copy (no exam names/roll numbers beyond what's
   // needed) so students can see the same leaderboard - they can't
