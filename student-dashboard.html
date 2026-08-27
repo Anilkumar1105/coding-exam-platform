@@ -35,21 +35,8 @@
   <div class="row g-3 mb-4" id="statCards"></div>
 
   <div id="toppersSection" class="d-none mb-4">
-    <div class="topper-carousel-card">
-      <div class="topper-carousel-header">
-        <i class="bi bi-trophy-fill me-2"></i>Toppers of the Week
-      </div>
-      <div id="topperCarousel" class="carousel slide" data-bs-ride="carousel" data-bs-interval="4000">
-        <div class="carousel-indicators" id="topperCarouselIndicators"></div>
-        <div class="carousel-inner" id="topperCarouselInner"></div>
-        <button class="carousel-control-prev" type="button" data-bs-target="#topperCarousel" data-bs-slide="prev">
-          <span class="carousel-control-prev-icon"></span>
-        </button>
-        <button class="carousel-control-next" type="button" data-bs-target="#topperCarousel" data-bs-slide="next">
-          <span class="carousel-control-next-icon"></span>
-        </button>
-      </div>
-    </div>
+    <h6 class="fw-semibold mb-2"><i class="bi bi-trophy-fill me-2 text-warning"></i>Toppers of the Week</h6>
+    <div id="topperGrid" class="topper-grid"></div>
   </div>
 
   <div class="row g-3 mb-4">
@@ -169,7 +156,7 @@
   } from "./student.js";
   import { isPass, PASS_MARK, computeExamAccessStatus, describeExamWindow, filterSchedulesForSection } from "./grading.js";
   import { listSchedulesForExam, getWeeklyToppers } from "./student.js";
-  import { renderTopperSlides } from "./dashboard.js";
+  import { renderTopperGrid } from "./dashboard.js";
   import { generateReportPDF } from "./pdf-export.js";
   import { listActiveLevels, listConcepts, getProgress, allConceptsCompleted } from "./learning.js";
 
@@ -791,7 +778,7 @@
   }
 
   /* ---------- Toppers of the Week (published by admin, read-only here) ---------- */
-  let studentTopperCarouselInstance = null;
+  let studentTopperCarouselInstances = [];
 
   async function renderToppersCarousel() {
     const section = document.getElementById("toppersSection");
@@ -804,10 +791,8 @@
     }
     section.classList.remove("d-none");
 
-    renderTopperSlides(document.getElementById("topperCarouselInner"), document.getElementById("topperCarouselIndicators"), entries);
-
-    studentTopperCarouselInstance?.dispose();
-    studentTopperCarouselInstance = new bootstrap.Carousel(document.getElementById("topperCarousel"), { interval: 4000, ride: "carousel" });
+    studentTopperCarouselInstances.forEach((c) => c.dispose());
+    studentTopperCarouselInstances = renderTopperGrid(document.getElementById("topperGrid"), entries);
   }
 </script>
 </body>
