@@ -177,6 +177,21 @@ export function deleteSchedule(scheduleId) {
   return deleteDoc(doc(db, "examSchedules", scheduleId));
 }
 
+/**
+ * Publishes a trimmed "Toppers of the Week" leaderboard to a single
+ * shared doc students can read. Students can't compute this
+ * themselves - their Firestore permissions only let them read their
+ * own submissions, by design, so the admin dashboard publishes this
+ * curated summary (section, top percentage, and the tied students'
+ * name/roll number only) whenever it recomputes the carousel.
+ */
+export function publishWeeklyToppers(entries) {
+  return setDoc(doc(db, "weeklyToppers", "current"), {
+    entries,
+    updatedAt: new Date().toISOString()
+  });
+}
+
 /* ============================================================
    QUESTIONS
    ============================================================ */
