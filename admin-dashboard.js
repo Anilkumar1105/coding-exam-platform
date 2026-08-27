@@ -25,7 +25,8 @@ import {
   listSchedulesForExam,
   createSchedule,
   updateSchedule,
-  deleteSchedule
+  deleteSchedule,
+  publishWeeklyToppers
 } from "./admin.js";
 import {
   computeOverallStats,
@@ -37,7 +38,8 @@ import {
   buildResultRowsWithAbsent,
   buildReportTitle,
   buildFiltersText,
-  computeWeeklyToppers
+  computeWeeklyToppers,
+  renderTopperSlides
 } from "./dashboard.js";
 import { generateReportPDF } from "./pdf-export.js";
 import { formatExamWindow, describeExamWindow, formatScheduleWindow, formatScheduleSections } from "./grading.js";
@@ -172,51 +174,21 @@ function renderToppersCarousel() {
 
   if (!entries.length) {
     section.classList.add("d-none");
+    publishWeeklyToppers([]).catch(() => {});
     return;
   }
   section.classList.remove("d-none");
 
-  const initials = (name) =>
-    (name || "?")
-      .trim()
-      .split(/\s+/)
-      .slice(0, 2)
-      .map((w) => w[0]?.toUpperCase())
-      .join("");
-
-  document.getElementById("topperCarouselInner").innerHTML = entries
-    .map(
-      (entry, i) => `
-      <div class="carousel-item ${i === 0 ? "active" : ""}">
-        <div class="topper-slide">
-          <div class="topper-section-label">Section ${escapeHtmlL(entry.section)} Topper${entry.toppers.length > 1 ? "s" : ""}</div>
-          <div class="topper-chips">
-            ${entry.toppers
-              .map(
-                (t) => `
-              <div class="topper-chip">
-                <div class="topper-avatar">${initials(t.name)}</div>
-                <div class="topper-name">${escapeHtmlL(t.name)}</div>
-                <div class="topper-meta">${escapeHtmlL(t.rollNumber)} &middot; ${escapeHtmlL(t.examTitle)}</div>
-                <div class="topper-percentage">${entry.percentage}%</div>
-              </div>`
-              )
-              .join("")}
-          </div>
-        </div>
-      </div>`
-    )
-    .join("");
-
-  document.getElementById("topperCarouselIndicators").innerHTML = entries
-    .map(
-      (_, i) =>
-        `<button type="button" data-bs-target="#topperCarousel" data-bs-slide-to="${i}" class="${i === 0 ? "active" : ""}" ${i === 0 ? 'aria-current="true"' : ""}></button>`
-    )
-    .join("");
+  renderTopperSlides(document.getElementById("topperCarouselInner"), document.getElementById("topperCarouselIndicators"), entries);
 
   topperCarouselInstance?.dispose();
   topperCarouselInstance = new bootstrap.Carousel(document.getElementById("topperCarousel"), { interval: 4000, ride: "carousel" });
+
+  // Publish a trimmed copy (no exam names/roll numbers beyond what's
+  // needed) so students can see the same leaderboard - they can't
+  // compute it themselves since they can only read their own
+  // submissions.
+  publishWeeklyToppers(entries).catch(() => {});
 }
 
 function renderChartPane() {
