@@ -101,7 +101,7 @@ export async function listSchedulesForExam(examId) {
    ============================================================ */
 
 /** Fetch published questions for an exam. */
-export async function listQuestionsForExam(examId) {
+export async function getQuestionsForExam(examId) {
   const q = query(
     collection(db, "questions"),
     where("examId", "==", examId),
