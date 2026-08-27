@@ -409,6 +409,75 @@ export function computeWeeklyToppers(students, submissions, exams) {
   return results.sort((a, b) => b.percentage - a.percentage || a.section.localeCompare(b.section));
 }
 
+/**
+ * Fills in a Bootstrap carousel's slides for a "Toppers of the Week"
+ * widget, kept deliberately small/cute. Shared by the admin dashboard
+ * (which computes `entries` itself) and the student dashboard (which
+ * reads a small published leaderboard doc, since students can't query
+ * other students' submissions directly).
+ *
+ * If a section has more than a handful of students tied for #1 (e.g.
+ * an entire class of 30 all scoring 100%), listing every name would
+ * blow up the compact card - so past that threshold it collapses into
+ * one short "N students tied" summary instead of N individual chips.
+ */
+const MAX_INDIVIDUAL_TOPPER_CHIPS = 4;
+
+export function renderTopperSlides(innerEl, indicatorsEl, entries) {
+  const initials = (name) =>
+    (name || "?")
+      .trim()
+      .split(/\s+/)
+      .slice(0, 2)
+      .map((w) => w[0]?.toUpperCase())
+      .join("");
+
+  const esc = (str) =>
+    String(str ?? "")
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;");
+
+  innerEl.innerHTML = entries
+    .map((entry, i) => {
+      const isCrowded = entry.toppers.length > MAX_INDIVIDUAL_TOPPER_CHIPS;
+      const body = isCrowded
+        ? `<div class="topper-crowd-card">
+             <div class="topper-crowd-count">${entry.toppers.length}</div>
+             <div class="topper-crowd-label">students tied at ${entry.percentage}%!</div>
+           </div>`
+        : `<div class="topper-chips">
+            ${entry.toppers
+              .map(
+                (t) => `
+              <div class="topper-chip">
+                <div class="topper-avatar">${initials(t.name)}</div>
+                <div class="topper-name">${esc(t.name)}</div>
+                <div class="topper-meta">${esc(t.rollNumber)}</div>
+                <div class="topper-percentage">${entry.percentage}%</div>
+              </div>`
+              )
+              .join("")}
+          </div>`;
+
+      return `
+        <div class="carousel-item ${i === 0 ? "active" : ""}">
+          <div class="topper-slide">
+            <div class="topper-section-label">Section ${esc(entry.section)}</div>
+            ${body}
+          </div>
+        </div>`;
+    })
+    .join("");
+
+  indicatorsEl.innerHTML = entries
+    .map(
+      (_, i) =>
+        `<button type="button" data-bs-target="#topperCarousel" data-bs-slide-to="${i}" class="${i === 0 ? "active" : ""}" ${i === 0 ? 'aria-current="true"' : ""}></button>`
+    )
+    .join("");
+}
+
 /** Real submission rows + synthesized absent rows, sorted by percentage
  *  descending (highest score first; rows with no percentage - e.g.
  *  ABSENT - sort to the bottom). Same filters applied to both. */
