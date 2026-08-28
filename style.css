@@ -777,6 +777,38 @@ body {
   background: #fef2f2;
 }
 
+.mcq-answer-box {
+  border-radius: 0.5rem;
+  padding: 0.5rem 0.65rem;
+  height: 100%;
+  border: 1px solid #e5e7eb;
+  background: #fff;
+}
+
+.mcq-answer-box.correct {
+  border-color: #a7f3d0;
+  background: #ecfdf5;
+}
+
+.mcq-answer-box.incorrect {
+  border-color: #fecaca;
+  background: #fef2f2;
+}
+
+.mcq-answer-label {
+  font-size: 0.65rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #6b7280;
+  font-weight: 700;
+}
+
+.mcq-answer-value {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #1f2937;
+}
+
 /* ---------- Login page (single centered card) ---------- */
 body.login-page {
   background: linear-gradient(160deg, #0b0f14 0%, #161b26 45%, #1c2333 100%);
