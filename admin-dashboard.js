@@ -329,7 +329,9 @@ function populateSectionControls() {
 }
 
 function renderStudentsTable() {
-  const filtered = currentSectionFilter === "all" ? students : students.filter((s) => s.section === currentSectionFilter);
+  const filtered = (currentSectionFilter === "all" ? students : students.filter((s) => s.section === currentSectionFilter))
+    .slice()
+    .sort((a, b) => String(a.rollNumber).localeCompare(String(b.rollNumber), undefined, { numeric: true, sensitivity: "base" }));
   const tbody = document.getElementById("studentsTableBody");
 
   if (!filtered.length) {
