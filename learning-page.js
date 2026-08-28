@@ -209,6 +209,17 @@ function renderMcq(content) {
     return;
   }
 
+  renderMcqForm(content);
+}
+
+/**
+ * Renders the actual quiz form. Split out from renderMcq() so the
+ * Retake button can call this directly - renderMcq() itself always
+ * redirects straight to the result screen once progress.mcqPassed is
+ * true, which would otherwise make "Retake" loop back to the result
+ * instead of showing fresh questions.
+ */
+function renderMcqForm(content) {
   mcqAnswers = {};
   content.innerHTML = `
     <h5 class="mb-3"><i class="bi bi-list-check me-1"></i>MCQ Test</h5>
@@ -271,7 +282,7 @@ function renderMcqResult(content, { passed, score, total, percentage, answers = 
       <div id="mcqReviewWrap" class="text-start"></div>
     </div>
   `;
-  document.getElementById("retakeMcqBtn").addEventListener("click", () => renderMcq(content));
+  document.getElementById("retakeMcqBtn").addEventListener("click", () => renderMcqForm(content));
   document.getElementById("reviewMcqBtn").addEventListener("click", (e) => {
     const wrap = document.getElementById("mcqReviewWrap");
     const showing = wrap.dataset.shown === "true";
@@ -293,10 +304,13 @@ function buildMcqReviewHtml(answers) {
       const selected = answers[q.id];
       const correct = q.correctOptionIndex;
       const wasCorrect = selected === correct;
+      const yourAnswerText = selected != null ? escapeHtml(q.options[selected]) : "Not answered";
+      const correctAnswerText = escapeHtml(q.options[correct]);
+
       const optionsHtml = q.options
         .map((opt, oi) => {
-          let cls = "";
-          let icon = "";
+          let cls = "text-muted";
+          let icon = '<i class="bi bi-circle text-muted me-1"></i>';
           if (oi === correct) {
             cls = "text-success fw-semibold";
             icon = '<i class="bi bi-check-circle-fill me-1"></i>';
@@ -304,22 +318,33 @@ function buildMcqReviewHtml(answers) {
             cls = "text-danger fw-semibold";
             icon = '<i class="bi bi-x-circle-fill me-1"></i>';
           }
-          return `<div class="${cls}">${icon}${escapeHtml(opt)}${oi === selected && oi !== correct ? " (your answer)" : oi === correct ? " (correct answer)" : ""}</div>`;
+          return `<div class="${cls}">${icon}${escapeHtml(opt)}</div>`;
         })
         .join("");
 
       return `
         <div class="mcq-review-item ${wasCorrect ? "correct" : "incorrect"} mb-2">
-          <div class="d-flex justify-content-between align-items-start">
+          <div class="d-flex justify-content-between align-items-start mb-2">
             <div class="fw-semibold small">${i + 1}. ${escapeHtml(q.questionText)}</div>
             <span class="badge ${wasCorrect ? "bg-success" : "bg-danger"} ms-2 flex-shrink-0">
               <i class="bi ${wasCorrect ? "bi-check-lg" : "bi-x-lg"}"></i>
             </span>
           </div>
-          <div class="small mt-2 d-flex flex-column gap-1">
-            ${optionsHtml}
-            ${selected == null ? '<div class="text-muted fst-italic">You did not answer this question.</div>' : ""}
+          <div class="row g-2 mb-2">
+            <div class="col-6">
+              <div class="mcq-answer-box ${wasCorrect ? "correct" : "incorrect"}">
+                <div class="mcq-answer-label">Your Answer</div>
+                <div class="mcq-answer-value">${yourAnswerText}</div>
+              </div>
+            </div>
+            <div class="col-6">
+              <div class="mcq-answer-box correct">
+                <div class="mcq-answer-label">Correct Answer</div>
+                <div class="mcq-answer-value">${correctAnswerText}</div>
+              </div>
+            </div>
           </div>
+          <div class="small d-flex flex-column gap-1">${optionsHtml}</div>
         </div>`;
     })
     .join("");
