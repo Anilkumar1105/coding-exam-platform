@@ -180,7 +180,7 @@ export async function markConceptComplete(levelId, studentId, conceptId, allConc
 }
 
 /** Records an MCQ test attempt and unlocks coding questions if passed. */
-export async function recordMcqAttempt(levelId, studentId, { score, total, percentage, passed }) {
+export async function recordMcqAttempt(levelId, studentId, { score, total, percentage, passed, answers = {} }) {
   await ensureProgress(levelId, studentId);
   const ref = doc(db, "learningProgress", progressId(levelId, studentId));
   const current = await getDoc(ref);
@@ -192,6 +192,7 @@ export async function recordMcqAttempt(levelId, studentId, { score, total, perce
     mcqPercentage: percentage,
     mcqPassed: passed,
     mcqAttempts: attempts,
+    mcqAnswers: answers,
     codingUnlocked: passed || current.data()?.codingUnlocked || false,
     updatedAt: new Date().toISOString()
   };
