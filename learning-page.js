@@ -199,14 +199,20 @@ function renderMcq(content) {
   }
 
   if (progress?.mcqPassed) {
-    renderMcqResult(content, { passed: true, score: progress.mcqScore, total: progress.mcqTotal, percentage: progress.mcqPercentage });
+    renderMcqResult(content, {
+      passed: true,
+      score: progress.mcqScore,
+      total: progress.mcqTotal,
+      percentage: progress.mcqPercentage,
+      answers: progress.mcqAnswers || {}
+    });
     return;
   }
 
   mcqAnswers = {};
   content.innerHTML = `
     <h5 class="mb-3"><i class="bi bi-list-check me-1"></i>MCQ Test</h5>
-    <p class="text-muted small">Pass mark: ${level.passMark ?? 40}%. You can retake this test if you don't pass.</p>
+    <p class="text-muted small">Pass mark: ${level.passMark ?? 40}%. You can retake this test any time.</p>
     <div id="mcqQuestionsWrap" class="d-flex flex-column gap-4 mb-3"></div>
     <button class="btn btn-brand" id="submitMcqBtn"><i class="bi bi-send-check me-1"></i>Submit Test</button>
   `;
@@ -239,14 +245,14 @@ function renderMcq(content) {
     const percentage = total ? Math.round((score / total) * 10000) / 100 : 0;
     const passed = percentage >= (level.passMark ?? 40);
 
-    await recordMcqAttempt(levelId, currentUser.uid, { score, total, percentage, passed });
+    await recordMcqAttempt(levelId, currentUser.uid, { score, total, percentage, passed, answers: mcqAnswers });
     progress = await getProgress(levelId, currentUser.uid);
     renderNav();
-    renderMcqResult(content, { passed, score, total, percentage });
+    renderMcqResult(content, { passed, score, total, percentage, answers: mcqAnswers });
   });
 }
 
-function renderMcqResult(content, { passed, score, total, percentage }) {
+function renderMcqResult(content, { passed, score, total, percentage, answers = {} }) {
   content.innerHTML = `
     <div class="text-center py-3">
       <div class="result-badge-icon ${passed ? "pass" : "fail"} mx-auto mb-3">
@@ -257,14 +263,66 @@ function renderMcqResult(content, { passed, score, total, percentage }) {
       </span>
       <div class="display-6 fw-bold mt-2">${score} <span class="fs-5 text-muted fw-normal">/ ${total}</span></div>
       <div class="text-muted mb-3">${percentage}% \u00b7 Pass mark: ${level.passMark ?? 40}%</div>
-      ${
-        passed
-          ? `<div class="alert alert-success mb-0"><i class="bi bi-unlock-fill me-1"></i>Coding Practice is now unlocked.</div>`
-          : `<button class="btn btn-brand" id="retakeMcqBtn"><i class="bi bi-arrow-repeat me-1"></i>Retake Test</button>`
-      }
+      ${passed ? `<div class="alert alert-success mb-3"><i class="bi bi-unlock-fill me-1"></i>Coding Practice is now unlocked.</div>` : ""}
+      <div class="d-flex justify-content-center gap-2 mb-3">
+        <button class="btn btn-outline-secondary btn-sm" id="reviewMcqBtn"><i class="bi bi-clipboard-check me-1"></i>Review Answers</button>
+        <button class="btn btn-brand btn-sm" id="retakeMcqBtn"><i class="bi bi-arrow-repeat me-1"></i>Retake Test</button>
+      </div>
+      <div id="mcqReviewWrap" class="text-start"></div>
     </div>
   `;
-  document.getElementById("retakeMcqBtn")?.addEventListener("click", () => renderMcq(content));
+  document.getElementById("retakeMcqBtn").addEventListener("click", () => renderMcq(content));
+  document.getElementById("reviewMcqBtn").addEventListener("click", (e) => {
+    const wrap = document.getElementById("mcqReviewWrap");
+    const showing = wrap.dataset.shown === "true";
+    if (showing) {
+      wrap.innerHTML = "";
+      wrap.dataset.shown = "false";
+      e.currentTarget.innerHTML = '<i class="bi bi-clipboard-check me-1"></i>Review Answers';
+    } else {
+      wrap.innerHTML = buildMcqReviewHtml(answers);
+      wrap.dataset.shown = "true";
+      e.currentTarget.innerHTML = '<i class="bi bi-eye-slash me-1"></i>Hide Review';
+    }
+  });
+}
+
+function buildMcqReviewHtml(answers) {
+  return mcqQuestions
+    .map((q, i) => {
+      const selected = answers[q.id];
+      const correct = q.correctOptionIndex;
+      const wasCorrect = selected === correct;
+      const optionsHtml = q.options
+        .map((opt, oi) => {
+          let cls = "";
+          let icon = "";
+          if (oi === correct) {
+            cls = "text-success fw-semibold";
+            icon = '<i class="bi bi-check-circle-fill me-1"></i>';
+          } else if (oi === selected) {
+            cls = "text-danger fw-semibold";
+            icon = '<i class="bi bi-x-circle-fill me-1"></i>';
+          }
+          return `<div class="${cls}">${icon}${escapeHtml(opt)}${oi === selected && oi !== correct ? " (your answer)" : oi === correct ? " (correct answer)" : ""}</div>`;
+        })
+        .join("");
+
+      return `
+        <div class="mcq-review-item ${wasCorrect ? "correct" : "incorrect"} mb-2">
+          <div class="d-flex justify-content-between align-items-start">
+            <div class="fw-semibold small">${i + 1}. ${escapeHtml(q.questionText)}</div>
+            <span class="badge ${wasCorrect ? "bg-success" : "bg-danger"} ms-2 flex-shrink-0">
+              <i class="bi ${wasCorrect ? "bi-check-lg" : "bi-x-lg"}"></i>
+            </span>
+          </div>
+          <div class="small mt-2 d-flex flex-column gap-1">
+            ${optionsHtml}
+            ${selected == null ? '<div class="text-muted fst-italic">You did not answer this question.</div>' : ""}
+          </div>
+        </div>`;
+    })
+    .join("");
 }
 
 /* ---------- Coding Practice ---------- */
