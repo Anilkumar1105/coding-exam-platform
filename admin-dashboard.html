@@ -21,6 +21,7 @@
       <a class="nav-link" data-pane="studentsPane"><i class="bi bi-people"></i> Students</a>
       <a class="nav-link" data-pane="examsPane"><i class="bi bi-journal-code"></i> Exams</a>
       <a class="nav-link" data-pane="learningPane"><i class="bi bi-mortarboard"></i> Learning</a>
+      <a class="nav-link" data-pane="specialPane"><i class="bi bi-gem"></i> Special Section</a>
     </nav>
     <div class="sidebar-footer">Signed in as<br /><span id="adminName" class="text-light"></span></div>
   </aside>
@@ -278,6 +279,25 @@
           </div>
         </div>
 
+      </div>
+
+      <!-- ===================== SPECIAL SECTION PANE ===================== -->
+      <div class="tab-pane d-none" id="specialPane">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+          <div>
+            <h6 class="mb-0"><i class="bi bi-gem me-1"></i>Special Coding Section</h6>
+            <p class="text-muted small mb-0">Exclusive company-style interview practice questions, unlocked once a student reaches 100 Learning Points.</p>
+          </div>
+          <button class="btn btn-brand btn-sm" id="addSpecialQuestionBtn"><i class="bi bi-plus-lg me-1"></i>Add Question</button>
+        </div>
+
+        <div class="d-flex flex-wrap gap-2 mb-3">
+          <select id="specialCompanyFilter" class="form-select form-select-sm w-auto">
+            <option value="all">All Companies</option>
+          </select>
+        </div>
+
+        <div id="specialQuestionsList" class="d-flex flex-column gap-2"></div>
       </div>
 
     </div>
@@ -795,6 +815,108 @@
         <div class="modal-footer">
           <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
           <button type="submit" class="btn btn-brand">Save Question</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- Add/Edit Special Coding Question Modal -->
+<div class="modal fade" id="specialModal" tabindex="-1">
+  <div class="modal-dialog modal-xl modal-dialog-scrollable">
+    <div class="modal-content">
+      <form id="specialForm">
+        <div class="modal-header">
+          <h5 class="modal-title"><i class="bi bi-gem me-1"></i>Special Coding Question</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <div id="specialFormError" class="alert alert-danger py-2 d-none small"></div>
+          <div class="row g-3">
+            <div class="col-md-8">
+              <div class="mb-3">
+                <label class="form-label">Question Title</label>
+                <input type="text" class="form-control" id="spTitleInput" required />
+              </div>
+              <div class="mb-3">
+                <label class="form-label">Problem Statement</label>
+                <textarea class="form-control" id="spDescInput" rows="3" required></textarea>
+              </div>
+              <div class="row g-2">
+                <div class="col-6">
+                  <label class="form-label">Input Description</label>
+                  <textarea class="form-control" id="spInputDescInput" rows="2"></textarea>
+                </div>
+                <div class="col-6">
+                  <label class="form-label">Output Description</label>
+                  <textarea class="form-control" id="spOutputDescInput" rows="2"></textarea>
+                </div>
+              </div>
+              <div class="mb-3 mt-2">
+                <label class="form-label">Constraints</label>
+                <textarea class="form-control" id="spConstraintsInput" rows="2"></textarea>
+              </div>
+            </div>
+            <div class="col-md-4">
+              <div class="mb-3">
+                <label class="form-label">Company</label>
+                <select class="form-select" id="spCompanySelect">
+                  <option value="Google">Google</option>
+                  <option value="Amazon">Amazon</option>
+                  <option value="Microsoft">Microsoft</option>
+                  <option value="TCS">TCS</option>
+                  <option value="Infosys">Infosys</option>
+                  <option value="Accenture">Accenture</option>
+                  <option value="Other">Other</option>
+                </select>
+              </div>
+              <div class="mb-3 d-none" id="spCompanyOtherWrap">
+                <label class="form-label">Company Name</label>
+                <input type="text" class="form-control" id="spCompanyOtherInput" placeholder="e.g. Flipkart" />
+              </div>
+              <div class="mb-3">
+                <label class="form-label">Difficulty</label>
+                <select class="form-select" id="spDifficultyInput">
+                  <option value="easy">Easy</option>
+                  <option value="medium" selected>Medium</option>
+                  <option value="hard">Hard</option>
+                </select>
+              </div>
+              <div class="mb-3">
+                <label class="form-label">Marks</label>
+                <input type="number" min="1" class="form-control" id="spMarksInput" required />
+              </div>
+              <div class="mb-3">
+                <label class="form-label">Time Limit (seconds)</label>
+                <input type="number" min="1" class="form-control" id="spTimeLimitInput" value="5" required />
+              </div>
+              <div class="mb-3">
+                <label class="form-label">Order</label>
+                <input type="number" min="0" class="form-control" id="spOrderInput" value="0" />
+              </div>
+            </div>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Starter Code (Python)</label>
+            <textarea class="form-control mono" id="spStarterInput" rows="4"></textarea>
+          </div>
+
+          <label class="form-label fw-semibold">Sample Input / Output</label>
+          <div id="spExamplesWrap" class="d-flex flex-column gap-2 mb-2"></div>
+          <button type="button" class="btn btn-sm btn-outline-secondary mb-3" data-add-row="spExamplesWrap" data-row-type="example"><i class="bi bi-plus"></i> Add Sample</button>
+
+          <label class="form-label fw-semibold">Public Test Cases</label>
+          <div id="spVisibleTestsWrap" class="d-flex flex-column gap-2 mb-2"></div>
+          <button type="button" class="btn btn-sm btn-outline-secondary mb-3" data-add-row="spVisibleTestsWrap" data-row-type="test"><i class="bi bi-plus"></i> Add Public Test Case</button>
+
+          <label class="form-label fw-semibold">Hidden Test Cases</label>
+          <div id="spHiddenTestsWrap" class="d-flex flex-column gap-2 mb-2"></div>
+          <button type="button" class="btn btn-sm btn-outline-secondary" data-add-row="spHiddenTestsWrap" data-row-type="test"><i class="bi bi-plus"></i> Add Hidden Test Case</button>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-outline-primary" id="specialSaveDraftBtn" data-publish="false">Save as Draft</button>
+          <button type="submit" class="btn btn-brand" id="specialPublishBtn" data-publish="true">Save &amp; Publish</button>
         </div>
       </form>
     </div>
