@@ -9,7 +9,7 @@ import { db } from "./firebase-config.js";
 import { doc, getDoc, runTransaction } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
 export const POINTS_PER_COMPLETED_QUESTION = 2;
-export const SPECIAL_SECTION_UNLOCK_POINTS = 2;
+export const SPECIAL_SECTION_UNLOCK_POINTS = 100;
 
 function emptyPoints(studentId) {
   return {
