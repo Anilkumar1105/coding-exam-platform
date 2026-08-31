@@ -19,6 +19,7 @@ import {
 } from "./learning.js";
 import { ensurePyodide, runAllTestCases } from "./python-runner.js";
 import { computeCodingMarks } from "./grading.js";
+import { awardPointsForCompletedQuestion } from "./points.js";
 
 wireLogoutButtons();
 
@@ -500,6 +501,15 @@ async function submitPractice(q) {
       errorMessage: results.find((r) => r.errorMessage)?.errorMessage || null
     });
 
+    // "Completed" = every test case passed (a true full solve, not a
+    // partial attempt). Awarding is transaction-safe and idempotent
+    // per question, so re-submitting an already-solved question never
+    // grants more points - see js/points.js.
+    if (allTests.length && passedCount === allTests.length) {
+      const { awarded, points } = await awardPointsForCompletedQuestion(currentUser.uid, q.id);
+      if (awarded) showPointsToast(points);
+    }
+
     statusEl.textContent = `Submitted: ${passedCount} / ${allTests.length} test cases passed \u00b7 ${marksObtained} / ${q.marks} marks`;
     resultsEl.innerHTML = results
       .map((r, i) => `<div class="testcase-result ${r.passed ? "pass" : "fail"}"><strong>Test ${i + 1}: ${r.passed ? "PASSED" : "FAILED"}</strong></div>`)
@@ -532,4 +542,14 @@ async function renderLearningHistory(questionId) {
         </div>`
       )
       .join("");
+}
+
+/** Small floating "+2 Points!" celebration, shown once per newly-completed question. */
+function showPointsToast(totalPoints) {
+  const toast = document.createElement("div");
+  toast.className = "points-toast";
+  toast.innerHTML = `<i class="bi bi-stars me-1"></i>+2 Points! <span class="points-toast-total">(${totalPoints} total)</span>`;
+  document.body.appendChild(toast);
+  setTimeout(() => toast.classList.add("points-toast-out"), 2200);
+  setTimeout(() => toast.remove(), 2700);
 }
