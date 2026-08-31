@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Special Coding Section - Coding Exam Platform</title>
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" />
+<link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet" />
+<link href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.css" rel="stylesheet" />
+<link href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/theme/dracula.min.css" rel="stylesheet" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
+<link href="css/style.css" rel="stylesheet" />
+</head>
+<body class="special-body">
+
+<nav class="navbar navbar-dark bg-transparent mb-4">
+  <div class="container-fluid">
+    <a href="student-dashboard.html" class="navbar-brand text-white"><i class="bi bi-arrow-left me-2"></i>Back to Dashboard</a>
+    <button class="btn btn-outline-light btn-sm" data-logout="true"><i class="bi bi-box-arrow-right me-1"></i>Logout</button>
+  </div>
+</nav>
+
+<div class="container pb-5" id="pageBody">
+  <div class="text-center text-white-50 py-5">Loading...</div>
+</div>
+
+<!-- ===== Locked state template ===== -->
+<template id="tmplLocked">
+  <div class="special-lock-wrap">
+    <div class="special-lock-card">
+      <div class="lock-icon-wrap">
+        <div class="lock-icon-ring"></div>
+        <i class="bi bi-lock-fill lock-icon"></i>
+      </div>
+      <h3 class="special-title">Special Coding Section</h3>
+      <p class="special-sub">Complete more coding questions to unlock exclusive interview questions!</p>
+
+      <div class="special-progress-track">
+        <div class="special-progress-fill" id="lockedProgressFill" style="width:0%"></div>
+      </div>
+      <div class="special-points-label">
+        <span id="lockedPointsCurrent">0</span> / <span id="lockedPointsTarget">100</span> points
+      </div>
+      <div class="special-remaining-badge" id="lockedRemainingBadge">100 more points to unlock</div>
+
+      <a href="student-dashboard.html#toppersSection" class="btn btn-special mt-4"><i class="bi bi-mortarboard me-1"></i>Keep Learning</a>
+    </div>
+  </div>
+</template>
+
+<!-- ===== Unlock celebration template ===== -->
+<template id="tmplCelebration">
+  <div class="special-lock-wrap">
+    <div class="special-celebration-card">
+      <div class="confetti-burst">
+        <span>&#127881;</span><span>&#10024;</span><span>&#127942;</span><span>&#127881;</span>
+        <span>&#11088;</span><span>&#127881;</span><span>&#10024;</span><span>&#127942;</span>
+      </div>
+      <div class="lock-icon-wrap unlocked">
+        <i class="bi bi-unlock-fill lock-icon"></i>
+      </div>
+      <h3 class="special-title">Unlocked!</h3>
+      <p class="special-sub">You've reached 100 Learning Points. The Special Coding Section is now yours.</p>
+      <button class="btn btn-special mt-3" id="continueToSpecialBtn"><i class="bi bi-arrow-right-circle me-1"></i>Enter Special Section</button>
+    </div>
+  </div>
+</template>
+
+<!-- ===== Unlocked content template ===== -->
+<template id="tmplContent">
+  <div class="d-flex flex-wrap justify-content-between align-items-center mb-4">
+    <div>
+      <h3 class="special-title mb-1"><i class="bi bi-gem me-2"></i>Special Coding Section</h3>
+      <p class="special-sub mb-0">Interview Practice &mdash; Frequently Asked Company-Style Questions</p>
+    </div>
+    <div class="special-points-pill"><i class="bi bi-stars me-1"></i><span id="contentPoints">0</span> points</div>
+  </div>
+  <div class="alert special-disclaimer">
+    <i class="bi bi-info-circle me-1"></i>
+    These are company-style practice questions inspired by common interview patterns &mdash; not a claim that any specific company asked this exact question.
+  </div>
+  <div id="companySections"></div>
+</template>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://cdn.jsdelivr.net/pyodide/v0.26.4/full/pyodide.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/python/python.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/edit/matchbrackets.min.js"></script>
+<script type="module" src="js/special-section-page.js"></script>
+</body>
+</html>
