@@ -32,6 +32,24 @@
     <button class="btn btn-outline-danger" id="downloadReportBtn"><i class="bi bi-file-earmark-pdf me-1"></i>Download PDF</button>
   </div>
 
+  <a href="special-section.html" id="learningPointsCard" class="text-decoration-none d-block mb-4">
+    <div class="points-card">
+      <div class="points-card-left">
+        <div class="points-card-icon"><i class="bi bi-gem"></i></div>
+        <div>
+          <div class="points-card-title">Learning Points</div>
+          <div class="points-card-value"><span id="pointsCurrentValue">0</span> / <span id="pointsTargetValue">100</span></div>
+          <div class="points-card-sub"><span id="pointsCompletedCount">0</span> coding questions completed</div>
+        </div>
+      </div>
+      <div class="points-card-right">
+        <span class="badge points-status-badge" id="pointsStatusBadge">Locked</span>
+        <div class="points-card-remaining" id="pointsRemainingText">100 points to unlock</div>
+        <div class="points-mini-track"><div class="points-mini-fill" id="pointsMiniFill" style="width:0%"></div></div>
+      </div>
+    </div>
+  </a>
+
   <div class="row g-3 mb-4" id="statCards"></div>
 
   <div id="toppersSection" class="d-none mb-4">
@@ -156,6 +174,7 @@
   } from "./student.js";
   import { isPass, PASS_MARK, computeExamAccessStatus, describeExamWindow, filterSchedulesForSection } from "./grading.js";
   import { listSchedulesForExam, getWeeklyToppers } from "./student.js";
+  import { getStudentPoints, isSpecialSectionUnlocked, SPECIAL_SECTION_UNLOCK_POINTS } from "./points.js";
   import { renderTopperGrid } from "./dashboard.js";
   import { generateReportPDF } from "./pdf-export.js";
   import { listActiveLevels, listConcepts, getProgress, allConceptsCompleted } from "./learning.js";
@@ -205,6 +224,7 @@
     renderCodingHistoryOptions(submissions);
     renderLearningLevels();
     renderToppersCarousel();
+    renderLearningPointsCard();
     renderAbsentExams(allExams, submissions);
   });
 
@@ -793,6 +813,33 @@
 
     studentTopperCarouselInstances.forEach((c) => c.dispose());
     studentTopperCarouselInstances = renderTopperGrid(document.getElementById("topperGrid"), entries);
+  }
+
+  /* ---------- Learning Points card ---------- */
+  async function renderLearningPointsCard() {
+    const data = await getStudentPoints(currentUser.uid).catch(() => ({ points: 0, completedCodingQuestionIds: [] }));
+    const points = data.points || 0;
+    const completedCount = (data.completedCodingQuestionIds || []).length;
+    const unlocked = isSpecialSectionUnlocked(points);
+    const remaining = Math.max(SPECIAL_SECTION_UNLOCK_POINTS - points, 0);
+    const pct = Math.min(Math.round((points / SPECIAL_SECTION_UNLOCK_POINTS) * 100), 100);
+
+    document.getElementById("pointsCurrentValue").textContent = points;
+    document.getElementById("pointsTargetValue").textContent = SPECIAL_SECTION_UNLOCK_POINTS;
+    document.getElementById("pointsCompletedCount").textContent = completedCount;
+    document.getElementById("pointsMiniFill").style.width = `${pct}%`;
+
+    const statusBadge = document.getElementById("pointsStatusBadge");
+    const remainingText = document.getElementById("pointsRemainingText");
+    if (unlocked) {
+      statusBadge.textContent = "Unlocked";
+      statusBadge.classList.add("unlocked");
+      remainingText.textContent = "Special Coding Section is open!";
+    } else {
+      statusBadge.textContent = "Locked";
+      statusBadge.classList.remove("unlocked");
+      remainingText.textContent = `${remaining} point${remaining === 1 ? "" : "s"} to unlock`;
+    }
   }
 </script>
 </body>
