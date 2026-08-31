@@ -163,5 +163,61 @@ service cloud.firestore {
       allow update: if false;
       allow delete: if isAdmin();
     }
+
+    // ===================== Special Coding Section =====================
+    // Locked until a student reaches 100 Learning Points, earned only
+    // from the existing Learning Section (2 points per fully-solved
+    // coding question). Points live in their own collection rather
+    // than on the users doc so this feature never needs write access
+    // to the more sensitive fields (role, password, etc.) on a
+    // student's user document.
+
+    // studentPoints/{studentId}  (doc id == studentId)
+    // Not proctored/scored content, so - like learningProgress - the
+    // student can freely read/write their own doc. The actual
+    // increment-without-duplicating logic is enforced client-side via
+    // a Firestore transaction (see js/points.js), not by these rules.
+    match /studentPoints/{studentId} {
+      allow read: if isAdmin() ||
+        (isSignedIn() && request.auth.uid == studentId);
+
+      allow create: if isSignedIn() &&
+        request.auth.uid == studentId &&
+        request.resource.data.studentId == studentId;
+
+      allow update: if isAdmin() ||
+        (isSignedIn() && request.auth.uid == studentId && resource.data.studentId == studentId);
+
+      allow delete: if isAdmin();
+    }
+
+    // specialCodingQuestions/{questionId}
+    // Exclusive company-style interview practice questions, unlocked
+    // client-side once a student hits 100 points. Same limitation as
+    // every other "hidden until X" collection in this app: Firestore
+    // rules can't gate on a computed points threshold without a
+    // backend, so this is a UI-level unlock, not a hard security
+    // boundary - any signed-in user could technically fetch these
+    // questions directly. Hidden test cases within them are UI-hidden
+    // only, same as everywhere else.
+    match /specialCodingQuestions/{questionId} {
+      allow read: if isSignedIn();
+      allow create, update, delete: if isAdmin();
+    }
+
+    // specialCodeSubmissions/{submissionId}
+    // Run/Submit history for Special Section practice questions -
+    // purely for the student's own reference, not tied to further
+    // scoring or unlocking.
+    match /specialCodeSubmissions/{submissionId} {
+      allow read: if isAdmin() ||
+        (isSignedIn() && resource.data.studentId == request.auth.uid);
+
+      allow create: if isSignedIn() &&
+        request.resource.data.studentId == request.auth.uid;
+
+      allow update: if false;
+      allow delete: if isAdmin();
+    }
   }
 }
