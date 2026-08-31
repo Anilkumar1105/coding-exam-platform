@@ -64,6 +64,13 @@ import {
   deleteLearningCodingQuestion,
   listProgressForLevel
 } from "./learning.js";
+import {
+  COMPANY_OPTIONS,
+  listAllSpecialQuestions,
+  createSpecialQuestion,
+  updateSpecialQuestion,
+  deleteSpecialQuestion
+} from "./special-section.js";
 
 wireLogoutButtons();
 
@@ -90,6 +97,10 @@ let levelMcqQuestions = [];
 let editingLearningMcqId = null;
 let levelCodingQuestions = [];
 let editingLearningCodingId = null;
+let specialQuestions = [];
+let specialQuestionsLoaded = false;
+let editingSpecialQuestionId = null;
+let specialCompanyFilterValue = "all";
 
 /* ============================================================
    AUTH + INITIAL LOAD
@@ -126,7 +137,8 @@ const paneTitles = {
   resultsPane: "Results",
   studentsPane: "Students",
   examsPane: "Exams",
-  learningPane: "Learning"
+  learningPane: "Learning",
+  specialPane: "Special Section"
 };
 
 document.querySelectorAll(".app-sidebar .nav-link").forEach((link) => {
@@ -143,6 +155,9 @@ document.querySelectorAll(".app-sidebar .nav-link").forEach((link) => {
 
     if (paneId === "learningPane" && !levels.length) {
       renderLevelsTable();
+    }
+    if (paneId === "specialPane" && !specialQuestionsLoaded) {
+      renderSpecialQuestionsList();
     }
   });
 });
@@ -1731,3 +1746,176 @@ function renderLearningProgressTable() {
     })
     .join("");
 }
+
+/* ============================================================
+   SPECIAL CODING SECTION (exclusive company-style questions)
+   ============================================================ */
+async function renderSpecialQuestionsList() {
+  specialQuestions = await listAllSpecialQuestions();
+  specialQuestionsLoaded = true;
+
+  const filterEl = document.getElementById("specialCompanyFilter");
+  const previousValue = filterEl.value || "all";
+  const companiesPresent = [...new Set(specialQuestions.map((q) => q.company).filter(Boolean))];
+  const allCompanies = [...COMPANY_OPTIONS.filter((c) => companiesPresent.includes(c)), ...companiesPresent.filter((c) => !COMPANY_OPTIONS.includes(c))];
+  filterEl.innerHTML = `<option value="all">All Companies</option>` + allCompanies.map((c) => `<option value="${c}">${escapeHtmlL(c)}</option>`).join("");
+  filterEl.value = [...filterEl.options].some((o) => o.value === previousValue) ? previousValue : "all";
+  filterEl.onchange = () => {
+    specialCompanyFilterValue = filterEl.value;
+    renderSpecialQuestionsListBody();
+  };
+
+  renderSpecialQuestionsListBody();
+}
+
+function renderSpecialQuestionsListBody() {
+  const wrap = document.getElementById("specialQuestionsList");
+  const rows = specialCompanyFilterValue === "all" ? specialQuestions : specialQuestions.filter((q) => q.company === specialCompanyFilterValue);
+
+  if (!rows.length) {
+    wrap.innerHTML = `<div class="text-center text-muted py-4">No special coding questions ${specialCompanyFilterValue === "all" ? "added yet" : `for ${escapeHtmlL(specialCompanyFilterValue)}`}.</div>`;
+    return;
+  }
+
+  wrap.innerHTML = rows
+    .map((q) => {
+      const publishedBadge = q.published
+        ? '<span class="badge bg-success">Published</span>'
+        : '<span class="badge bg-secondary">Draft</span>';
+      const difficultyBadge =
+        q.difficulty === "easy" ? "bg-success" : q.difficulty === "hard" ? "bg-danger" : "bg-warning text-dark";
+
+      return `
+        <div class="question-card p-3">
+          <div class="d-flex justify-content-between">
+            <div>
+              <span class="company-badge ${companyBadgeClass(q.company)} me-2">${escapeHtmlL(q.company || "Other")}</span>
+              <strong>${escapeHtmlL(q.title)}</strong>
+              <span class="badge ${difficultyBadge} ms-1">${(q.difficulty || "medium").toUpperCase()}</span>
+              <div class="text-muted small mt-1">
+                ${q.marks} marks &middot; ${(q.visibleTestCases || []).length} public / ${(q.hiddenTestCases || []).length} hidden test cases
+              </div>
+            </div>
+            <div class="text-nowrap">
+              ${publishedBadge}
+              <button class="btn btn-sm btn-outline-primary ms-2 me-1" data-edit-special="${q.id}"><i class="bi bi-pencil"></i></button>
+              <button class="btn btn-sm btn-outline-danger" data-delete-special="${q.id}"><i class="bi bi-trash"></i></button>
+            </div>
+          </div>
+        </div>`;
+    })
+    .join("");
+
+  wrap.querySelectorAll("[data-edit-special]").forEach((btn) =>
+    btn.addEventListener("click", () => openSpecialModal(specialQuestions.find((q) => q.id === btn.dataset.editSpecial)))
+  );
+  wrap.querySelectorAll("[data-delete-special]").forEach((btn) =>
+    btn.addEventListener("click", async () => {
+      if (!confirm("Delete this special coding question? This cannot be undone.")) return;
+      await deleteSpecialQuestion(btn.dataset.deleteSpecial);
+      await renderSpecialQuestionsList();
+    })
+  );
+}
+
+function companyBadgeClass(company) {
+  const map = {
+    Google: "company-google",
+    Amazon: "company-amazon",
+    Microsoft: "company-microsoft",
+    TCS: "company-tcs",
+    Infosys: "company-infosys",
+    Accenture: "company-accenture"
+  };
+  return map[company] || "company-other";
+}
+
+document.getElementById("addSpecialQuestionBtn").addEventListener("click", () => openSpecialModal());
+
+document.getElementById("spCompanySelect").addEventListener("change", (e) => {
+  document.getElementById("spCompanyOtherWrap").classList.toggle("d-none", e.target.value !== "Other");
+});
+
+function openSpecialModal(question = null) {
+  editingSpecialQuestionId = question?.id || null;
+  document.getElementById("specialForm").reset();
+  document.getElementById("specialFormError").classList.add("d-none");
+
+  document.getElementById("spTitleInput").value = question?.title || "";
+  document.getElementById("spDescInput").value = question?.description || "";
+  document.getElementById("spInputDescInput").value = question?.inputDescription || "";
+  document.getElementById("spOutputDescInput").value = question?.outputDescription || "";
+  document.getElementById("spConstraintsInput").value = question?.constraints || "";
+  document.getElementById("spDifficultyInput").value = question?.difficulty || "medium";
+  document.getElementById("spMarksInput").value = question?.marks || "";
+  document.getElementById("spTimeLimitInput").value = question?.timeLimit || 5;
+  document.getElementById("spOrderInput").value = question?.order ?? specialQuestions.length;
+  document.getElementById("spStarterInput").value = question?.starterCode || "";
+
+  const knownCompany = question?.company && COMPANY_OPTIONS.includes(question.company) ? question.company : question?.company ? "Other" : "Google";
+  document.getElementById("spCompanySelect").value = knownCompany;
+  document.getElementById("spCompanyOtherWrap").classList.toggle("d-none", knownCompany !== "Other");
+  document.getElementById("spCompanyOtherInput").value = knownCompany === "Other" ? question?.company || "" : "";
+
+  ["spExamplesWrap", "spVisibleTestsWrap", "spHiddenTestsWrap"].forEach((id) => {
+    document.getElementById(id).innerHTML = "";
+  });
+  (question?.examples || [{}]).forEach((ex) => addDynamicRow("spExamplesWrap", "example", ex));
+  (question?.visibleTestCases || [{}]).forEach((tc) => addDynamicRow("spVisibleTestsWrap", "test", tc));
+  (question?.hiddenTestCases || [{}]).forEach((tc) => addDynamicRow("spHiddenTestsWrap", "test", tc));
+
+  new bootstrap.Modal(document.getElementById("specialModal")).show();
+}
+
+document.getElementById("specialForm").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const errorEl = document.getElementById("specialFormError");
+  errorEl.classList.add("d-none");
+
+  const companySelect = document.getElementById("spCompanySelect").value;
+  const company = companySelect === "Other" ? document.getElementById("spCompanyOtherInput").value.trim() : companySelect;
+
+  if (!company) {
+    errorEl.textContent = "Enter a company name.";
+    errorEl.classList.remove("d-none");
+    return;
+  }
+
+  const publish = document.activeElement?.dataset?.publish === "true";
+  const data = {
+    title: document.getElementById("spTitleInput").value.trim(),
+    description: document.getElementById("spDescInput").value.trim(),
+    inputDescription: document.getElementById("spInputDescInput").value.trim(),
+    outputDescription: document.getElementById("spOutputDescInput").value.trim(),
+    constraints: document.getElementById("spConstraintsInput").value.trim(),
+    company,
+    difficulty: document.getElementById("spDifficultyInput").value,
+    marks: Number(document.getElementById("spMarksInput").value),
+    timeLimit: Number(document.getElementById("spTimeLimitInput").value),
+    order: Number(document.getElementById("spOrderInput").value),
+    starterCode: document.getElementById("spStarterInput").value,
+    examples: collectDynamicRows("spExamplesWrap", false).filter((r) => r.input || r.output),
+    visibleTestCases: collectDynamicRows("spVisibleTestsWrap", true).filter((r) => r.input || r.expectedOutput),
+    hiddenTestCases: collectDynamicRows("spHiddenTestsWrap", true).filter((r) => r.input || r.expectedOutput),
+    published: publish
+  };
+
+  if (!data.visibleTestCases.length && !data.hiddenTestCases.length) {
+    errorEl.textContent = "Add at least one test case (public or hidden).";
+    errorEl.classList.remove("d-none");
+    return;
+  }
+
+  try {
+    if (editingSpecialQuestionId) {
+      await updateSpecialQuestion(editingSpecialQuestionId, data);
+    } else {
+      await createSpecialQuestion(data);
+    }
+    bootstrap.Modal.getInstance(document.getElementById("specialModal"))?.hide();
+    await renderSpecialQuestionsList();
+  } catch (err) {
+    errorEl.textContent = err.message || "Could not save question.";
+    errorEl.classList.remove("d-none");
+  }
+});
