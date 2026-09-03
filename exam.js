@@ -11,6 +11,7 @@ import {
   getSubmission,
   startSubmission,
   saveAnswers,
+  saveFlags,
   incrementViolation,
   finalizeSubmission,
   createCodeSubmission,
@@ -25,7 +26,8 @@ import {
   PASS_MARK,
   computeExamAccessStatus,
   describeExamWindow,
-  findWindowContaining
+  findWindowContaining,
+  filterSchedulesForSection
 } from "./grading.js";
 
 wireLogoutButtons();
@@ -39,6 +41,7 @@ let exam = null;
 let schedules = [];
 let questions = [];
 let answers = {}; // { [questionId]: number (mcq) | { code } (coding, code text only - marks live in codeSubmissions) }
+let flaggedQuestionIds = new Set();
 let currentIndex = 0;
 let violationCount = 0;
 let maxViolations = 3;
@@ -71,7 +74,17 @@ async function loadExam() {
 
   schedules = await listSchedulesForExam(examId);
   const existing = await getSubmission(examId, currentUser.uid);
-  const accessStatus = computeExamAccessStatus(exam, existing, schedules);
+  const accessStatus = computeExamAccessStatus(exam, existing, schedules, studentProfile.section);
+
+  if (accessStatus === "not-assigned") {
+    showStartError("This exam is not scheduled for your section.");
+    return;
+  }
+
+  // From here on, only the schedules relevant to this student's section
+  // matter - other sections' slots shouldn't factor into the timer or
+  // the displayed window.
+  schedules = filterSchedulesForSection(schedules, studentProfile.section);
 
   if (accessStatus === "completed") {
     alert("You have already submitted this exam.");
@@ -155,6 +168,7 @@ async function handleStart() {
   }
 
   answers = submission.answers || {};
+  flaggedQuestionIds = new Set(submission.flaggedQuestionIds || []);
   violationCount = submission.violations || 0;
 
   const elapsedSeconds = (Date.now() - new Date(submission.startedAt).getTime()) / 1000;
@@ -295,9 +309,12 @@ function renderQuestionNav() {
   nav.innerHTML = questions
     .map((q, i) => {
       const answered = answers[q.id] !== undefined && answers[q.id] !== null && answers[q.id] !== "";
+      const flagged = flaggedQuestionIds.has(q.id);
       const classes = ["btn", "btn-sm", "question-nav-btn", answered ? "answered" : "btn-outline-secondary"];
       if (i === currentIndex) classes.push("current");
-      return `<button type="button" class="${classes.join(" ")}" data-index="${i}">${i + 1}</button>`;
+      if (flagged) classes.push("flagged");
+      const flagIcon = flagged ? '<i class="bi bi-flag-fill question-nav-flag"></i>' : "";
+      return `<button type="button" class="${classes.join(" ")}" data-index="${i}">${flagIcon}${i + 1}</button>`;
     })
     .join("");
 
@@ -324,13 +341,18 @@ function renderCurrentQuestion() {
 function renderMcqQuestion(card, q) {
   const selected = answers[q.id];
   card.innerHTML = `
-    <div class="d-flex justify-content-between mb-2">
+    <div class="d-flex justify-content-between align-items-center mb-2">
       <span class="badge bg-secondary">Question ${currentIndex + 1} of ${questions.length}</span>
-      <span class="badge bg-brand">${q.marks} marks</span>
+      <div class="d-flex align-items-center gap-2">
+        <span class="badge bg-brand">${q.marks} marks</span>
+        ${flagButtonHtml(q.id)}
+      </div>
     </div>
     <h5 class="mb-4">${q.questionText}</h5>
     <div class="d-flex flex-column gap-2" id="mcqOptionsList"></div>
   `;
+
+  wireFlagButton(card, q);
 
   const list = document.getElementById("mcqOptionsList");
   q.options.forEach((opt, i) => {
@@ -362,10 +384,13 @@ function renderCodingQuestion(card, q) {
     .join("");
 
   card.innerHTML = `
-    <div class="d-flex justify-content-between mb-2">
+    <div class="d-flex justify-content-between align-items-center mb-2 flex-wrap gap-2">
       <span class="badge bg-secondary">Question ${currentIndex + 1} of ${questions.length}</span>
-      <span class="badge ${difficultyBadgeClass(q.difficulty)}">${(q.difficulty || "medium").toUpperCase()}</span>
-      <span class="badge bg-brand">${q.marks} marks</span>
+      <div class="d-flex align-items-center gap-2">
+        <span class="badge ${difficultyBadgeClass(q.difficulty)}">${(q.difficulty || "medium").toUpperCase()}</span>
+        <span class="badge bg-brand">${q.marks} marks</span>
+        ${flagButtonHtml(q.id)}
+      </div>
     </div>
     <div class="row g-3">
       <div class="col-lg-5">
@@ -425,6 +450,7 @@ function renderCodingQuestion(card, q) {
   document.getElementById("runCodeBtn").addEventListener("click", () => runVisibleTests(q, cmEditor.getValue()));
   document.getElementById("submitCodeBtn").addEventListener("click", () => submitCode(q, cmEditor.getValue()));
 
+  wireFlagButton(card, q);
   renderSubmissionHistory(q.id);
 }
 
@@ -439,6 +465,33 @@ function escapeHtml(str) {
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;");
+}
+
+/* ---------- Flag for Review ---------- */
+function flagButtonHtml(questionId) {
+  const flagged = flaggedQuestionIds.has(questionId);
+  return `
+    <button type="button" class="btn btn-sm ${flagged ? "btn-warning" : "btn-outline-warning"}" id="flagQuestionBtn"
+      title="${flagged ? "Unflag this question" : "Flag this question for review"}">
+      <i class="bi ${flagged ? "bi-flag-fill" : "bi-flag"} me-1"></i>${flagged ? "Flagged" : "Flag for Review"}
+    </button>`;
+}
+
+function wireFlagButton(card, q) {
+  const btn = card.querySelector("#flagQuestionBtn");
+  if (!btn) return;
+  btn.addEventListener("click", () => toggleFlag(q.id));
+}
+
+function toggleFlag(questionId) {
+  if (flaggedQuestionIds.has(questionId)) {
+    flaggedQuestionIds.delete(questionId);
+  } else {
+    flaggedQuestionIds.add(questionId);
+  }
+  saveFlags(examId, currentUser.uid, [...flaggedQuestionIds]).catch(() => {});
+  renderCurrentQuestion();
+  renderQuestionNav();
 }
 
 /* ============================================================
@@ -577,6 +630,30 @@ async function renderSubmissionHistory(questionId) {
    SUBMIT EXAM (final)
    ============================================================ */
 document.getElementById("submitExamBtn").addEventListener("click", () => {
+  const warningEl = document.getElementById("flaggedWarning");
+  const reviewBtn = document.getElementById("reviewFlaggedBtn");
+
+  if (flaggedQuestionIds.size > 0) {
+    const flaggedNumbers = questions
+      .map((q, i) => (flaggedQuestionIds.has(q.id) ? i + 1 : null))
+      .filter((n) => n !== null);
+    document.getElementById("flaggedWarningText").textContent =
+      `You still have ${flaggedQuestionIds.size} question${flaggedQuestionIds.size === 1 ? "" : "s"} flagged for review: Q${flaggedNumbers.join(", Q")}.`;
+    warningEl.classList.remove("d-none");
+    reviewBtn.classList.remove("d-none");
+    reviewBtn.onclick = () => {
+      const firstFlaggedIndex = questions.findIndex((q) => flaggedQuestionIds.has(q.id));
+      if (firstFlaggedIndex !== -1) {
+        currentIndex = firstFlaggedIndex;
+        renderCurrentQuestion();
+        renderQuestionNav();
+      }
+    };
+  } else {
+    warningEl.classList.add("d-none");
+    reviewBtn.classList.add("d-none");
+  }
+
   new bootstrap.Modal(document.getElementById("submitConfirmModal")).show();
 });
 
