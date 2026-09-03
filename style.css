@@ -101,6 +101,30 @@ body {
   outline: 2px solid var(--brand);
 }
 
+.question-nav-btn {
+  position: relative;
+}
+
+.question-nav-btn.flagged {
+  box-shadow: 0 0 0 2px #f59e0b inset;
+}
+
+.question-nav-flag {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  font-size: 0.6rem;
+  color: #f59e0b;
+  background: #fff;
+  border-radius: 50%;
+  width: 14px;
+  height: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
+}
+
 #codeEditor {
   font-family: "Courier New", monospace;
   font-size: 0.9rem;
@@ -510,8 +534,8 @@ body {
   border: 1px solid #a7f3d0;
 }
 
-.ea0b0b {
-  background: #ea0b0b;
+.testcase-result.fail {
+  background: #fef2f2;
   border: 1px solid #fecaca;
 }
 
