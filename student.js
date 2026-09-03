@@ -107,6 +107,11 @@ export function saveAnswers(examId, studentId, answers) {
   return updateDoc(doc(db, "submissions", submissionId(examId, studentId)), { answers });
 }
 
+/** Saves which questions the student has flagged "for review" before final submit. */
+export function saveFlags(examId, studentId, flaggedQuestionIds) {
+  return updateDoc(doc(db, "submissions", submissionId(examId, studentId)), { flaggedQuestionIds });
+}
+
 export function incrementViolation(examId, studentId, newCount) {
   return updateDoc(doc(db, "submissions", submissionId(examId, studentId)), { violations: newCount });
 }
