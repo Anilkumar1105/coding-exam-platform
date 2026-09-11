@@ -1447,3 +1447,23 @@ body.special-body .navbar-brand {
 @keyframes pointsToastOut {
   to { transform: translateY(-10px) scale(0.95); opacity: 0; }
 }
+
+/* ---------- "Pasting disabled" toast (Learning Section code editor) ---------- */
+.paste-blocked-toast {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  z-index: 2000;
+  background: #374151;
+  color: #fff;
+  font-weight: 600;
+  font-size: 0.85rem;
+  padding: 0.6rem 1rem;
+  border-radius: 0.6rem;
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.25);
+  animation: pointsToastIn 0.3s ease;
+}
+
+.paste-blocked-toast-out {
+  animation: pointsToastOut 0.4s ease forwards;
+}
