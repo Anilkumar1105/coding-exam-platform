@@ -440,10 +440,45 @@ function renderCodingQuestion(content) {
     viewportMargin: Infinity
   });
   cmEditor.setSize("100%", "300px");
+  blockPaste(cmEditor);
 
   document.getElementById("learningRunBtn").addEventListener("click", () => runVisible(q));
   document.getElementById("learningSubmitBtn").addEventListener("click", () => submitPractice(q));
   renderLearningHistory(q.id);
+}
+
+/**
+ * Disables pasting into a CodeMirror editor (Ctrl/Cmd+V, right-click
+ * paste, and the Edit menu) so students have to type their own code in
+ * the Learning Section's practice editor instead of pasting an answer
+ * in from elsewhere. Typing, Run, and Submit all still work normally -
+ * only paste is blocked.
+ */
+function blockPaste(editor) {
+  const wrapper = editor.getWrapperElement();
+  wrapper.addEventListener("paste", (e) => {
+    e.preventDefault();
+    showPasteBlockedToast();
+  });
+  editor.setOption("extraKeys", {
+    ...(editor.getOption("extraKeys") || {}),
+    "Ctrl-V": () => showPasteBlockedToast(),
+    "Cmd-V": () => showPasteBlockedToast(),
+    "Shift-Ctrl-V": () => showPasteBlockedToast(),
+    "Shift-Insert": () => showPasteBlockedToast()
+  });
+}
+
+function showPasteBlockedToast() {
+  const existing = document.querySelector(".paste-blocked-toast");
+  if (existing) existing.remove();
+
+  const toast = document.createElement("div");
+  toast.className = "paste-blocked-toast";
+  toast.innerHTML = `<i class="bi bi-clipboard-x me-1"></i>Pasting is disabled here - please type your code.`;
+  document.body.appendChild(toast);
+  setTimeout(() => toast.classList.add("paste-blocked-toast-out"), 1800);
+  setTimeout(() => toast.remove(), 2200);
 }
 
 async function runVisible(q) {
