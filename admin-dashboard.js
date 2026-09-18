@@ -1286,19 +1286,18 @@ async function renderLevelsTable() {
   );
   const countsById = Object.fromEntries(counts.map((c) => [c.id, c]));
 
-  // Keep a lightweight aggregate on each level so student dashboards do not
-  // have to read every concept document just to display a progress percentage.
-  // Only write when the cached count is missing/stale, so normal admin refreshes
-  // do not create unnecessary writes.
+  // Keep a cached concept total on each level. Student dashboards use this
+  // value instead of downloading every concept document. This is also a
+  // one-time migration for existing levels that do not have conceptCount.
   await Promise.all(
     counts.map(async (c) => {
-      const lvl = levels.find((l) => l.id === c.id);
+      const lvl = levels.find((item) => item.id === c.id);
       if (!lvl || Number(lvl.conceptCount) === c.concepts) return;
       try {
         await updateLevel(c.id, { conceptCount: c.concepts });
         lvl.conceptCount = c.concepts;
       } catch (err) {
-        console.warn("Could not update conceptCount for level", c.id, err);
+        console.warn(`Could not update conceptCount for level ${c.id}:`, err);
       }
     })
   );
