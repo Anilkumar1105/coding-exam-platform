@@ -27,7 +27,8 @@ import {
   updateSchedule,
   deleteSchedule,
   publishWeeklyToppers,
-  publishWeeklyCodingToppers
+  publishWeeklyCodingToppers,
+  publishAllTimePythonTopper
 } from "./admin.js";
 import {
   computeOverallStats,
@@ -42,7 +43,9 @@ import {
   computeWeeklyToppers,
   renderTopperGrid,
   computeWeeklyCodingToppers,
-  renderCodingToppers
+  renderCodingToppers,
+  computeAllTimePythonTopper,
+  renderAllTimePythonTopper
 } from "./dashboard.js";
 import { generateReportPDF } from "./pdf-export.js";
 import { formatExamWindow, describeExamWindow, formatScheduleWindow, formatScheduleSections } from "./grading.js";
@@ -179,6 +182,7 @@ function renderAnalytics() {
   const sectionStats = computeSectionStats(students, submissions);
   renderSectionTable(document.getElementById("sectionTableBody"), sectionStats);
 
+  renderAllTimePythonTopperAdmin();
   renderToppersCarousel();
   renderWeeklyCodingToppers();
   renderChartPane();
@@ -206,6 +210,23 @@ function renderToppersCarousel() {
   // compute it themselves since they can only read their own
   // submissions.
   publishWeeklyToppers(entries).catch(() => {});
+}
+
+let pythonTopperPublished = false;
+
+function renderAllTimePythonTopperAdmin() {
+  const section = document.getElementById("pythonTopperSection");
+  const entries = computeAllTimePythonTopper(students, submissions, exams);
+
+  if (!entries.length) {
+    section.classList.add("d-none");
+    if (pythonTopperPublished) publishAllTimePythonTopper([]).catch(() => {});
+    return;
+  }
+
+  section.classList.remove("d-none");
+  renderAllTimePythonTopper(document.getElementById("pythonTopperGrid"), entries);
+  publishAllTimePythonTopper(entries).then(() => { pythonTopperPublished = true; }).catch(() => {});
 }
 
 let codingTopperPublished = false;

@@ -46,6 +46,12 @@ export async function getWeeklyCodingToppers() {
   return snap.exists() ? snap.data() : null;
 }
 
+/** Reads the admin-published all-time Python topper leaderboard. */
+export async function getAllTimePythonTopper() {
+  const snap = await getDoc(doc(db, "allTimePythonTopper", "current"));
+  return snap.exists() ? snap.data() : null;
+}
+
 /** Read-only: fetch an exam's schedules, sorted earliest-first. Both
  *  admin.js (management UI) and student-facing pages import this from
  *  here so student pages never need to pull in admin-only Auth code. */

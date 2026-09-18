@@ -501,6 +501,131 @@ export function renderTopperGrid(containerEl, entries) {
  * Returns [{ rank, name, rollNumber, section, percentage,
  *            codingScore, totalMarks, examsCount }]
  */
+/**
+ * Computes the all-time Python topper(s). Eligibility is strict:
+ * - at least 3 completed coding exams
+ * - more than 2 completed MCQ exams (3+)
+ * The displayed percentage is the arithmetic average of each completed
+ * coding/MCQ exam percentage for that student. All students tied at the
+ * highest average are returned.
+ */
+export function computeAllTimePythonTopper(students, submissions, exams) {
+  const examById = new Map(exams.map((e) => [e.id, e]));
+  const studentById = new Map(students.map((s) => [s.uid, s]));
+  const totals = new Map();
+
+  submissions.forEach((sub) => {
+    const exam = examById.get(sub.examId);
+    if (!exam) return;
+    if (!["submitted", "auto-submitted"].includes(sub.status)) return;
+
+    const percentage = Number(sub.percentage);
+    if (!Number.isFinite(percentage)) return;
+
+    const student = studentById.get(sub.studentId);
+    if (!student) return;
+
+    // Coding exams on this platform are Python coding exams. If a future
+    // exam explicitly declares another language, don't count it here.
+    const isCoding = exam.examType === "coding";
+    const isPythonCoding = isCoding && (
+      !exam.language ||
+      String(exam.language).toLowerCase() === "python" ||
+      (Array.isArray(exam.allowedLanguages) && exam.allowedLanguages.some((l) => String(l).toLowerCase() === "python"))
+    );
+    const isMcq = exam.examType === "mcq";
+    if (!isPythonCoding && !isMcq) return;
+
+    const current = totals.get(sub.studentId) || {
+      student,
+      codingExams: 0,
+      mcqExams: 0,
+      percentageSum: 0,
+      examCount: 0
+    };
+
+    if (isPythonCoding) current.codingExams += 1;
+    if (isMcq) current.mcqExams += 1;
+    current.percentageSum += percentage;
+    current.examCount += 1;
+    totals.set(sub.studentId, current);
+  });
+
+  const eligible = [...totals.values()]
+    .filter((row) => row.codingExams >= 3 && row.mcqExams > 2 && row.examCount > 0)
+    .map((row) => ({
+      ...row,
+      averagePercentage: Math.round((row.percentageSum / row.examCount) * 100) / 100
+    }))
+    .sort((a, b) =>
+      b.averagePercentage - a.averagePercentage ||
+      String(a.student.name || "").localeCompare(String(b.student.name || ""))
+    );
+
+  if (!eligible.length) return [];
+
+  const topAverage = eligible[0].averagePercentage;
+  return eligible
+    .filter((row) => row.averagePercentage === topAverage)
+    .map((row) => ({
+      rank: 1,
+      name: row.student.name,
+      rollNumber: row.student.rollNumber,
+      section: row.student.section,
+      averagePercentage: row.averagePercentage,
+      codingExams: row.codingExams,
+      mcqExams: row.mcqExams,
+      totalExams: row.examCount
+    }));
+}
+
+/** Renders the premium all-time Python champion section. */
+export function renderAllTimePythonTopper(containerEl, entries) {
+  if (!containerEl) return;
+  if (containerEl._pythonTopperAutoScroll) {
+    clearInterval(containerEl._pythonTopperAutoScroll);
+    containerEl._pythonTopperAutoScroll = null;
+  }
+
+  const esc = (str) => String(str ?? "")
+    .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+  const initials = (name) => (name || "?").trim().split(/\s+/).slice(0, 2)
+    .map((w) => w[0]?.toUpperCase()).join("");
+
+  containerEl.innerHTML = entries.map((t) => `
+    <div class="python-champion-card">
+      <div class="python-champion-medal">👑</div>
+      <div class="python-champion-avatar">${initials(t.name)}</div>
+      <div class="python-champion-main">
+        <div class="python-champion-badge">ALL-TIME PYTHON CHAMPION</div>
+        <div class="python-champion-name">${esc(t.name)}</div>
+        <div class="python-champion-meta">${esc(t.rollNumber)} · ${esc(t.section)}</div>
+      </div>
+      <div class="python-champion-score">
+        <div class="python-champion-percent">${t.averagePercentage}%</div>
+        <div class="python-champion-label">AVERAGE</div>
+        <div class="python-champion-counts">${t.codingExams} Coding · ${t.mcqExams} MCQ</div>
+      </div>
+    </div>
+  `).join("");
+
+  if (entries.length > 1) {
+    containerEl._pythonTopperAutoScroll = setInterval(() => {
+      const card = containerEl.querySelector('.python-champion-card');
+      if (!card) return;
+      const gap = parseFloat(getComputedStyle(containerEl).columnGap || getComputedStyle(containerEl).gap || '0') || 0;
+      const step = card.getBoundingClientRect().width + gap;
+      const next = containerEl.scrollLeft + step;
+      if (next >= containerEl.scrollWidth - containerEl.clientWidth - 2) {
+        containerEl.scrollTo({ left: 0, behavior: 'smooth' });
+      } else {
+        containerEl.scrollTo({ left: next, behavior: 'smooth' });
+      }
+    }, 2000);
+  }
+}
+
 export function computeWeeklyCodingToppers(students, submissions, exams) {
   const oneWeekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
   const examById = new Map(exams.map((e) => [e.id, e]));

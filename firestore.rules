@@ -80,6 +80,13 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
+    // allTimePythonTopper/current
+    // Admin-published all-time Python champion(s).
+    match /allTimePythonTopper/{docId} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin();
+    }
+
     // submissions/{submissionId}
     match /submissions/{submissionId} {
       allow read: if isAdmin() ||

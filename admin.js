@@ -204,6 +204,14 @@ export function publishWeeklyCodingToppers(entries) {
   });
 }
 
+/** Publishes the all-time Python champion leaderboard. */
+export function publishAllTimePythonTopper(entries) {
+  return setDoc(doc(db, "allTimePythonTopper", "current"), {
+    entries,
+    updatedAt: new Date().toISOString()
+  });
+}
+
 /* ============================================================
    QUESTIONS
    ============================================================ */
