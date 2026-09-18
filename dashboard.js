@@ -489,6 +489,111 @@ export function renderTopperGrid(containerEl, entries) {
   );
 }
 
+
+/**
+ * Finds the top 3 students for CODING exams in the last 7 days.
+ * Unlike "Toppers of the Week", this leaderboard is based only on
+ * coding-exam performance. A student with multiple coding exams is
+ * evaluated using their combined coding marks / combined coding
+ * maximum marks, so one unusually high-mark exam does not dominate.
+ *
+ * Returns [{ rank, name, rollNumber, section, percentage,
+ *            codingScore, totalMarks, examsCount }]
+ */
+export function computeWeeklyCodingToppers(students, submissions, exams) {
+  const oneWeekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+  const examById = new Map(exams.map((e) => [e.id, e]));
+  const studentById = new Map(students.map((s) => [s.uid, s]));
+  const totals = new Map();
+
+  submissions.forEach((sub) => {
+    const exam = examById.get(sub.examId);
+    if (!exam || exam.examType !== "coding") return;
+    if (!["submitted", "auto-submitted"].includes(sub.status)) return;
+    if (!sub.submittedAt || new Date(sub.submittedAt) < oneWeekAgo) return;
+
+    const student = studentById.get(sub.studentId);
+    if (!student) return;
+
+    const earned = Number(sub.codingScore ?? sub.score ?? 0);
+    const maximum = Number(sub.totalMarks ?? exam.totalMarks ?? 0);
+    if (!Number.isFinite(earned) || !Number.isFinite(maximum) || maximum <= 0) return;
+
+    const current = totals.get(sub.studentId) || {
+      student,
+      codingScore: 0,
+      totalMarks: 0,
+      examsCount: 0
+    };
+    current.codingScore += earned;
+    current.totalMarks += maximum;
+    current.examsCount += 1;
+    totals.set(sub.studentId, current);
+  });
+
+  return [...totals.values()]
+    .map((row) => ({
+      ...row,
+      percentage: Math.round((row.codingScore / row.totalMarks) * 10000) / 100
+    }))
+    .sort((a, b) =>
+      b.percentage - a.percentage ||
+      b.codingScore - a.codingScore ||
+      String(a.student.name || "").localeCompare(String(b.student.name || ""))
+    )
+    .slice(0, 3)
+    .map((row, index) => ({
+      rank: index + 1,
+      name: row.student.name,
+      rollNumber: row.student.rollNumber,
+      section: row.student.section,
+      percentage: row.percentage,
+      codingScore: row.codingScore,
+      totalMarks: row.totalMarks,
+      examsCount: row.examsCount
+    }));
+}
+
+/**
+ * Renders the separate premium-looking weekly coding leaderboard.
+ * This intentionally has its own DOM/classes and does not touch the
+ * existing "Toppers of the Week" renderer.
+ */
+export function renderCodingToppers(containerEl, entries) {
+  const esc = (str) =>
+    String(str ?? "")
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;");
+
+  const initials = (name) =>
+    (name || "?").trim().split(/\s+/).slice(0, 2)
+      .map((w) => w[0]?.toUpperCase()).join("");
+
+  const medals = ["🥇", "🥈", "🥉"];
+
+  containerEl.innerHTML = entries.map((t) => `
+    <div class="coding-topper-card coding-topper-rank-${t.rank}">
+      <div class="coding-topper-rank">${medals[t.rank - 1] || `#${t.rank}`}</div>
+      <div class="coding-topper-avatar">${initials(t.name)}</div>
+      <div class="coding-topper-main">
+        <div class="coding-topper-badge">#${t.rank} CODING TOPPER</div>
+        <div class="coding-topper-name">${esc(t.name)}</div>
+        <div class="coding-topper-meta">
+          <span>${esc(t.rollNumber)}</span>
+          <span>${esc(t.section)}</span>
+        </div>
+      </div>
+      <div class="coding-topper-score">
+        <div class="coding-topper-percent">${t.percentage}%</div>
+        <div class="coding-topper-marks">${t.codingScore}/${t.totalMarks} marks</div>
+        <div class="coding-topper-exams">${t.examsCount} coding exam${t.examsCount === 1 ? "" : "s"}</div>
+      </div>
+    </div>
+  `).join("");
+}
+
 /** Real submission rows + synthesized absent rows, sorted by percentage
  *  descending (highest score first; rows with no percentage - e.g.
  *  ABSENT - sort to the bottom). Same filters applied to both. */

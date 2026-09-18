@@ -73,6 +73,13 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
+    // weeklyCodingToppers/current
+    // Separate leaderboard for coding-exam performance only.
+    match /weeklyCodingToppers/{docId} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin();
+    }
+
     // submissions/{submissionId}
     match /submissions/{submissionId} {
       allow read: if isAdmin() ||

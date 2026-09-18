@@ -1467,3 +1467,129 @@ body.special-body .navbar-brand {
 .paste-blocked-toast-out {
   animation: pointsToastOut 0.4s ease forwards;
 }
+
+
+/* ---------- Weekly Coding Toppers: separate premium leaderboard ---------- */
+.coding-toppers-hero {
+  position: relative;
+  overflow: hidden;
+  padding: 1.25rem;
+  border-radius: 18px;
+  border: 1px solid rgba(255, 193, 7, .25);
+  background: linear-gradient(135deg, rgba(255, 193, 7, .10), rgba(111, 66, 193, .08) 55%, rgba(13, 110, 253, .08));
+  box-shadow: 0 12px 30px rgba(0,0,0,.08);
+}
+.coding-toppers-heading {
+  display: flex;
+  align-items: center;
+  gap: .85rem;
+  margin-bottom: 1rem;
+}
+.coding-toppers-icon {
+  width: 48px;
+  height: 48px;
+  flex: 0 0 48px;
+  display: grid;
+  place-items: center;
+  border-radius: 14px;
+  font-size: 1.35rem;
+  background: rgba(255, 193, 7, .18);
+  border: 1px solid rgba(255, 193, 7, .35);
+}
+.coding-toppers-kicker {
+  font-size: .68rem;
+  font-weight: 800;
+  letter-spacing: .13em;
+  opacity: .72;
+}
+.coding-toppers-subtitle {
+  font-size: .82rem;
+  opacity: .72;
+}
+.coding-topper-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: .75rem;
+}
+.coding-topper-card {
+  position: relative;
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: .75rem;
+  min-height: 112px;
+  padding: 1rem;
+  border-radius: 16px;
+  background: rgba(255,255,255,.72);
+  border: 1px solid rgba(0,0,0,.07);
+  box-shadow: 0 8px 22px rgba(0,0,0,.07);
+}
+.coding-topper-rank {
+  font-size: 1.55rem;
+  line-height: 1;
+}
+.coding-topper-avatar {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-weight: 800;
+  background: rgba(13,110,253,.12);
+  border: 2px solid rgba(13,110,253,.22);
+}
+.coding-topper-main { min-width: 0; }
+.coding-topper-badge {
+  font-size: .62rem;
+  font-weight: 800;
+  letter-spacing: .06em;
+  opacity: .65;
+}
+.coding-topper-name {
+  font-weight: 800;
+  font-size: 1rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.coding-topper-meta {
+  display: flex;
+  gap: .5rem;
+  flex-wrap: wrap;
+  font-size: .72rem;
+  opacity: .68;
+}
+.coding-topper-score {
+  text-align: right;
+  white-space: nowrap;
+}
+.coding-topper-percent {
+  font-size: 1.35rem;
+  font-weight: 900;
+}
+.coding-topper-marks,
+.coding-topper-exams {
+  font-size: .67rem;
+  opacity: .65;
+}
+.coding-topper-rank-1 {
+  border-color: rgba(255, 193, 7, .55);
+  box-shadow: 0 10px 28px rgba(255, 193, 7, .15);
+}
+.coding-topper-rank-1 .coding-topper-avatar {
+  border-color: rgba(255, 193, 7, .7);
+}
+.coding-toppers-footer {
+  margin-top: .85rem;
+  font-size: .72rem;
+  opacity: .62;
+  text-align: center;
+}
+@media (max-width: 900px) {
+  .coding-topper-grid { grid-template-columns: 1fr; }
+}
+@media (max-width: 576px) {
+  .coding-toppers-hero { padding: .9rem; }
+  .coding-topper-card { grid-template-columns: auto 1fr; }
+  .coding-topper-score { grid-column: 2; text-align: left; }
+}

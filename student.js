@@ -40,6 +40,12 @@ export async function getWeeklyToppers() {
   return snap.exists() ? snap.data() : null;
 }
 
+/** Reads the separate admin-published weekly coding-exam leaderboard. */
+export async function getWeeklyCodingToppers() {
+  const snap = await getDoc(doc(db, "weeklyCodingToppers", "current"));
+  return snap.exists() ? snap.data() : null;
+}
+
 /** Read-only: fetch an exam's schedules, sorted earliest-first. Both
  *  admin.js (management UI) and student-facing pages import this from
  *  here so student pages never need to pull in admin-only Auth code. */

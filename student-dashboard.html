@@ -57,6 +57,21 @@
     <div id="topperGrid" class="topper-grid"></div>
   </div>
 
+  <div id="codingToppersSection" class="d-none mb-4">
+    <div class="coding-toppers-hero">
+      <div class="coding-toppers-heading">
+        <div class="coding-toppers-icon"><i class="bi bi-code-slash"></i></div>
+        <div>
+          <div class="coding-toppers-kicker">WEEKLY CODING LEADERBOARD</div>
+          <h5 class="mb-1">Coding Toppers of the Week</h5>
+          <div class="coding-toppers-subtitle">Celebrating the students who stood out in coding exams this week.</div>
+        </div>
+      </div>
+      <div id="codingTopperGrid" class="coding-topper-grid"></div>
+      <div class="coding-toppers-footer"><i class="bi bi-patch-check-fill me-1"></i>Based on completed coding-exam results from the last 7 days.</div>
+    </div>
+  </div>
+
   <div class="row g-3 mb-4">
     <div class="col-lg-6">
       <div class="card h-100">
@@ -173,9 +188,9 @@
     listCodeSubmissionsForExam
   } from "./student.js";
   import { isPass, PASS_MARK, computeExamAccessStatus, describeExamWindow, filterSchedulesForSection } from "./grading.js";
-  import { listSchedulesForExam, getWeeklyToppers } from "./student.js";
+  import { listSchedulesForExam, getWeeklyToppers, getWeeklyCodingToppers } from "./student.js";
   import { getStudentPoints, isSpecialSectionUnlocked, SPECIAL_SECTION_UNLOCK_POINTS } from "./points.js";
-  import { renderTopperGrid } from "./dashboard.js";
+  import { renderTopperGrid, renderCodingToppers } from "./dashboard.js";
   import { generateReportPDF } from "./pdf-export.js";
   import { listActiveLevels, getProgress } from "./learning.js";
 
@@ -224,6 +239,7 @@
     renderCodingHistoryOptions(submissions);
     renderLearningLevels();
     renderToppersCarousel();
+    renderWeeklyCodingToppers();
     renderLearningPointsCard();
     renderAbsentExams(allExams, submissions);
   });
@@ -813,6 +829,21 @@
 
     studentTopperCarouselInstances.forEach((c) => c.dispose());
     studentTopperCarouselInstances = renderTopperGrid(document.getElementById("topperGrid"), entries);
+  }
+
+  /* ---------- Weekly Coding Toppers (separate from the existing leaderboard) ---------- */
+  async function renderWeeklyCodingToppers() {
+    const section = document.getElementById("codingToppersSection");
+    const data = await getWeeklyCodingToppers().catch(() => null);
+    const entries = data?.entries || [];
+
+    if (!entries.length) {
+      section.classList.add("d-none");
+      return;
+    }
+
+    section.classList.remove("d-none");
+    renderCodingToppers(document.getElementById("codingTopperGrid"), entries);
   }
 
   /* ---------- Learning Points card ---------- */

@@ -26,7 +26,8 @@ import {
   createSchedule,
   updateSchedule,
   deleteSchedule,
-  publishWeeklyToppers
+  publishWeeklyToppers,
+  publishWeeklyCodingToppers
 } from "./admin.js";
 import {
   computeOverallStats,
@@ -39,7 +40,9 @@ import {
   buildReportTitle,
   buildFiltersText,
   computeWeeklyToppers,
-  renderTopperGrid
+  renderTopperGrid,
+  computeWeeklyCodingToppers,
+  renderCodingToppers
 } from "./dashboard.js";
 import { generateReportPDF } from "./pdf-export.js";
 import { formatExamWindow, describeExamWindow, formatScheduleWindow, formatScheduleSections } from "./grading.js";
@@ -177,6 +180,7 @@ function renderAnalytics() {
   renderSectionTable(document.getElementById("sectionTableBody"), sectionStats);
 
   renderToppersCarousel();
+  renderWeeklyCodingToppers();
   renderChartPane();
   applyFiltersAndRenderResults();
 }
@@ -202,6 +206,28 @@ function renderToppersCarousel() {
   // compute it themselves since they can only read their own
   // submissions.
   publishWeeklyToppers(entries).catch(() => {});
+}
+
+let codingTopperPublished = false;
+
+function renderWeeklyCodingToppers() {
+  const section = document.getElementById("codingToppersSection");
+  const entries = computeWeeklyCodingToppers(students, submissions, exams);
+
+  if (!entries.length) {
+    section.classList.add("d-none");
+    if (codingTopperPublished) {
+      publishWeeklyCodingToppers([]).catch(() => {});
+    }
+    return;
+  }
+
+  section.classList.remove("d-none");
+  renderCodingToppers(document.getElementById("codingTopperGrid"), entries);
+
+  publishWeeklyCodingToppers(entries)
+    .then(() => { codingTopperPublished = true; })
+    .catch(() => {});
 }
 
 function renderChartPane() {

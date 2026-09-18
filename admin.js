@@ -192,6 +192,18 @@ export function publishWeeklyToppers(entries) {
   });
 }
 
+/**
+ * Publishes the separate weekly coding-exam leaderboard.
+ * Kept in its own Firestore document so the existing
+ * "Toppers of the Week" section remains untouched.
+ */
+export function publishWeeklyCodingToppers(entries) {
+  return setDoc(doc(db, "weeklyCodingToppers", "current"), {
+    entries,
+    updatedAt: new Date().toISOString()
+  });
+}
+
 /* ============================================================
    QUESTIONS
    ============================================================ */
