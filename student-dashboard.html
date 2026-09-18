@@ -52,6 +52,21 @@
 
   <div class="row g-3 mb-4" id="statCards"></div>
 
+  <div id="bestLearnerSection" class="d-none mb-4">
+    <div class="best-learner-hero">
+      <div class="best-learner-heading">
+        <div class="best-learner-icon">🏆</div>
+        <div>
+          <div class="best-learner-kicker">SPECIAL HONOUR · ALL TIME</div>
+          <h5 class="mb-1">Best Learner — Till Now</h5>
+          <div class="best-learner-subtitle">The learner who has earned the most learning points.</div>
+        </div>
+      </div>
+      <div id="bestLearnerGrid" class="best-learner-grid"></div>
+      <div class="best-learner-footer"><i class="bi bi-stars me-1"></i>Rank #1 is awarded to every student tied for the highest learning points.</div>
+    </div>
+  </div>
+
   <div id="pythonTopperSection" class="d-none mb-4">
     <div class="python-champion-hero">
       <div class="python-champion-heading">
@@ -838,6 +853,9 @@
   /* ---------- Best Learner (published by admin, read-only here) ---------- */
   async function renderBestLearnerStudent() {
     const section = document.getElementById("bestLearnerSection");
+    const grid = document.getElementById("bestLearnerGrid");
+    // Gracefully skip if the section is not present in an older cached page.
+    if (!section || !grid) return;
     const data = await getBestLearner().catch(() => null);
     const entries = data?.entries || [];
     if (!entries.length) {
@@ -845,7 +863,7 @@
       return;
     }
     section.classList.remove("d-none");
-    renderBestLearner(document.getElementById("bestLearnerGrid"), entries);
+    renderBestLearner(grid, entries);
   }
 
   /* ---------- All-time Python topper (published by admin, read-only here) ---------- */
