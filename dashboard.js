@@ -491,7 +491,8 @@ export function renderTopperGrid(containerEl, entries) {
 
 
 /**
- * Finds the top 3 students for CODING exams in the last 7 days.
+ * Finds everyone in the top 3 rank positions for CODING exams in the last 7 days,
+ * including all ties at each rank.
  * Unlike "Toppers of the Week", this leaderboard is based only on
  * coding-exam performance. A student with multiple coding exams is
  * evaluated using their combined coding marks / combined coding
@@ -531,19 +532,30 @@ export function computeWeeklyCodingToppers(students, submissions, exams) {
     totals.set(sub.studentId, current);
   });
 
-  return [...totals.values()]
+  // Keep every student who belongs to the top 3 rank positions.
+  // Ties are never cut off: if 5 students share 1st place, all 5 are shown.
+  // Ranking uses competition ranking (1, 1, 3), so equal percentages receive
+  // the same rank. The coding-score tie-breaker is intentionally not used for
+  // ranking because the percentage is the leaderboard's primary measure.
+  const ranked = [...totals.values()]
     .map((row) => ({
       ...row,
       percentage: Math.round((row.codingScore / row.totalMarks) * 10000) / 100
     }))
     .sort((a, b) =>
       b.percentage - a.percentage ||
-      b.codingScore - a.codingScore ||
       String(a.student.name || "").localeCompare(String(b.student.name || ""))
-    )
-    .slice(0, 3)
-    .map((row, index) => ({
-      rank: index + 1,
+    );
+
+  let previousPercentage = null;
+  let rank = 0;
+  const rankedEntries = ranked.map((row, index) => {
+    if (previousPercentage === null || row.percentage !== previousPercentage) {
+      rank = index + 1;
+      previousPercentage = row.percentage;
+    }
+    return {
+      rank,
       name: row.student.name,
       rollNumber: row.student.rollNumber,
       section: row.student.section,
@@ -551,7 +563,10 @@ export function computeWeeklyCodingToppers(students, submissions, exams) {
       codingScore: row.codingScore,
       totalMarks: row.totalMarks,
       examsCount: row.examsCount
-    }));
+    };
+  });
+
+  return rankedEntries.filter((row) => row.rank <= 3);
 }
 
 /**
