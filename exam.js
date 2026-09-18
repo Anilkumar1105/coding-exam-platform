@@ -47,6 +47,8 @@ let violationCount = 0;
 let maxViolations = 3;
 let remainingSeconds = 0;
 let timerInterval = null;
+let examEndTime = null;
+let examStartInProgress = false;
 let examLocked = false;
 let saveTimeout = null;
 let cmEditor = null; // current CodeMirror instance, one at a time
@@ -55,10 +57,24 @@ if (!examId) {
   window.location.href = "student-dashboard.html";
 }
 
+let examLoadInProgress = false;
+
 requireRole("student", async (user, profile) => {
+  // Auth state callbacks can fire more than once. Never initialize the
+  // exam UI/listeners more than once for the same page.
+  if (examLoadInProgress || exam) return;
+  examLoadInProgress = true;
+
   currentUser = user;
   studentProfile = profile;
-  await loadExam();
+
+  try {
+    await loadExam();
+  } catch (err) {
+    console.error("Failed to load exam:", err);
+    showStartError("Could not load the exam. Please refresh and try again.");
+    examLoadInProgress = false;
+  }
 });
 
 /* ============================================================
@@ -137,7 +153,9 @@ async function loadExam() {
     document.querySelector("#startScreen ul.list-unstyled").appendChild(windowNote);
   }
 
-  document.getElementById("enterFullscreenBtn").addEventListener("click", handleStart);
+  // Use the DOM property rather than addEventListener so repeated auth/load
+  // callbacks can never stack multiple start handlers.
+  document.getElementById("enterFullscreenBtn").onclick = handleStart;
 
   // Kick off Pyodide loading in the background for coding exams so it's
   // likely ready by the time the student opens their first question.
@@ -154,9 +172,25 @@ function showStartError(message) {
 }
 
 async function handleStart() {
+  // Lock immediately, BEFORE the first await. This prevents double-clicks and
+  // duplicate listeners from starting the same exam twice.
+  if (examStartInProgress || examLocked) return;
+  examStartInProgress = true;
+
+  const startButton = document.getElementById("enterFullscreenBtn");
+  if (startButton) {
+    startButton.disabled = true;
+    startButton.setAttribute("aria-disabled", "true");
+  }
+
   try {
     await document.documentElement.requestFullscreen();
   } catch (err) {
+    examStartInProgress = false;
+    if (startButton) {
+      startButton.disabled = false;
+      startButton.removeAttribute("aria-disabled");
+    }
     showStartError("Fullscreen was blocked by your browser. Please allow fullscreen and try again.");
     return;
   }
@@ -171,14 +205,18 @@ async function handleStart() {
   flaggedQuestionIds = new Set(submission.flaggedQuestionIds || []);
   violationCount = submission.violations || 0;
 
-  const elapsedSeconds = (Date.now() - new Date(submission.startedAt).getTime()) / 1000;
-  remainingSeconds = Math.max(Math.round(exam.duration * 60 - elapsedSeconds), 0);
+  // The deadline is an absolute timestamp. The timer never "loses" or gains
+  // time because setInterval was delayed, throttled, or duplicated.
+  const startedAtMs = new Date(submission.startedAt).getTime();
+  let endTimeMs = startedAtMs + exam.duration * 60 * 1000;
 
   const sessionWindow = findWindowContaining(exam, schedules, new Date(submission.startedAt));
   if (sessionWindow) {
-    const windowRemainingSeconds = Math.round((sessionWindow.end.getTime() - Date.now()) / 1000);
-    remainingSeconds = Math.max(Math.min(remainingSeconds, windowRemainingSeconds), 0);
+    endTimeMs = Math.min(endTimeMs, sessionWindow.end.getTime());
   }
+
+  examEndTime = endTimeMs;
+  remainingSeconds = Math.max(Math.ceil((examEndTime - Date.now()) / 1000), 0);
 
   document.getElementById("startScreen").classList.add("d-none");
   document.getElementById("examUi").classList.remove("d-none");
@@ -193,6 +231,8 @@ async function handleStart() {
   startTimer();
   attachSecurityListeners();
 
+  examStartInProgress = false;
+
   if (remainingSeconds <= 0) {
     handleSubmit("auto-submitted");
   }
@@ -202,15 +242,39 @@ async function handleStart() {
    TIMER
    ============================================================ */
 function startTimer() {
+  // Never allow two intervals to control the same exam countdown.
+  if (timerInterval !== null) {
+    clearInterval(timerInterval);
+    timerInterval = null;
+  }
+
+  if (!examEndTime) return;
+
+  updateTimer();
+
+  // A short interval keeps the display responsive, but the absolute end time
+  // is the source of truth, so delayed/throttled ticks cannot speed up or
+  // extend the exam.
+  timerInterval = setInterval(updateTimer, 250);
+}
+
+function updateTimer() {
+  if (examLocked || !examEndTime) return;
+
+  remainingSeconds = Math.max(
+    Math.ceil((examEndTime - Date.now()) / 1000),
+    0
+  );
+
   updateTimerDisplay();
-  timerInterval = setInterval(() => {
-    remainingSeconds -= 1;
-    updateTimerDisplay();
-    if (remainingSeconds <= 0) {
+
+  if (remainingSeconds <= 0) {
+    if (timerInterval !== null) {
       clearInterval(timerInterval);
-      handleSubmit("auto-submitted");
+      timerInterval = null;
     }
-  }, 1000);
+    handleSubmit("auto-submitted");
+  }
 }
 
 function updateTimerDisplay() {
@@ -268,6 +332,11 @@ function onFullscreenChange() {
 
 function onVisibilityChange() {
   if (examLocked) return;
+
+  // Catch the display up immediately after a background tab/sleep. The
+  // absolute end time remains authoritative.
+  updateTimer();
+
   if (document.hidden) {
     registerViolation("You switched tabs or minimized the window. This has been recorded.");
   }
@@ -665,8 +734,13 @@ document.getElementById("confirmSubmitBtn").addEventListener("click", () => {
 async function handleSubmit(status, message) {
   if (examLocked) return;
   examLocked = true;
+  examStartInProgress = false;
 
-  clearInterval(timerInterval);
+  if (timerInterval !== null) {
+    clearInterval(timerInterval);
+    timerInterval = null;
+  }
+  examEndTime = null;
   clearTimeout(saveTimeout);
   detachSecurityListeners();
 
