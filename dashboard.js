@@ -567,6 +567,12 @@ export function computeWeeklyCodingToppers(students, submissions, exams) {
  * existing "Toppers of the Week" renderer.
  */
 export function renderCodingToppers(containerEl, entries) {
+  // Clear any previous auto-scroll timer before re-rendering.
+  if (containerEl._codingTopperAutoScroll) {
+    clearInterval(containerEl._codingTopperAutoScroll);
+    containerEl._codingTopperAutoScroll = null;
+  }
+
   const esc = (str) =>
     String(str ?? "")
       .replace(/&/g, "&amp;")
@@ -599,6 +605,30 @@ export function renderCodingToppers(containerEl, entries) {
       </div>
     </div>
   `).join("");
+
+  // Automatically move exactly one card every 2 seconds. The carousel
+  // remains a single horizontal row; if there is no overflow, nothing moves.
+  if (entries.length > 1) {
+    const step = () => {
+      const firstCard = containerEl.querySelector(".coding-topper-card");
+      if (!firstCard) return;
+
+      const styles = window.getComputedStyle(containerEl);
+      const gap = parseFloat(styles.columnGap || styles.gap || "0") || 0;
+      const stepSize = firstCard.getBoundingClientRect().width + gap;
+      const maxScroll = containerEl.scrollWidth - containerEl.clientWidth;
+
+      if (maxScroll <= 1 || stepSize <= 0) return;
+
+      if (containerEl.scrollLeft + stepSize >= maxScroll - 2) {
+        containerEl.scrollTo({ left: 0, behavior: "smooth" });
+      } else {
+        containerEl.scrollBy({ left: stepSize, behavior: "smooth" });
+      }
+    };
+
+    containerEl._codingTopperAutoScroll = setInterval(step, 2000);
+  }
 }
 
 /** Real submission rows + synthesized absent rows, sorted by percentage
