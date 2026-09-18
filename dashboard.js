@@ -532,11 +532,8 @@ export function computeWeeklyCodingToppers(students, submissions, exams) {
     totals.set(sub.studentId, current);
   });
 
-  // Keep every student who belongs to the top 3 rank positions.
-  // Ties are never cut off: if 5 students share 1st place, all 5 are shown.
-  // Ranking uses competition ranking (1, 1, 3), so equal percentages receive
-  // the same rank. The coding-score tie-breaker is intentionally not used for
-  // ranking because the percentage is the leaderboard's primary measure.
+  // Only the highest percentage is the weekly coding topper.
+  // Every student tied at that highest percentage is shown.
   const ranked = [...totals.values()]
     .map((row) => ({
       ...row,
@@ -547,15 +544,13 @@ export function computeWeeklyCodingToppers(students, submissions, exams) {
       String(a.student.name || "").localeCompare(String(b.student.name || ""))
     );
 
-  let previousPercentage = null;
-  let rank = 0;
-  const rankedEntries = ranked.map((row, index) => {
-    if (previousPercentage === null || row.percentage !== previousPercentage) {
-      rank = index + 1;
-      previousPercentage = row.percentage;
-    }
-    return {
-      rank,
+  if (!ranked.length) return [];
+
+  const topPercentage = ranked[0].percentage;
+  return ranked
+    .filter((row) => row.percentage === topPercentage)
+    .map((row) => ({
+      rank: 1,
       name: row.student.name,
       rollNumber: row.student.rollNumber,
       section: row.student.section,
@@ -563,10 +558,7 @@ export function computeWeeklyCodingToppers(students, submissions, exams) {
       codingScore: row.codingScore,
       totalMarks: row.totalMarks,
       examsCount: row.examsCount
-    };
-  });
-
-  return rankedEntries.filter((row) => row.rank <= 3);
+    }));
 }
 
 /**
@@ -586,7 +578,7 @@ export function renderCodingToppers(containerEl, entries) {
     (name || "?").trim().split(/\s+/).slice(0, 2)
       .map((w) => w[0]?.toUpperCase()).join("");
 
-  const medals = ["🥇", "🥈", "🥉"];
+  const medals = ["🥇"];
 
   containerEl.innerHTML = entries.map((t) => `
     <div class="coding-topper-card coding-topper-rank-${t.rank}">
