@@ -28,7 +28,9 @@ import {
   deleteSchedule,
   publishWeeklyToppers,
   publishWeeklyCodingToppers,
-  publishAllTimePythonTopper
+  publishAllTimePythonTopper,
+  listStudentPoints,
+  publishBestLearner
 } from "./admin.js";
 import {
   computeOverallStats,
@@ -45,7 +47,9 @@ import {
   computeWeeklyCodingToppers,
   renderCodingToppers,
   computeAllTimePythonTopper,
-  renderAllTimePythonTopper
+  renderAllTimePythonTopper,
+  computeBestLearner,
+  renderBestLearner
 } from "./dashboard.js";
 import { generateReportPDF } from "./pdf-export.js";
 import { formatExamWindow, describeExamWindow, formatScheduleWindow, formatScheduleSections } from "./grading.js";
@@ -83,6 +87,7 @@ wireLogoutButtons();
 let students = [];
 let exams = [];
 let submissions = [];
+let studentPoints = [];
 let currentSectionFilter = "all";
 let editingStudentUid = null;
 let editingExamId = null;
@@ -118,10 +123,11 @@ requireRole("admin", async (user, profile) => {
 });
 
 async function loadEverything() {
-  [students, exams, submissions] = await Promise.all([
+  [students, exams, submissions, studentPoints] = await Promise.all([
     listStudents("all"),
     listExams(),
-    listSubmissions()
+    listSubmissions(),
+    listStudentPoints()
   ]);
   await loadSchedules();
   renderStudentsTable();
@@ -182,6 +188,7 @@ function renderAnalytics() {
   const sectionStats = computeSectionStats(students, submissions);
   renderSectionTable(document.getElementById("sectionTableBody"), sectionStats);
 
+  renderBestLearnerAdmin();
   renderAllTimePythonTopperAdmin();
   renderToppersCarousel();
   renderWeeklyCodingToppers();
@@ -210,6 +217,23 @@ function renderToppersCarousel() {
   // compute it themselves since they can only read their own
   // submissions.
   publishWeeklyToppers(entries).catch(() => {});
+}
+
+let bestLearnerPublished = false;
+
+function renderBestLearnerAdmin() {
+  const section = document.getElementById("bestLearnerSection");
+  const entries = computeBestLearner(students, studentPoints);
+
+  if (!entries.length) {
+    section.classList.add("d-none");
+    if (bestLearnerPublished) publishBestLearner([]).catch(() => {});
+    return;
+  }
+
+  section.classList.remove("d-none");
+  renderBestLearner(document.getElementById("bestLearnerGrid"), entries);
+  publishBestLearner(entries).then(() => { bestLearnerPublished = true; }).catch(() => {});
 }
 
 let pythonTopperPublished = false;

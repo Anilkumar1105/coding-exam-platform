@@ -1824,3 +1824,125 @@ body.special-body .navbar-brand {
     padding-left: 0;
   }
 }
+
+/* ---------- Special: All-time Best Learner ---------- */
+.best-learner-hero {
+  position: relative;
+  overflow: hidden;
+  padding: 1.15rem 1.25rem 1rem;
+  border-radius: 22px;
+  border: 1px solid rgba(16, 185, 129, .30);
+  background:
+    radial-gradient(circle at 8% 0%, rgba(16, 185, 129, .16), transparent 30%),
+    linear-gradient(135deg, #f0fdf8 0%, #ffffff 48%, #f4f7ff 100%);
+  box-shadow: 0 14px 36px rgba(31, 41, 55, .10);
+}
+.best-learner-hero::before {
+  content: "";
+  position: absolute;
+  top: -70px;
+  right: -50px;
+  width: 190px;
+  height: 190px;
+  border-radius: 50%;
+  background: rgba(16, 185, 129, .08);
+  pointer-events: none;
+}
+.best-learner-heading {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  gap: .85rem;
+  margin-bottom: .9rem;
+}
+.best-learner-icon {
+  width: 52px;
+  height: 52px;
+  flex: 0 0 52px;
+  display: grid;
+  place-items: center;
+  border-radius: 16px;
+  font-size: 1.55rem;
+  background: linear-gradient(145deg, #d1fae5, #a7f3d0);
+  border: 1px solid rgba(16, 185, 129, .38);
+  box-shadow: 0 7px 16px rgba(16, 185, 129, .14);
+}
+.best-learner-kicker {
+  font-size: .65rem;
+  font-weight: 900;
+  letter-spacing: .15em;
+  color: #047857;
+  text-transform: uppercase;
+}
+.best-learner-heading h5 {
+  color: #111827;
+  font-weight: 900;
+  letter-spacing: -.02em;
+}
+.best-learner-subtitle { font-size: .78rem; color: #6b7280; }
+.best-learner-crown { margin-left: auto; font-size: 2rem; filter: drop-shadow(0 5px 7px rgba(0,0,0,.12)); }
+.best-learner-grid {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-wrap: nowrap;
+  gap: .8rem;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: .15rem .15rem .65rem;
+  scroll-behavior: smooth;
+  scrollbar-width: thin;
+}
+.best-learner-grid::-webkit-scrollbar { height: 5px; }
+.best-learner-card {
+  position: relative;
+  flex: 0 0 min(520px, 100%);
+  min-width: 0;
+  min-height: 118px;
+  display: grid;
+  grid-template-columns: auto auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: .85rem;
+  padding: .9rem 1rem;
+  border-radius: 18px;
+  background: rgba(255,255,255,.95);
+  border: 1px solid rgba(16,185,129,.34);
+  box-shadow: 0 9px 22px rgba(31,41,55,.08);
+  scroll-snap-align: start;
+}
+.best-learner-card::after {
+  content: "#1";
+  position: absolute;
+  top: .55rem;
+  right: .65rem;
+  font-size: .58rem;
+  font-weight: 900;
+  color: #047857;
+  letter-spacing: .06em;
+  background: #dff9ee;
+  border: 1px solid rgba(16,185,129,.25);
+  border-radius: 999px;
+  padding: .18rem .38rem;
+}
+.best-learner-medal { font-size: 1.55rem; line-height: 1; }
+.best-learner-avatar {
+  width: 54px; height: 54px; border-radius: 50%; display: grid; place-items: center;
+  font-weight: 900; color: #047857; background: linear-gradient(145deg,#ecfdf5,#bbf7d0);
+  border: 2px solid #34d399; box-shadow: inset 0 0 0 4px rgba(255,255,255,.55);
+}
+.best-learner-main { min-width: 0; padding-right: 1.3rem; }
+.best-learner-badge { font-size: .59rem; font-weight: 900; letter-spacing: .08em; color: #047857; text-transform: uppercase; margin-bottom: .12rem; }
+.best-learner-name { font-size: 1.02rem; font-weight: 900; color: #151515; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.best-learner-meta { margin-top: .14rem; font-size: .68rem; color: #7b7b7b; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.best-learner-score { text-align: right; white-space: nowrap; padding-left: .5rem; }
+.best-learner-points { font-size: 1.55rem; line-height: 1; font-weight: 950; color: #047857; }
+.best-learner-label { margin-top: .18rem; font-size: .55rem; font-weight: 900; letter-spacing: .09em; color: #047857; }
+.best-learner-count { margin-top: .18rem; font-size: .63rem; color: #777; }
+.best-learner-footer { position: relative; z-index: 1; margin-top: .55rem; padding-top: .55rem; border-top: 1px solid rgba(0,0,0,.06); text-align: center; font-size: .68rem; color: #777; }
+@media (max-width:700px) {
+  .best-learner-hero { padding: .9rem; }
+  .best-learner-crown { display:none; }
+  .best-learner-card { flex-basis:92vw; grid-template-columns:auto auto minmax(0,1fr); }
+  .best-learner-score { grid-column:3; grid-row:2; text-align:left; padding-left:0; }
+}

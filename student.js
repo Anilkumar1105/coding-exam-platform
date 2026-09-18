@@ -52,6 +52,12 @@ export async function getAllTimePythonTopper() {
   return snap.exists() ? snap.data() : null;
 }
 
+/** Reads the admin-published all-time Best Learner leaderboard. */
+export async function getBestLearner() {
+  const snap = await getDoc(doc(db, "bestLearner", "current"));
+  return snap.exists() ? snap.data() : null;
+}
+
 /** Read-only: fetch an exam's schedules, sorted earliest-first. Both
  *  admin.js (management UI) and student-facing pages import this from
  *  here so student pages never need to pull in admin-only Auth code. */

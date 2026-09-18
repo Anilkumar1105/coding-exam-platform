@@ -509,6 +509,68 @@ export function renderTopperGrid(containerEl, entries) {
  * coding/MCQ exam percentage for that student. All students tied at the
  * highest average are returned.
  */
+/**
+ * Computes the all-time Best Learner(s) from Learning Points.
+ * Learning points are awarded by the existing Learning Section.
+ * All students tied at the highest point total are returned as Rank #1.
+ */
+export function computeBestLearner(students, studentPoints) {
+  const studentById = new Map(students.map((s) => [s.uid, s]));
+  const rows = (studentPoints || [])
+    .map((doc) => {
+      const studentId = doc.studentId || doc.id;
+      const student = studentById.get(studentId);
+      const points = Number(doc.points);
+      if (!student || !Number.isFinite(points) || points < 0) return null;
+      return {
+        student,
+        points: Math.floor(points),
+        completedQuestions: Array.isArray(doc.completedCodingQuestionIds)
+          ? doc.completedCodingQuestionIds.length : 0
+      };
+    })
+    .filter(Boolean)
+    .sort((a, b) => b.points - a.points || String(a.student.name || '').localeCompare(String(b.student.name || '')));
+
+  if (!rows.length || rows[0].points <= 0) return [];
+  const topPoints = rows[0].points;
+  return rows.filter((row) => row.points === topPoints).map((row) => ({
+    rank: 1,
+    name: row.student.name,
+    rollNumber: row.student.rollNumber,
+    section: row.student.section,
+    points: row.points,
+    completedQuestions: row.completedQuestions
+  }));
+}
+
+/** Renders the premium all-time Best Learner section. */
+export function renderBestLearner(containerEl, entries) {
+  if (!containerEl) return;
+  containerEl.innerHTML = entries.map((t) => {
+    const esc = (str) => String(str ?? '')
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+    const initials = (name) => (name || '?').trim().split(/\s+/).slice(0, 2)
+      .map((w) => w[0]?.toUpperCase()).join('');
+    return `
+      <div class="best-learner-card">
+        <div class="best-learner-medal">🏆</div>
+        <div class="best-learner-avatar">${initials(t.name)}</div>
+        <div class="best-learner-main">
+          <div class="best-learner-badge">#1 BEST LEARNER · ALL TIME</div>
+          <div class="best-learner-name">${esc(t.name)}</div>
+          <div class="best-learner-meta">${esc(t.rollNumber)} · ${esc(t.section)}</div>
+        </div>
+        <div class="best-learner-score">
+          <div class="best-learner-points">${t.points}</div>
+          <div class="best-learner-label">LEARNING POINTS</div>
+          <div class="best-learner-count">${t.completedQuestions} completed learning questions</div>
+        </div>
+      </div>`;
+  }).join('');
+}
+
 export function computeAllTimePythonTopper(students, submissions, exams) {
   const examById = new Map(exams.map((e) => [e.id, e]));
   const studentById = new Map(students.map((s) => [s.uid, s]));

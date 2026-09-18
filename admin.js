@@ -212,6 +212,20 @@ export function publishAllTimePythonTopper(entries) {
   });
 }
 
+/** Fetch all student learning-point documents for admin leaderboard calculations. */
+export async function listStudentPoints() {
+  const snap = await getDocs(collection(db, "studentPoints"));
+  return snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+}
+
+/** Publishes the all-time learning-points Best Learner leaderboard. */
+export function publishBestLearner(entries) {
+  return setDoc(doc(db, "bestLearner", "current"), {
+    entries,
+    updatedAt: new Date().toISOString()
+  });
+}
+
 /* ============================================================
    QUESTIONS
    ============================================================ */

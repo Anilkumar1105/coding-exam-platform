@@ -87,6 +87,13 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
+    // bestLearner/current
+    // Admin-published all-time Learning Points champion(s).
+    match /bestLearner/{docId} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin();
+    }
+
     // submissions/{submissionId}
     match /submissions/{submissionId} {
       allow read: if isAdmin() ||

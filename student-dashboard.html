@@ -202,12 +202,13 @@
     getExamsByIds,
     getQuestionsForExam,
     listCodeSubmissionsForExam,
-    getAllTimePythonTopper
+    getAllTimePythonTopper,
+    getBestLearner
   } from "./student.js";
   import { isPass, PASS_MARK, computeExamAccessStatus, describeExamWindow, filterSchedulesForSection } from "./grading.js";
   import { listSchedulesForExam, getWeeklyToppers, getWeeklyCodingToppers } from "./student.js";
   import { getStudentPoints, isSpecialSectionUnlocked, SPECIAL_SECTION_UNLOCK_POINTS } from "./points.js";
-  import { renderTopperGrid, renderCodingToppers, renderAllTimePythonTopper } from "./dashboard.js";
+  import { renderTopperGrid, renderCodingToppers, renderAllTimePythonTopper, renderBestLearner } from "./dashboard.js";
   import { generateReportPDF } from "./pdf-export.js";
   import { listActiveLevels, getProgress } from "./learning.js";
 
@@ -255,6 +256,7 @@
     wireDownloadReport(submissions);
     renderCodingHistoryOptions(submissions);
     renderLearningLevels();
+    renderBestLearnerStudent();
     renderAllTimePythonTopperStudent();
     renderToppersCarousel();
     renderWeeklyCodingToppers();
@@ -831,6 +833,19 @@
           </div>`;
       })
       .join("");
+  }
+
+  /* ---------- Best Learner (published by admin, read-only here) ---------- */
+  async function renderBestLearnerStudent() {
+    const section = document.getElementById("bestLearnerSection");
+    const data = await getBestLearner().catch(() => null);
+    const entries = data?.entries || [];
+    if (!entries.length) {
+      section.classList.add("d-none");
+      return;
+    }
+    section.classList.remove("d-none");
+    renderBestLearner(document.getElementById("bestLearnerGrid"), entries);
   }
 
   /* ---------- All-time Python topper (published by admin, read-only here) ---------- */
