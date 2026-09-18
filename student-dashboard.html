@@ -711,17 +711,15 @@
       return;
     }
 
-    // IMPORTANT: Do not download every concept for every student just to
-    // calculate the dashboard card. The level stores a lightweight
-    // `conceptCount` maintained by the admin UI. This avoids hundreds/thousands
-    // of document reads per dashboard visit.
     const cards = await Promise.all(
       levels.map(async (level) => {
+        // IMPORTANT: Do not load every concept just to draw the dashboard.
+        // Admin maintains level.conceptCount as the cached total.
         const progress = await getProgress(level.id, currentUser.uid);
         const completedCount = progress?.completedConceptIds?.length || 0;
-        const conceptCount = Number(level.conceptCount) || 0;
-        const conceptsDone = conceptCount > 0 && completedCount >= conceptCount;
-        const pct = conceptCount ? Math.min(Math.round((completedCount / conceptCount) * 100), 100) : 0;
+        const totalConcepts = Math.max(Number(level.conceptCount) || 0, completedCount);
+        const conceptsDone = totalConcepts > 0 && completedCount >= totalConcepts;
+        const pct = totalConcepts ? Math.min(100, Math.round((completedCount / totalConcepts) * 100)) : 0;
 
         let statusBadge;
         let ctaLabel = "Start Learning";
@@ -749,7 +747,7 @@
                   ${statusBadge}
                 </div>
                 <p class="card-text text-muted small flex-grow-1">${level.description || ""}</p>
-                <div class="small text-muted mb-1">${conceptCount ? `${completedCount}/${conceptCount} concepts completed` : `${completedCount} concepts completed`}</div>
+                <div class="small text-muted mb-1">${completedCount}/${totalConcepts} concepts completed</div>
                 <div class="progress mb-3"><div class="progress-bar bg-brand" style="width:${pct}%"></div></div>
                 <a href="learning.html?levelId=${level.id}" class="btn btn-brand btn-sm"><i class="bi bi-mortarboard me-1"></i>${ctaLabel}</a>
               </div>
