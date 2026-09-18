@@ -376,10 +376,12 @@
           if (exam.showResult !== false && submission.percentage != null) {
             const passed = isPass(submission.percentage);
             actionHtml =
-              `<span class="badge bg-success me-1"><i class="bi bi-check-circle me-1"></i>Score: ${submission.percentage}%</span>` +
-              `<span class="badge ${passed ? "bg-success" : "bg-danger"}">${passed ? "PASS" : "FAIL"}</span>`;
+              `<div class="exam-result-actions">` +
+              `<span class="badge bg-success"><i class="bi bi-check-circle me-1"></i>Score: ${submission.percentage}%</span>` +
+              `<span class="badge ${passed ? "bg-success" : "bg-danger"}">${passed ? "PASS" : "FAIL"}</span>` +
+              `</div>`;
           } else {
-            actionHtml = `<span class="badge bg-success"><i class="bi bi-check-circle me-1"></i>Submitted</span>`;
+            actionHtml = `<div class="exam-result-actions"><span class="badge bg-success"><i class="bi bi-check-circle me-1"></i>Submitted</span></div>`;
           }
         } else if (status === "upcoming") {
           actionHtml =
