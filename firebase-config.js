@@ -20,10 +20,6 @@ apiKey: "AIzaSyBCT7z3ojdczPkuO8uvVbp0b7SJH9EeX14",
 // Primary app: used for the currently logged-in user (admin or student)
 export const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
-// Use normal in-memory Firestore caching. The dashboard's short-lived
-// sessionStorage cache is intentionally kept separate so shared lab
-// computers do not persist one student's private data into another
-// student's session.
 export const db = getFirestore(app);
 
 // Secondary app instance: lets an admin create a Firebase Auth account

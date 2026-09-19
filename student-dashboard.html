@@ -225,7 +225,7 @@
   import { getStudentPoints, isSpecialSectionUnlocked, SPECIAL_SECTION_UNLOCK_POINTS } from "./points.js";
   import { renderTopperGrid, renderCodingToppers, renderAllTimePythonTopper, renderBestLearner } from "./dashboard.js";
   import { generateReportPDF } from "./pdf-export.js";
-  import { listActiveLevels, getProgressSummaryForStudent } from "./learning.js";
+  import { listActiveLevels, getProgress } from "./learning.js";
 
   wireLogoutButtons();
 
@@ -757,10 +757,7 @@
   /* ---------- Learning Section ---------- */
   async function renderLearningLevels() {
     const container = document.getElementById("learningLevelsList");
-    const [levels, progressMap] = await Promise.all([
-      listActiveLevels(),
-      getProgressSummaryForStudent(currentUser.uid).catch(() => ({}))
-    ]);
+    const levels = await listActiveLevels();
 
     if (!levels.length) {
       container.innerHTML = `<div class="col-12 text-center text-muted py-4">No learning levels are available yet.</div>`;
@@ -771,7 +768,7 @@
       levels.map(async (level) => {
         // IMPORTANT: Do not load every concept just to draw the dashboard.
         // Admin maintains level.conceptCount as the cached total.
-        const progress = progressMap[level.id] || null;
+        const progress = await getProgress(level.id, currentUser.uid);
         const completedCount = progress?.completedConceptIds?.length || 0;
         const totalConcepts = Math.max(Number(level.conceptCount) || 0, completedCount);
         const conceptsDone = totalConcepts > 0 && completedCount >= totalConcepts;

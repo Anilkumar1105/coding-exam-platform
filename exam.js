@@ -52,6 +52,13 @@ let examStartInProgress = false;
 let examLocked = false;
 let saveTimeout = null;
 let cmEditor = null; // current CodeMirror instance, one at a time
+let existingSubmission = null;
+let saveInFlight = false;
+let savePending = false;
+let lastSavedAnswersJson = "";
+const submissionHistoryCache = new Map();
+const codingBestMarks = new Map();
+const DRAFT_KEY = `examDraft:${examId || "unknown"}`;
 
 if (!examId) {
   window.location.href = "student-dashboard.html";
@@ -90,6 +97,7 @@ async function loadExam() {
 
   schedules = await listSchedulesForExam(examId);
   const existing = await getSubmission(examId, currentUser.uid);
+  existingSubmission = existing;
   const accessStatus = computeExamAccessStatus(exam, existing, schedules, studentProfile.section);
 
   if (accessStatus === "not-assigned") {
@@ -195,15 +203,42 @@ async function handleStart() {
     return;
   }
 
-  let submission = await getSubmission(examId, currentUser.uid);
+  let submission = existingSubmission;
   if (!submission) {
+    const startedAt = new Date().toISOString();
     await startSubmission(examId, studentProfile, maxViolations);
-    submission = await getSubmission(examId, currentUser.uid);
+    // Avoid a second Firestore read immediately after creating the submission.
+    // We already know the exact fields needed to initialize this browser session.
+    submission = {
+      examId,
+      studentId: currentUser.uid,
+      rollNumber: studentProfile.rollNumber,
+      section: studentProfile.section,
+      answers: {},
+      score: null,
+      percentage: null,
+      violations: 0,
+      maxViolations,
+      status: "in-progress",
+      startedAt,
+      submittedAt: null
+    };
+    existingSubmission = submission;
   }
 
   answers = submission.answers || {};
   flaggedQuestionIds = new Set(submission.flaggedQuestionIds || []);
   violationCount = submission.violations || 0;
+
+  // Restore a very recent browser-local draft first. This reduces data loss if
+  // a tab is closed during the debounce window, without creating extra reads.
+  try {
+    const draft = JSON.parse(sessionStorage.getItem(DRAFT_KEY) || "null");
+    if (draft && draft.answers && draft.updatedAt && Date.now() - draft.updatedAt < 30 * 60 * 1000) {
+      answers = { ...answers, ...draft.answers };
+    }
+  } catch (_) { /* ignore malformed local draft */ }
+  lastSavedAnswersJson = JSON.stringify(answers);
 
   // The deadline is an absolute timestamp. The timer never "loses" or gains
   // time because setInterval was delayed, throttled, or duplicated.
@@ -255,7 +290,7 @@ function startTimer() {
   // A short interval keeps the display responsive, but the absolute end time
   // is the source of truth, so delayed/throttled ticks cannot speed up or
   // extend the exam.
-  timerInterval = setInterval(updateTimer, 250);
+  timerInterval = setInterval(updateTimer, 500);
 }
 
 function updateTimer() {
@@ -338,6 +373,9 @@ function onVisibilityChange() {
   updateTimer();
 
   if (document.hidden) {
+    // Fire a save immediately when the page is backgrounded so the 5-second
+    // debounce cannot leave the latest answer only in browser memory.
+    flushAnswerSave();
     registerViolation("You switched tabs or minimized the window. This has been recorded.");
   }
 }
@@ -566,11 +604,47 @@ function toggleFlag(questionId) {
 /* ============================================================
    AUTOSAVE (code text only - marks/scoring live in codeSubmissions)
    ============================================================ */
+function persistLocalDraft() {
+  try {
+    sessionStorage.setItem(DRAFT_KEY, JSON.stringify({
+      updatedAt: Date.now(),
+      answers
+    }));
+  } catch (_) { /* storage may be unavailable/full */ }
+}
+
+async function flushAnswerSave() {
+  persistLocalDraft();
+  const json = JSON.stringify(answers);
+  if (json === lastSavedAnswersJson && !savePending) return;
+
+  if (saveInFlight) {
+    savePending = true;
+    return;
+  }
+
+  saveInFlight = true;
+  savePending = false;
+  try {
+    await saveAnswers(examId, currentUser.uid, answers);
+    lastSavedAnswersJson = json;
+  } catch (err) {
+    console.warn("Exam answer save failed; local draft retained.", err);
+  } finally {
+    saveInFlight = false;
+    if (savePending && !examLocked) {
+      savePending = false;
+      flushAnswerSave();
+    }
+  }
+}
+
 function scheduleAutosave() {
+  persistLocalDraft();
   clearTimeout(saveTimeout);
   saveTimeout = setTimeout(() => {
-    saveAnswers(examId, currentUser.uid, answers).catch(() => {});
-  }, 1200);
+    flushAnswerSave();
+  }, 5000);
 }
 
 /* ============================================================
@@ -642,6 +716,12 @@ async function submitCode(q, code) {
       errorMessage: firstError
     });
 
+    // Keep the best mark in the single exam submission document. Final grading
+    // can then use this local/session value instead of querying every code
+    // attempt again at exam submission time.
+    const previousBest = codingBestMarks.get(q.id) || 0;
+    if (marksObtained > previousBest) codingBestMarks.set(q.id, marksObtained);
+
     answers[q.id] = { ...(answers[q.id] || {}), code };
     scheduleAutosave();
 
@@ -657,6 +737,20 @@ async function submitCode(q, code) {
       )
       .join("");
 
+    // Add the new attempt to the in-memory history so navigating away/back
+    // does not trigger another Firestore query.
+    const cachedHistory = submissionHistoryCache.get(q.id) || [];
+    cachedHistory.unshift({
+      id: null,
+      studentId: currentUser.uid,
+      examId,
+      questionId: q.id,
+      submittedAt: new Date().toISOString(),
+      testCasesPassed: passedCount,
+      totalTestCases: allTests.length,
+      marksObtained
+    });
+    submissionHistoryCache.set(q.id, cachedHistory);
     renderSubmissionHistory(q.id);
     renderQuestionNav();
   } catch (err) {
@@ -673,7 +767,11 @@ async function renderSubmissionHistory(questionId) {
   wrap.innerHTML = `<div class="small text-muted">Loading submission history...</div>`;
 
   try {
-    const history = await listCodeSubmissions(currentUser.uid, questionId);
+    let history = submissionHistoryCache.get(questionId);
+    if (!history) {
+      history = await listCodeSubmissions(currentUser.uid, questionId);
+      submissionHistoryCache.set(questionId, history);
+    }
     if (!history.length) {
       wrap.innerHTML = `<div class="small text-muted">No submissions yet for this question.</div>`;
       return;
@@ -751,6 +849,9 @@ async function handleSubmit(status, message) {
     document.exitFullscreen().catch(() => {});
   }
 
+  // Ensure the latest local answers reach Firestore before final scoring.
+  await flushAnswerSave();
+
   const { score, mcqScore, codingScore, totalMarks } = await gradeSubmission();
   const percentage = totalMarks ? Math.round((score / totalMarks) * 10000) / 100 : 0;
 
@@ -764,6 +865,7 @@ async function handleSubmit(status, message) {
     status
   }).catch((e) => console.error("Failed to finalize submission:", e));
 
+  try { sessionStorage.removeItem(DRAFT_KEY); } catch (_) {}
   showResult(status, message, { score, mcqScore, codingScore, totalMarks });
 }
 
@@ -778,8 +880,17 @@ async function gradeSubmission() {
   let codingScore = 0;
   let totalMarks = 0;
 
-  const codingSubs =
-    exam.examType === "coding" ? await listCodeSubmissionsForExam(currentUser.uid, examId) : [];
+  // During this session, best coding marks are tracked in memory. This avoids
+  // an extra collection query for every student's final submit. For resumed
+  // legacy attempts without an in-memory value, use one fallback query.
+  let codingSubs = [];
+  if (exam.examType === "coding" && questions.some((q) => q.type === "coding") && codingBestMarks.size === 0) {
+    codingSubs = await listCodeSubmissionsForExam(currentUser.uid, examId);
+    for (const s of codingSubs) {
+      const prev = codingBestMarks.get(s.questionId) || 0;
+      if (Number(s.marksObtained) > prev) codingBestMarks.set(s.questionId, Number(s.marksObtained));
+    }
+  }
 
   for (const q of questions) {
     totalMarks += q.marks || 0;
@@ -789,11 +900,8 @@ async function gradeSubmission() {
       continue;
     }
 
-    const attempts = codingSubs.filter((s) => s.questionId === q.id);
-    if (attempts.length) {
-      const best = attempts.reduce((max, s) => (s.marksObtained > max ? s.marksObtained : max), 0);
-      codingScore += best;
-    }
+    const best = codingBestMarks.get(q.id) || 0;
+    codingScore += Number(best) || 0;
   }
 
   return { score: mcqScore + codingScore, mcqScore, codingScore, totalMarks };

@@ -155,17 +155,6 @@ service cloud.firestore {
       allow create, update, delete: if isAdmin();
     }
 
-    // learningProgressSummary/{studentId}
-    // Dashboard-only denormalized summary. It combines a student's level
-    // progress into one document so the dashboard normally needs one read
-    // instead of one read per learning level. It is UI data only; the
-    // canonical progress remains in learningProgress.
-    match /learningProgressSummary/{studentId} {
-      allow read: if isAdmin() || (isSignedIn() && request.auth.uid == studentId);
-      allow create, update: if isSignedIn() && request.auth.uid == studentId;
-      allow delete: if isAdmin();
-    }
-
     // learningProgress/{progressId}  (doc id: {levelId}_{studentId})
     // Not proctored, so unlike exam submissions a student can freely
     // update their own progress as they read concepts / retake the MCQ.

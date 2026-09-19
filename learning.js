@@ -4,7 +4,6 @@
 // by the admin management UI and the student-facing learning page.
 
 import { db } from "./firebase-config.js";
-import { getDocCached, getDocsCached, clearCacheStamp } from "./firestore-cache.js";
 import {
   collection,
   doc,
@@ -29,14 +28,14 @@ export async function listLevels() {
 }
 
 export async function listActiveLevels() {
-  const snap = await getDocsCached(query(collection(db, "learningLevels"), where("active", "==", true)), "learning-levels-active", 600000);
+  const snap = await getDocs(query(collection(db, "learningLevels"), where("active", "==", true)));
   return snap.docs
     .map((d) => ({ id: d.id, ...d.data() }))
     .sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
 }
 
 export async function getLevel(levelId) {
-  const snap = await getDocCached(doc(db, "learningLevels", levelId), `learning-level:${levelId}`, 600000);
+  const snap = await getDoc(doc(db, "learningLevels", levelId));
   return snap.exists() ? { id: snap.id, ...snap.data() } : null;
 }
 
@@ -128,43 +127,6 @@ export async function getProgress(levelId, studentId) {
   return snap.exists() ? snap.data() : null;
 }
 
-/**
- * Dashboard-optimized progress read. A student's progress used to require
- * one document read per learning level. The summary keeps those level
- * progress objects together so the dashboard normally needs one read.
- * Existing students are automatically migrated the first time they open
- * the dashboard.
- */
-export async function getProgressSummaryForStudent(studentId) {
-  const summaryRef = doc(db, "learningProgressSummary", studentId);
-  const summarySnap = await getDocCached(summaryRef, `learning-progress-summary:${studentId}`, 120000);
-  if (summarySnap.exists()) {
-    return summarySnap.data()?.levels || {};
-  }
-
-  const q = query(collection(db, "learningProgress"), where("studentId", "==", studentId));
-  const snap = await getDocsCached(q, `learning-progress-all:${studentId}`, 120000);
-  const levels = {};
-  snap.docs.forEach((d) => {
-    const data = d.data();
-    if (data.levelId) levels[data.levelId] = data;
-  });
-
-  // Do not block the dashboard on this small migration write.
-  setDoc(summaryRef, { studentId, levels, updatedAt: new Date().toISOString() }, { merge: true })
-.then(() => clearCacheStamp(`learning-progress-summary:${studentId}`))
-    .catch(() => {});
-
-  return levels;
-}
-
-async function updateProgressSummary(studentId, levelId, progress) {
-  const ref = doc(db, "learningProgressSummary", studentId);
-  await setDoc(ref, { studentId, updatedAt: new Date().toISOString() }, { merge: true });
-  await updateDoc(ref, { [`levels.${levelId}`]: progress, updatedAt: new Date().toISOString() });
-  clearCacheStamp(`learning-progress-summary:${studentId}`);
-}
-
 /** Fetch every progress doc for a level (admin's "student progress" view). */
 export async function listProgressForLevel(levelId) {
   const snap = await getDocs(query(collection(db, "learningProgress"), where("levelId", "==", levelId)));
@@ -198,7 +160,6 @@ async function ensureProgress(levelId, studentId) {
   if (existing) return existing;
   const fresh = emptyProgress(levelId, studentId);
   await setDoc(doc(db, "learningProgress", progressId(levelId, studentId)), fresh);
-  await updateProgressSummary(studentId, levelId, fresh).catch(() => {});
   return fresh;
 }
 
@@ -215,9 +176,7 @@ export async function markConceptComplete(levelId, studentId, conceptId, allConc
     updatedAt: new Date().toISOString()
   };
   await updateDoc(doc(db, "learningProgress", progressId(levelId, studentId)), data);
-  const updated = { ...progress, ...data };
-  await updateProgressSummary(studentId, levelId, updated).catch(() => {});
-  return updated;
+  return { ...progress, ...data };
 }
 
 /** Records an MCQ test attempt and unlocks coding questions if passed. */
@@ -238,8 +197,6 @@ export async function recordMcqAttempt(levelId, studentId, { score, total, perce
     updatedAt: new Date().toISOString()
   };
   await updateDoc(ref, data);
-  const updated = { ...(current.data() || {}), ...data };
-  await updateProgressSummary(studentId, levelId, updated).catch(() => {});
   return data;
 }
 
