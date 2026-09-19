@@ -10,6 +10,7 @@ import {
   updateDoc,
   query,
   where,
+  documentId,
   getDocs
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
@@ -29,9 +30,25 @@ export async function getExamById(examId) {
  *  where a student's exam may since have been deactivated or removed
  *  from the "active" list but still needs to show in their history. */
 export async function getExamsByIds(examIds) {
-  const uniqueIds = [...new Set(examIds)];
-  const exams = await Promise.all(uniqueIds.map((id) => getExamById(id)));
-  return exams.filter(Boolean);
+  const uniqueIds = [...new Set(examIds.filter(Boolean))];
+  if (!uniqueIds.length) return [];
+
+  // Firestore limits `in` queries to a bounded number of values, so batch
+  // large history sets instead of opening one network request per exam.
+  const batches = [];
+  for (let i = 0; i < uniqueIds.length; i += 30) {
+    batches.push(uniqueIds.slice(i, i + 30));
+  }
+
+  const results = await Promise.all(
+    batches.map(async (batch) => {
+      const q = query(collection(db, "exams"), where(documentId(), "in", batch));
+      const snap = await getDocs(q);
+      return snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+    })
+  );
+
+  return results.flat();
 }
 
 /** Reads the admin-published "Toppers of the Week" leaderboard, or null if none has been published yet. */
@@ -67,6 +84,34 @@ export async function listSchedulesForExam(examId) {
   return snap.docs
     .map((d) => ({ id: d.id, ...d.data() }))
     .sort((a, b) => new Date(a.startTime) - new Date(b.startTime));
+}
+
+/**
+ * Batch schedule reads for dashboard pages. This avoids one Firestore
+ * network request per exam while keeping the same data shape used by
+ * the existing dashboard and exam pages.
+ */
+export async function listSchedulesForExams(examIds) {
+  const uniqueIds = [...new Set(examIds.filter(Boolean))];
+  const byExamId = Object.fromEntries(uniqueIds.map((id) => [id, []]));
+  if (!uniqueIds.length) return byExamId;
+
+  // Firestore `in` queries have a bounded number of comparison values.
+  for (let i = 0; i < uniqueIds.length; i += 30) {
+    const batch = uniqueIds.slice(i, i + 30);
+    const q = query(collection(db, "examSchedules"), where("examId", "in", batch));
+    const snap = await getDocs(q);
+    snap.docs.forEach((d) => {
+      const data = { id: d.id, ...d.data() };
+      if (!byExamId[data.examId]) byExamId[data.examId] = [];
+      byExamId[data.examId].push(data);
+    });
+  }
+
+  Object.values(byExamId).forEach((items) => {
+    items.sort((a, b) => new Date(a.startTime) - new Date(b.startTime));
+  });
+  return byExamId;
 }
 export async function getQuestionsForExam(examId) {
   // Students only ever see published questions.

@@ -215,17 +215,18 @@
     getStudentSubmissions,
     findSubmissionForExam,
     getExamsByIds,
+    listSchedulesForExams,
     getQuestionsForExam,
     listCodeSubmissionsForExam,
     getAllTimePythonTopper,
     getBestLearner
   } from "./student.js";
   import { isPass, PASS_MARK, computeExamAccessStatus, describeExamWindow, filterSchedulesForSection } from "./grading.js";
-  import { listSchedulesForExam, getWeeklyToppers, getWeeklyCodingToppers } from "./student.js";
+  import { getWeeklyToppers, getWeeklyCodingToppers } from "./student.js";
   import { getStudentPoints, isSpecialSectionUnlocked, SPECIAL_SECTION_UNLOCK_POINTS } from "./points.js";
   import { renderTopperGrid, renderCodingToppers, renderAllTimePythonTopper, renderBestLearner } from "./dashboard.js";
   import { generateReportPDF } from "./pdf-export.js";
-  import { listActiveLevels, getProgress } from "./learning.js";
+  import { listActiveLevels, listProgressForStudent } from "./learning.js";
 
   wireLogoutButtons();
 
@@ -241,18 +242,24 @@
     document.getElementById("profileRoll").textContent = profile.rollNumber;
     document.getElementById("profileSection").textContent = profile.section;
 
-    const [activeExams, submissions] = await Promise.all([
+    const [activeExams, submissions, learningProgress] = await Promise.all([
       listActiveExams(),
-      getStudentSubmissions(user.uid)
+      getStudentSubmissions(user.uid),
+      listProgressForStudent(user.uid)
     ]);
 
-    const extraExamIds = submissions.map((s) => s.examId).filter((id) => !activeExams.some((e) => e.id === id));
+    const activeExamIds = new Set(activeExams.map((e) => e.id));
+    const extraExamIds = submissions
+      .map((s) => s.examId)
+      .filter((id) => id && !activeExamIds.has(id));
     const extraExams = extraExamIds.length ? await getExamsByIds(extraExamIds) : [];
     const allExams = [...activeExams, ...extraExams];
     examById = Object.fromEntries(allExams.map((e) => [e.id, e]));
 
-    const scheduleEntries = await Promise.all(allExams.map(async (e) => [e.id, await listSchedulesForExam(e.id)]));
-    schedulesByExamId = Object.fromEntries(scheduleEntries);
+    // Schedules are only needed for currently active exams. Historical
+    // submissions already know their result/status, so reading old exam
+    // schedules here only creates unnecessary Firestore reads.
+    schedulesByExamId = await listSchedulesForExams(activeExams.map((e) => e.id));
 
     // Exams whose schedules exist but never include this student's
     // section (and that the student has no submission for) aren't
@@ -270,13 +277,13 @@
     renderHistory(submissions);
     wireDownloadReport(submissions);
     renderCodingHistoryOptions(submissions);
-    renderLearningLevels();
+    renderLearningLevels(learningProgress);
     renderBestLearnerStudent();
     renderAllTimePythonTopperStudent();
     renderToppersCarousel();
     renderWeeklyCodingToppers();
     renderLearningPointsCard();
-    renderAbsentExams(allExams, submissions);
+    renderAbsentExams(activeExams, submissions);
   });
 
   /* ---------- Stats ---------- */
@@ -755,9 +762,12 @@
       .join("");
   }
   /* ---------- Learning Section ---------- */
-  async function renderLearningLevels() {
+  async function renderLearningLevels(progressRows = []) {
     const container = document.getElementById("learningLevelsList");
     const levels = await listActiveLevels();
+    const progressByLevelId = Object.fromEntries(
+      progressRows.map((p) => [p.levelId, p])
+    );
 
     if (!levels.length) {
       container.innerHTML = `<div class="col-12 text-center text-muted py-4">No learning levels are available yet.</div>`;
@@ -768,7 +778,7 @@
       levels.map(async (level) => {
         // IMPORTANT: Do not load every concept just to draw the dashboard.
         // Admin maintains level.conceptCount as the cached total.
-        const progress = await getProgress(level.id, currentUser.uid);
+        const progress = progressByLevelId[level.id] || null;
         const completedCount = progress?.completedConceptIds?.length || 0;
         const totalConcepts = Math.max(Number(level.conceptCount) || 0, completedCount);
         const conceptsDone = totalConcepts > 0 && completedCount >= totalConcepts;
