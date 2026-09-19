@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="robots" content="noindex,nofollow" />
+  <meta name="theme-color" content="#0b1220" />
+  <title>Under Maintenance - Coding Exam Platform</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #07111f;
+      --card: rgba(17, 29, 49, 0.92);
+      --text: #f8fafc;
+      --muted: #a9b7c9;
+      --accent: #67e8f9;
+      --accent-2: #818cf8;
+      --border: rgba(148, 163, 184, 0.18);
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: grid;
+      place-items: center;
+      overflow: hidden;
+      font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      color: var(--text);
+      background:
+        radial-gradient(circle at 20% 15%, rgba(103, 232, 249, 0.14), transparent 30%),
+        radial-gradient(circle at 80% 80%, rgba(129, 140, 248, 0.16), transparent 32%),
+        var(--bg);
+      padding: 24px;
+    }
+
+    .orb {
+      position: fixed;
+      width: 280px;
+      height: 280px;
+      border-radius: 50%;
+      filter: blur(70px);
+      opacity: .22;
+      pointer-events: none;
+    }
+
+    .orb.one { background: #22d3ee; top: -110px; left: -90px; }
+    .orb.two { background: #6366f1; right: -100px; bottom: -120px; }
+
+    .card {
+      position: relative;
+      width: min(680px, 100%);
+      padding: clamp(34px, 7vw, 62px);
+      text-align: center;
+      border: 1px solid var(--border);
+      border-radius: 28px;
+      background: var(--card);
+      box-shadow: 0 30px 90px rgba(0, 0, 0, .38);
+      backdrop-filter: blur(18px);
+    }
+
+    .icon {
+      width: 82px;
+      height: 82px;
+      margin: 0 auto 26px;
+      display: grid;
+      place-items: center;
+      border-radius: 24px;
+      font-size: 38px;
+      background: linear-gradient(135deg, rgba(103,232,249,.18), rgba(129,140,248,.20));
+      border: 1px solid rgba(103,232,249,.22);
+    }
+
+    .status {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 7px 13px;
+      border-radius: 999px;
+      color: #bff8ff;
+      background: rgba(103,232,249,.09);
+      border: 1px solid rgba(103,232,249,.18);
+      font-size: 13px;
+      font-weight: 700;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+    }
+
+    .dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--accent);
+      box-shadow: 0 0 14px var(--accent);
+    }
+
+    h1 {
+      margin: 22px 0 12px;
+      font-size: clamp(30px, 6vw, 48px);
+      line-height: 1.08;
+      letter-spacing: -.035em;
+    }
+
+    p {
+      max-width: 520px;
+      margin: 0 auto;
+      color: var(--muted);
+      font-size: 16px;
+      line-height: 1.75;
+    }
+
+    .note {
+      margin-top: 28px;
+      padding: 14px 16px;
+      border-radius: 14px;
+      background: rgba(255,255,255,.035);
+      border: 1px solid rgba(255,255,255,.07);
+      color: #cbd5e1;
+      font-size: 13px;
+    }
+
+    .footer {
+      margin-top: 30px;
+      color: #718096;
+      font-size: 12px;
+    }
+
+    @media (max-width: 480px) {
+      body { padding: 16px; }
+      .card { border-radius: 22px; }
+      .icon { width: 70px; height: 70px; font-size: 32px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="orb one"></div>
+  <div class="orb two"></div>
+
+  <main class="card" role="main" aria-labelledby="maintenanceTitle">
+    <div class="icon" aria-hidden="true">🛠️</div>
+    <div class="status"><span class="dot"></span> System Maintenance</div>
+    <h1 id="maintenanceTitle">We'll be back shortly</h1>
+    <p>
+      The Coding Exam &amp; Learning Platform is temporarily under maintenance
+      while we improve performance, reliability, and exam capacity.
+    </p>
+    <div class="note">
+      Please try again later. Your account and existing exam data are safe.
+    </div>
+    <div class="footer">Coding Exam Platform · Production System</div>
+  </main>
+</body>
+</html>
