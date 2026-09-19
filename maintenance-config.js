@@ -6,4 +6,4 @@
  *
  * Admin pages remain accessible while maintenance mode is ON.
  */
-window.PLATFORM_MAINTENANCE_MODE = false;
+window.PLATFORM_MAINTENANCE_MODE = true;
