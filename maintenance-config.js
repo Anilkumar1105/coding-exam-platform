@@ -1,9 +1,3 @@
-/*
- * Production maintenance switch
- *
- * true  = students/public pages redirect to maintenance.html
- * false = normal website operation
- *
- * Admin pages remain accessible while maintenance mode is ON.
+/* Deprecated: maintenance is now controlled by maintenance-config.json.
+ * Edit maintenance-config.json: {"maintenance": true/false}
  */
-window.PLATFORM_MAINTENANCE_MODE = false;
