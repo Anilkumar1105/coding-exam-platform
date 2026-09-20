@@ -107,6 +107,9 @@ let editingConceptId = null;
 let levelMcqQuestions = [];
 let editingLearningMcqId = null;
 let levelCodingQuestions = [];
+let codeforcesProblems = [];
+let codeforcesSelected = new Set();
+
 let editingLearningCodingId = null;
 let specialQuestions = [];
 let specialQuestionsLoaded = false;
@@ -1683,7 +1686,7 @@ async function renderLearningCodingList() {
             <span class="badge bg-secondary me-2">Q${i + 1}</span>
             <strong>${escapeHtmlL(q.title)}</strong>
             <div class="text-muted small mt-1">
-              ${q.marks} marks &middot; ${(q.visibleTestCases || []).length} public / ${(q.hiddenTestCases || []).length} hidden test cases
+              ${q.external ? `<span class="badge bg-primary-subtle text-primary me-1">${escapeHtmlL(q.source || "external")}</span>${q.rating ? `Rating ${escapeHtmlL(q.rating)} &middot; ` : ""}${(q.tags || []).slice(0, 4).map(escapeHtmlL).join(", ")}` : `${q.marks} marks &middot; ${(q.visibleTestCases || []).length} public / ${(q.hiddenTestCases || []).length} hidden test cases`}
             </div>
           </div>
           <div class="text-nowrap">
@@ -1706,6 +1709,180 @@ async function renderLearningCodingList() {
 }
 
 document.getElementById("addLearningCodingBtn").addEventListener("click", () => openLearningCodingModal());
+
+document.getElementById("importCodeforcesBtn").addEventListener("click", () => openCodeforcesImportModal());
+document.getElementById("cfRefreshBtn").addEventListener("click", () => loadCodeforcesProblems(true));
+document.getElementById("cfSearchInput").addEventListener("input", renderCodeforcesResults);
+document.getElementById("cfTagInput").addEventListener("change", renderCodeforcesResults);
+document.getElementById("cfMinRatingInput").addEventListener("input", renderCodeforcesResults);
+document.getElementById("cfMaxRatingInput").addEventListener("input", renderCodeforcesResults);
+document.getElementById("cfSelectVisibleBtn").addEventListener("click", () => {
+  getFilteredCodeforcesProblems().slice(0, 100).forEach((p) => codeforcesSelected.add(codeforcesKey(p)));
+  renderCodeforcesResults();
+});
+document.getElementById("cfAddSelectedBtn").addEventListener("click", addSelectedCodeforcesProblems);
+
+function codeforcesKey(p) {
+  return `${p.contestId}-${p.index}`;
+}
+
+function codeforcesUrl(p) {
+  return p.contestId
+    ? `https://codeforces.com/problemset/problem/${p.contestId}/${encodeURIComponent(p.index)}`
+    : `https://codeforces.com/problemset`;
+}
+
+function codeforcesDifficulty(rating) {
+  const r = Number(rating || 0);
+  if (!r) return "Unrated";
+  if (r < 1000) return "Easy";
+  if (r < 1400) return "Easy / Medium";
+  if (r < 1800) return "Medium";
+  if (r < 2200) return "Hard";
+  return "Very Hard";
+}
+
+function getFilteredCodeforcesProblems() {
+  const search = document.getElementById("cfSearchInput").value.trim().toLowerCase();
+  const tag = document.getElementById("cfTagInput").value;
+  const min = Number(document.getElementById("cfMinRatingInput").value || 0);
+  const max = Number(document.getElementById("cfMaxRatingInput").value || 999999);
+  return codeforcesProblems.filter((p) => {
+    if (p.type !== "PROGRAMMING" || !p.contestId || !p.index) return false;
+    if (search && !String(p.name || "").toLowerCase().includes(search)) return false;
+    if (tag && !(p.tags || []).includes(tag)) return false;
+    const rating = Number(p.rating || 0);
+    if (rating && (rating < min || rating > max)) return false;
+    if (!rating && min > 0) return false;
+    return true;
+  }).slice(0, 100);
+}
+
+async function loadCodeforcesProblems(force = false) {
+  const info = document.getElementById("cfResultInfo");
+  const results = document.getElementById("codeforcesResults");
+  info.textContent = "Loading Codeforces problems...";
+  results.innerHTML = `<div class="text-muted small py-3">Fetching the public Codeforces problem list...</div>`;
+  try {
+    if (!force && codeforcesProblems.length) {
+      renderCodeforcesResults();
+      return;
+    }
+    const response = await fetch("https://codeforces.com/api/problemset.problems?lang=en", { cache: "no-store" });
+    if (!response.ok) throw new Error(`Codeforces API returned HTTP ${response.status}`);
+    const payload = await response.json();
+    if (payload.status !== "OK") throw new Error(payload.comment || "Codeforces API request failed.");
+    codeforcesProblems = payload.result?.problems || [];
+    const tags = [...new Set(codeforcesProblems.flatMap((p) => p.tags || []))].sort();
+    document.getElementById("cfTagInput").innerHTML = `<option value="">All tags</option>` + tags.map((t) => `<option value="${escapeHtmlL(t)}">${escapeHtmlL(t)}</option>`).join("");
+    renderCodeforcesResults();
+  } catch (err) {
+    info.textContent = "Could not load Codeforces problems.";
+    results.innerHTML = `<div class="alert alert-danger small">${escapeHtmlL(err.message || "Unknown error")}</div>`;
+  }
+}
+
+function renderCodeforcesResults() {
+  const list = getFilteredCodeforcesProblems();
+  const info = document.getElementById("cfResultInfo");
+  const wrap = document.getElementById("codeforcesResults");
+  info.textContent = `${list.length} problems shown${codeforcesProblems.length > 100 ? " (maximum 100 shown)" : ""}`;
+  if (!list.length) {
+    wrap.innerHTML = `<div class="text-muted text-center py-4">No matching Codeforces problems.</div>`;
+  } else {
+    wrap.innerHTML = list.map((p) => {
+      const key = codeforcesKey(p);
+      const checked = codeforcesSelected.has(key);
+      const rating = p.rating ? `${p.rating}` : "Unrated";
+      return `<label class="question-card p-3 d-flex align-items-center gap-3" style="cursor:pointer">
+        <input class="form-check-input mt-0 cf-problem-check" type="checkbox" data-cf-key="${escapeHtmlL(key)}" ${checked ? "checked" : ""}>
+        <div class="flex-grow-1 min-w-0">
+          <div class="fw-semibold">${escapeHtmlL(p.contestId + p.index)} - ${escapeHtmlL(p.name)}</div>
+          <div class="small text-muted mt-1">Rating: ${escapeHtmlL(rating)} &middot; ${escapeHtmlL(codeforcesDifficulty(p.rating))} &middot; ${(p.tags || []).slice(0, 5).map(escapeHtmlL).join(", ")}</div>
+        </div>
+        <a class="btn btn-sm btn-outline-secondary" href="${codeforcesUrl(p)}" target="_blank" rel="noopener noreferrer" onclick="event.stopPropagation()">View</a>
+      </label>`;
+    }).join("");
+  }
+  wrap.querySelectorAll(".cf-problem-check").forEach((input) => {
+    input.addEventListener("change", () => {
+      const key = input.dataset.cfKey;
+      if (input.checked) codeforcesSelected.add(key); else codeforcesSelected.delete(key);
+      updateCodeforcesSelectedInfo();
+    });
+  });
+  updateCodeforcesSelectedInfo();
+}
+
+function updateCodeforcesSelectedInfo() {
+  document.getElementById("cfSelectedInfo").textContent = `${codeforcesSelected.size} selected`;
+}
+
+function openCodeforcesImportModal() {
+  codeforcesSelected = new Set();
+  document.getElementById("cfSearchInput").value = "";
+  document.getElementById("cfMinRatingInput").value = "";
+  document.getElementById("cfMaxRatingInput").value = "";
+  document.getElementById("cfTagInput").value = "";
+  document.getElementById("codeforcesImportError").classList.add("d-none");
+  new bootstrap.Modal(document.getElementById("codeforcesImportModal")).show();
+  loadCodeforcesProblems();
+}
+
+async function addSelectedCodeforcesProblems() {
+  const selected = codeforcesProblems.filter((p) => codeforcesSelected.has(codeforcesKey(p)) && p.contestId && p.index);
+  const errorEl = document.getElementById("codeforcesImportError");
+  errorEl.classList.add("d-none");
+  if (!selected.length) {
+    errorEl.textContent = "Select at least one problem first.";
+    errorEl.classList.remove("d-none");
+    return;
+  }
+  const existingKeys = new Set((levelCodingQuestions || []).filter((q) => q.source === "codeforces").map((q) => `${q.contestId}-${q.problemIndex}`));
+  const duplicates = selected.filter((p) => existingKeys.has(codeforcesKey(p)));
+  const toAdd = selected.filter((p) => !existingKeys.has(codeforcesKey(p)));
+  if (!toAdd.length) {
+    errorEl.textContent = "All selected problems are already added to this level.";
+    errorEl.classList.remove("d-none");
+    return;
+  }
+  const baseOrder = levelCodingQuestions.length;
+  try {
+    for (let i = 0; i < toAdd.length; i++) {
+      const p = toAdd[i];
+      await createLearningCodingQuestion({
+        levelId: activeLevel.id,
+        language: "python",
+        title: `${p.contestId}${p.index} - ${p.name}`,
+        description: `Practice this problem on Codeforces. Open the original problem statement using the button in the Learning Portal.`,
+        inputDescription: "See the original Codeforces problem statement.",
+        outputDescription: "See the original Codeforces problem statement.",
+        marks: 10,
+        timeLimit: 5,
+        order: baseOrder + i,
+        starterCode: "# Write your solution here\n",
+        examples: [],
+        visibleTestCases: [],
+        hiddenTestCases: [],
+        source: "codeforces",
+        external: true,
+        externalUrl: codeforcesUrl(p),
+        contestId: p.contestId,
+        problemIndex: p.index,
+        rating: p.rating || null,
+        tags: p.tags || [],
+        difficulty: codeforcesDifficulty(p.rating)
+      });
+    }
+    bootstrap.Modal.getInstance(document.getElementById("codeforcesImportModal"))?.hide();
+    if (duplicates.length) alert(`${toAdd.length} problem(s) added. ${duplicates.length} duplicate(s) skipped.`);
+    await renderLearningCodingList();
+  } catch (err) {
+    errorEl.textContent = err.message || "Could not import Codeforces problems.";
+    errorEl.classList.remove("d-none");
+  }
+}
+
 
 function openLearningCodingModal(question = null) {
   editingLearningCodingId = question?.id || null;

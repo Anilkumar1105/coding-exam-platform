@@ -368,13 +368,15 @@ function renderCodingList(content) {
   wrap.innerHTML = codingQuestions
     .map(
       (q, i) => `
-      <div class="question-card p-3 d-flex justify-content-between align-items-center">
-        <div>
+      <div class="question-card p-3 d-flex justify-content-between align-items-center gap-3">
+        <div class="min-w-0">
           <span class="badge bg-secondary me-2">Q${i + 1}</span>
           <strong>${escapeHtml(q.title)}</strong>
-          <div class="text-muted small mt-1">${q.marks} marks</div>
+          <div class="text-muted small mt-1">
+            ${q.external ? `<span class="badge bg-primary-subtle text-primary me-1">${escapeHtml(q.source || "External")}</span>${q.difficulty ? escapeHtml(q.difficulty) : ""}${q.rating ? ` &middot; Rating ${escapeHtml(q.rating)}` : ""}` : `${q.marks} marks`}
+          </div>
         </div>
-        <button class="btn btn-sm btn-brand" data-open-question="${q.id}">Practice <i class="bi bi-arrow-right ms-1"></i></button>
+        ${q.external ? `<a class="btn btn-sm btn-brand" href="${escapeHtml(q.externalUrl)}" target="_blank" rel="noopener noreferrer">Open Problem <i class="bi bi-box-arrow-up-right ms-1"></i></a>` : `<button class="btn btn-sm btn-brand" data-open-question="${q.id}">Practice <i class="bi bi-arrow-right ms-1"></i></button>`}
       </div>`
     )
     .join("");
@@ -390,6 +392,10 @@ function renderCodingList(content) {
 
 function renderCodingQuestion(content) {
   const q = codingQuestions.find((x) => x.id === view.id);
+  if (q?.external) {
+    content.innerHTML = `<div class="text-center py-4"><div class="display-6 mb-2"><i class="bi bi-box-arrow-up-right"></i></div><h5>${escapeHtml(q.title)}</h5><p class="text-muted">This problem is hosted on ${escapeHtml(q.source || "the external platform")}.</p><a class="btn btn-brand" href="${escapeHtml(q.externalUrl)}" target="_blank" rel="noopener noreferrer">Open Problem <i class="bi bi-box-arrow-up-right ms-1"></i></a></div>`;
+    return;
+  }
   if (!q) {
     content.innerHTML = `<p class="text-muted">Question not found.</p>`;
     return;
