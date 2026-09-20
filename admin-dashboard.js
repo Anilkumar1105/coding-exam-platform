@@ -2105,82 +2105,233 @@ document.getElementById("spCompanySelect").addEventListener("change", (e) => {
 });
 
 /* ---------- Beginner DSA importer for Special Section ---------- */
-const SPECIAL_BEGINNER_TOPICS = [
-  { id: "arrays", label: "Arrays", icon: "bi-grid-3x3-gap", tags: ["implementation"], keywords: ["array", "sum", "maximum", "minimum"] },
-  { id: "strings", label: "Strings", icon: "bi-fonts", tags: ["strings"], keywords: ["string"] },
-  { id: "sorting", label: "Sorting", icon: "bi-sort-down", tags: ["sortings"], keywords: ["sort", "sorting"] },
-  { id: "searching", label: "Searching / Binary Search", icon: "bi-search", tags: ["binary search"], keywords: ["binary search"] },
-  { id: "two-pointers", label: "Two Pointers", icon: "bi-arrows-expand", tags: ["two pointers"], keywords: [] },
-  { id: "prefix-sums", label: "Prefix Sum", icon: "bi-bar-chart-steps", tags: ["prefix sums"], keywords: ["prefix"] },
-  { id: "stack", label: "Stack", icon: "bi-stack", tags: ["data structures"], keywords: ["stack", "parentheses"] },
-  { id: "queue", label: "Queue", icon: "bi-list-ol", tags: ["data structures"], keywords: ["queue"] },
-  { id: "linked-list", label: "Linked List", icon: "bi-link-45deg", tags: ["data structures"], keywords: ["linked list", "linked"] },
-  { id: "hashing", label: "Hashing / Frequency", icon: "bi-hash", tags: ["data structures"], keywords: ["frequency", "map", "hash", "distinct"] },
-  { id: "recursion", label: "Recursion / Backtracking", icon: "bi-arrow-repeat", tags: ["brute force"], keywords: ["recursion", "recursive", "permutation"] },
-  { id: "greedy", label: "Greedy", icon: "bi-lightning", tags: ["greedy"], keywords: [] },
-  { id: "trees", label: "Trees", icon: "bi-diagram-3", tags: ["trees"], keywords: ["tree"] },
-  { id: "graphs", label: "Graphs", icon: "bi-share", tags: ["graphs"], keywords: ["graph"] },
-  { id: "heap", label: "Heap / Priority Queue", icon: "bi-bar-chart-fill", tags: ["data structures"], keywords: ["heap", "priority queue"] },
-  { id: "bit-manipulation", label: "Bit Manipulation", icon: "bi-toggle-on", tags: ["bitmasks"], keywords: ["bit"] },
-  { id: "dynamic-programming", label: "Dynamic Programming", icon: "bi-diagram-2", tags: ["dp"], keywords: [] },
-  { id: "math", label: "Basic Math", icon: "bi-calculator", tags: ["math"], keywords: [] }
+// These are original beginner-friendly problems designed for this portal.
+// The importer creates the full in-site question, starter code, public tests,
+// and hidden tests automatically, so students solve and submit entirely here.
+const SPECIAL_BEGINNER_PROBLEMS = [
+  {
+    id: "arrays-sum", label: "Arrays", icon: "bi-grid-3x3-gap", title: "Sum of Array Elements",
+    description: "Given an array of integers, find and print the sum of all elements.",
+    inputDescription: "First line contains n. Second line contains n integers.",
+    outputDescription: "Print one integer: the sum of all array elements.",
+    constraints: "1 ≤ n ≤ 1000. Array values are integers.",
+    starterCode: "n = int(input())\na = list(map(int, input().split()))\n\n# Write your solution below\n",
+    examples: [{ input: "5\n1 2 3 4 5", output: "15" }, { input: "4\n10 -2 7 5", output: "20" }],
+    visibleTestCases: [{ input: "5\n1 2 3 4 5", expectedOutput: "15", weight: 1 }, { input: "4\n10 -2 7 5", expectedOutput: "20", weight: 1 }],
+    hiddenTestCases: [{ input: "1\n9", expectedOutput: "9", weight: 1 }, { input: "6\n1 1 1 1 1 1", expectedOutput: "6", weight: 1 }, { input: "5\n-5 -4 -3 -2 -1", expectedOutput: "-15", weight: 1 }, { input: "7\n10 20 30 40 50 60 70", expectedOutput: "280", weight: 1 }, { input: "3\n100 -50 25", expectedOutput: "75", weight: 1 }]
+  },
+  {
+    id: "strings-vowels", label: "Strings", icon: "bi-fonts", title: "Count Vowels",
+    description: "Given a string, count how many vowels (a, e, i, o, u) it contains. Treat uppercase and lowercase letters the same.",
+    inputDescription: "One line containing a string without leading or trailing spaces.",
+    outputDescription: "Print the number of vowels.",
+    constraints: "1 ≤ length of string ≤ 1000.",
+    starterCode: "s = input().strip()\n\n# Write your solution below\n",
+    examples: [{ input: "hello", output: "2" }, { input: "Programming", output: "3" }],
+    visibleTestCases: [{ input: "hello", expectedOutput: "2", weight: 1 }, { input: "Programming", expectedOutput: "3", weight: 1 }],
+    hiddenTestCases: [{ input: "AEIOU", expectedOutput: "5", weight: 1 }, { input: "xyz", expectedOutput: "0", weight: 1 }, { input: "education", expectedOutput: "5", weight: 1 }, { input: "Python", expectedOutput: "1", weight: 1 }, { input: "umbrella", expectedOutput: "3", weight: 1 }]
+  },
+  {
+    id: "sorting-ascending", label: "Sorting", icon: "bi-sort-down", title: "Sort an Array",
+    description: "Given an array of integers, print the elements in ascending order.",
+    inputDescription: "First line contains n. Second line contains n integers.",
+    outputDescription: "Print the sorted array in one line, separated by spaces.",
+    constraints: "1 ≤ n ≤ 1000.",
+    starterCode: "n = int(input())\na = list(map(int, input().split()))\n\n# Write your solution below\n",
+    examples: [{ input: "5\n4 1 3 2 5", output: "1 2 3 4 5" }, { input: "4\n10 2 8 1", output: "1 2 8 10" }],
+    visibleTestCases: [{ input: "5\n4 1 3 2 5", expectedOutput: "1 2 3 4 5", weight: 1 }, { input: "4\n10 2 8 1", expectedOutput: "1 2 8 10", weight: 1 }],
+    hiddenTestCases: [{ input: "1\n7", expectedOutput: "7", weight: 1 }, { input: "5\n5 4 3 2 1", expectedOutput: "1 2 3 4 5", weight: 1 }, { input: "6\n2 2 1 1 3 3", expectedOutput: "1 1 2 2 3 3", weight: 1 }, { input: "4\n-1 -5 0 2", expectedOutput: "-5 -1 0 2", weight: 1 }, { input: "7\n9 1 8 2 7 3 6", expectedOutput: "1 2 3 6 7 8 9", weight: 1 }]
+  },
+  {
+    id: "binary-search", label: "Searching / Binary Search", icon: "bi-search", title: "Binary Search",
+    description: "Given a sorted array and a target value, find the 0-based index of the target. Print -1 if it is not present.",
+    inputDescription: "First line n. Second line contains n sorted integers. Third line contains target.",
+    outputDescription: "Print the 0-based index of target, or -1.",
+    constraints: "1 ≤ n ≤ 1000. The array is sorted in non-decreasing order.",
+    starterCode: "n = int(input())\na = list(map(int, input().split()))\ntarget = int(input())\n\n# Write your binary search below\n",
+    examples: [{ input: "5\n1 3 5 7 9\n7", output: "3" }, { input: "5\n2 4 6 8 10\n5", output: "-1" }],
+    visibleTestCases: [{ input: "5\n1 3 5 7 9\n7", expectedOutput: "3", weight: 1 }, { input: "5\n2 4 6 8 10\n5", expectedOutput: "-1", weight: 1 }],
+    hiddenTestCases: [{ input: "1\n10\n10", expectedOutput: "0", weight: 1 }, { input: "6\n1 2 3 4 5 6\n1", expectedOutput: "0", weight: 1 }, { input: "6\n1 2 3 4 5 6\n6", expectedOutput: "5", weight: 1 }, { input: "7\n2 4 6 8 10 12 14\n8", expectedOutput: "3", weight: 1 }, { input: "7\n2 4 6 8 10 12 14\n9", expectedOutput: "-1", weight: 1 }]
+  },
+  {
+    id: "two-pointers-pair", label: "Two Pointers", icon: "bi-arrows-expand", title: "Pair With Given Sum",
+    description: "Given a sorted array and a target, determine whether there are two different elements whose sum equals the target.",
+    inputDescription: "First line n. Second line contains n sorted integers. Third line contains target.",
+    outputDescription: "Print YES if such a pair exists; otherwise print NO.",
+    constraints: "1 ≤ n ≤ 1000. The array is sorted.",
+    starterCode: "n = int(input())\na = list(map(int, input().split()))\ntarget = int(input())\n\n# Use the two-pointer technique\n",
+    examples: [{ input: "5\n1 2 3 4 6\n7", output: "YES" }, { input: "4\n1 2 5 9\n10", output: "NO" }],
+    visibleTestCases: [{ input: "5\n1 2 3 4 6\n7", expectedOutput: "YES", weight: 1 }, { input: "4\n1 2 5 9\n10", expectedOutput: "NO", weight: 1 }],
+    hiddenTestCases: [{ input: "2\n1 9\n10", expectedOutput: "YES", weight: 1 }, { input: "2\n1 9\n8", expectedOutput: "NO", weight: 1 }, { input: "6\n1 2 4 7 9 12\n13", expectedOutput: "YES", weight: 1 }, { input: "5\n-5 -2 0 3 8\n1", expectedOutput: "YES", weight: 1 }, { input: "5\n1 3 5 7 9\n20", expectedOutput: "NO", weight: 1 }]
+  },
+  {
+    id: "prefix-range-sum", label: "Prefix Sum", icon: "bi-bar-chart-steps", title: "Range Sum Queries",
+    description: "Answer multiple range-sum queries on an array. For each query [l, r], print the sum from position l to r. Positions are 1-based.",
+    inputDescription: "First line n. Second line contains n integers. Third line q. Next q lines contain l and r.",
+    outputDescription: "Print one answer per query.",
+    constraints: "1 ≤ n, q ≤ 1000.",
+    starterCode: "n = int(input())\na = list(map(int, input().split()))\nq = int(input())\n\n# Build a prefix sum array and answer each query\n",
+    examples: [{ input: "5\n1 2 3 4 5\n3\n1 3\n2 5\n4 4", output: "6\n14\n4" }, { input: "4\n10 20 30 40\n2\n1 2\n3 4", output: "30\n70" }],
+    visibleTestCases: [{ input: "5\n1 2 3 4 5\n3\n1 3\n2 5\n4 4", expectedOutput: "6\n14\n4", weight: 1 }, { input: "4\n10 20 30 40\n2\n1 2\n3 4", expectedOutput: "30\n70", weight: 1 }],
+    hiddenTestCases: [{ input: "1\n8\n1\n1 1", expectedOutput: "8", weight: 1 }, { input: "5\n2 2 2 2 2\n2\n1 5\n2 4", expectedOutput: "10\n6", weight: 1 }, { input: "4\n-1 5 -2 7\n2\n1 4\n2 3", expectedOutput: "9\n3", weight: 1 }, { input: "6\n1 3 5 7 9 11\n3\n1 6\n3 5\n2 2", expectedOutput: "36\n21\n3", weight: 1 }, { input: "3\n10 0 -5\n2\n1 2\n2 3", expectedOutput: "10\n-5", weight: 1 }]
+  },
+  {
+    id: "stack-parentheses", label: "Stack", icon: "bi-stack", title: "Balanced Parentheses",
+    description: "Check whether a string containing (), {}, and [] has correctly matched and nested brackets.",
+    inputDescription: "One line containing only bracket characters.",
+    outputDescription: "Print YES if the brackets are balanced; otherwise print NO.",
+    constraints: "1 ≤ length ≤ 1000.",
+    starterCode: "s = input().strip()\n\n# Use a stack to check matching brackets\n",
+    examples: [{ input: "({[]})", output: "YES" }, { input: "([)]", output: "NO" }],
+    visibleTestCases: [{ input: "({[]})", expectedOutput: "YES", weight: 1 }, { input: "([)]", expectedOutput: "NO", weight: 1 }],
+    hiddenTestCases: [{ input: "()", expectedOutput: "YES", weight: 1 }, { input: "", expectedOutput: "YES", weight: 1 }, { input: "((()))", expectedOutput: "YES", weight: 1 }, { input: "{[}]", expectedOutput: "NO", weight: 1 }, { input: "{[()()]}", expectedOutput: "YES", weight: 1 }]
+  },
+  {
+    id: "queue-operations", label: "Queue", icon: "bi-list-ol", title: "Simple Queue Operations",
+    description: "Process queue operations. ENQUEUE x adds x to the rear. DEQUEUE removes and prints the front value. If the queue is empty, DEQUEUE prints -1.",
+    inputDescription: "First line q. Next q lines contain either ENQUEUE x or DEQUEUE.",
+    outputDescription: "Print one value for every DEQUEUE operation.",
+    constraints: "1 ≤ q ≤ 1000.",
+    starterCode: "q = int(input())\nqueue = []\n\n# Process the operations\n",
+    examples: [{ input: "6\nENQUEUE 10\nENQUEUE 20\nDEQUEUE\nENQUEUE 30\nDEQUEUE\nDEQUEUE", output: "10\n20\n30" }, { input: "3\nDEQUEUE\nENQUEUE 5\nDEQUEUE", output: "-1\n5" }],
+    visibleTestCases: [{ input: "6\nENQUEUE 10\nENQUEUE 20\nDEQUEUE\nENQUEUE 30\nDEQUEUE\nDEQUEUE", expectedOutput: "10\n20\n30", weight: 1 }, { input: "3\nDEQUEUE\nENQUEUE 5\nDEQUEUE", expectedOutput: "-1\n5", weight: 1 }],
+    hiddenTestCases: [{ input: "1\nDEQUEUE", expectedOutput: "-1", weight: 1 }, { input: "5\nENQUEUE 1\nENQUEUE 2\nDEQUEUE\nDEQUEUE\nDEQUEUE", expectedOutput: "1\n2\n-1", weight: 1 }, { input: "5\nENQUEUE 7\nDEQUEUE\nENQUEUE 8\nDEQUEUE\nDEQUEUE", expectedOutput: "7\n8\n-1", weight: 1 }, { input: "4\nENQUEUE -3\nENQUEUE 4\nDEQUEUE\nDEQUEUE", expectedOutput: "-3\n4", weight: 1 }, { input: "6\nENQUEUE 5\nENQUEUE 6\nENQUEUE 7\nDEQUEUE\nDEQUEUE\nDEQUEUE", expectedOutput: "5\n6\n7", weight: 1 }]
+  },
+  {
+    id: "linked-list-reverse", label: "Linked List", icon: "bi-link-45deg", title: "Reverse a Linked List",
+    description: "A linked list is given as its node values in order. Print the values in reverse order.",
+    inputDescription: "First line n. Second line contains n node values.",
+    outputDescription: "Print the node values from tail to head.",
+    constraints: "1 ≤ n ≤ 1000.",
+    starterCode: "n = int(input())\nvalues = list(map(int, input().split()))\n\n# Reverse the linked-list values\n",
+    examples: [{ input: "5\n1 2 3 4 5", output: "5 4 3 2 1" }, { input: "3\n10 20 30", output: "30 20 10" }],
+    visibleTestCases: [{ input: "5\n1 2 3 4 5", expectedOutput: "5 4 3 2 1", weight: 1 }, { input: "3\n10 20 30", expectedOutput: "30 20 10", weight: 1 }],
+    hiddenTestCases: [{ input: "1\n7", expectedOutput: "7", weight: 1 }, { input: "4\n4 3 2 1", expectedOutput: "1 2 3 4", weight: 1 }, { input: "5\n-1 -2 -3 -4 -5", expectedOutput: "-5 -4 -3 -2 -1", weight: 1 }, { input: "2\n100 200", expectedOutput: "200 100", weight: 1 }, { input: "6\n1 1 2 3 5 8", expectedOutput: "8 5 3 2 1 1", weight: 1 }]
+  },
+  {
+    id: "hash-frequency", label: "Hashing / Frequency", icon: "bi-hash", title: "Count Frequency of a Number",
+    description: "Given an array and a target value, count how many times the target occurs.",
+    inputDescription: "First line n. Second line contains n integers. Third line contains target.",
+    outputDescription: "Print the frequency of target.",
+    constraints: "1 ≤ n ≤ 1000.",
+    starterCode: "n = int(input())\na = list(map(int, input().split()))\ntarget = int(input())\n\n# Count the target using a dictionary\n",
+    examples: [{ input: "7\n2 3 2 4 2 5 2\n2", output: "4" }, { input: "5\n1 2 3 4 5\n9", output: "0" }],
+    visibleTestCases: [{ input: "7\n2 3 2 4 2 5 2\n2", expectedOutput: "4", weight: 1 }, { input: "5\n1 2 3 4 5\n9", expectedOutput: "0", weight: 1 }],
+    hiddenTestCases: [{ input: "1\n8\n8", expectedOutput: "1", weight: 1 }, { input: "6\n1 1 1 1 1 1\n1", expectedOutput: "6", weight: 1 }, { input: "5\n-1 -2 -1 3 -1\n-1", expectedOutput: "3", weight: 1 }, { input: "4\n2 4 6 8\n2", expectedOutput: "1", weight: 1 }, { input: "8\n5 5 4 5 3 5 2 5\n5", expectedOutput: "5", weight: 1 }]
+  },
+  {
+    id: "recursion-factorial", label: "Recursion", icon: "bi-arrow-repeat", title: "Factorial Using Recursion",
+    description: "Find n! using a recursive function. Factorial of 0 is 1.",
+    inputDescription: "One integer n.",
+    outputDescription: "Print n!.",
+    constraints: "0 ≤ n ≤ 12.",
+    starterCode: "n = int(input())\n\ndef factorial(x):\n    # Write the recursive function\n    pass\n\nprint(factorial(n))\n",
+    examples: [{ input: "5", output: "120" }, { input: "0", output: "1" }],
+    visibleTestCases: [{ input: "5", expectedOutput: "120", weight: 1 }, { input: "0", expectedOutput: "1", weight: 1 }],
+    hiddenTestCases: [{ input: "1", expectedOutput: "1", weight: 1 }, { input: "2", expectedOutput: "2", weight: 1 }, { input: "6", expectedOutput: "720", weight: 1 }, { input: "8", expectedOutput: "40320", weight: 1 }, { input: "10", expectedOutput: "3628800", weight: 1 }]
+  },
+  {
+    id: "greedy-coins", label: "Greedy", icon: "bi-lightning", title: "Minimum Coins",
+    description: "Using coins of values 50, 20, 10, 5 and 1, find the minimum number of coins needed to make the given amount.",
+    inputDescription: "One integer amount.",
+    outputDescription: "Print the minimum number of coins.",
+    constraints: "0 ≤ amount ≤ 100000.",
+    starterCode: "amount = int(input())\ncoins = [50, 20, 10, 5, 1]\n\n# Apply the greedy strategy\n",
+    examples: [{ input: "93", output: "6" }, { input: "41", output: "4" }],
+    visibleTestCases: [{ input: "93", expectedOutput: "6", weight: 1 }, { input: "41", expectedOutput: "4", weight: 1 }],
+    hiddenTestCases: [{ input: "0", expectedOutput: "0", weight: 1 }, { input: "1", expectedOutput: "1", weight: 1 }, { input: "50", expectedOutput: "1", weight: 1 }, { input: "99", expectedOutput: "8", weight: 1 }, { input: "100", expectedOutput: "2", weight: 1 }]
+  },
+  {
+    id: "trees-sum", label: "Trees", icon: "bi-diagram-3", title: "Sum of Binary Tree Nodes",
+    description: "A binary tree is represented in level order. -1 means that a node is absent. Find the sum of all present node values.",
+    inputDescription: "First line n. Second line contains n level-order values; -1 represents a missing node.",
+    outputDescription: "Print the sum of all values except -1 markers.",
+    constraints: "1 ≤ n ≤ 1000.",
+    starterCode: "n = int(input())\nvalues = list(map(int, input().split()))\n\n# Process the level-order tree representation\n",
+    examples: [{ input: "7\n1 2 3 4 5 -1 7", output: "22" }, { input: "3\n10 5 15", output: "30" }],
+    visibleTestCases: [{ input: "7\n1 2 3 4 5 -1 7", expectedOutput: "22", weight: 1 }, { input: "3\n10 5 15", expectedOutput: "30", weight: 1 }],
+    hiddenTestCases: [{ input: "1\n8", expectedOutput: "8", weight: 1 }, { input: "3\n1 -1 2", expectedOutput: "3", weight: 1 }, { input: "5\n5 3 7 2 4", expectedOutput: "21", weight: 1 }, { input: "7\n10 -1 20 -1 -1 15 25", expectedOutput: "70", weight: 1 }, { input: "6\n0 1 2 3 4 5", expectedOutput: "15", weight: 1 }]
+  },
+  {
+    id: "graphs-degree", label: "Graphs", icon: "bi-share", title: "Degree of a Vertex",
+    description: "Given an undirected graph, find the degree of vertex k.",
+    inputDescription: "First line n m. Next m lines contain edges u v. Last line contains k. Vertices are numbered 1 to n.",
+    outputDescription: "Print the number of edges connected to k.",
+    constraints: "1 ≤ n ≤ 1000. 0 ≤ m ≤ 2000.",
+    starterCode: "n, m = map(int, input().split())\n\n# Count edges connected to the requested vertex\nfor _ in range(m):\n    u, v = map(int, input().split())\n\nk = int(input())\n",
+    examples: [{ input: "5 4\n1 2\n1 3\n2 4\n1 5\n1", output: "3" }, { input: "4 3\n1 2\n2 3\n3 4\n2", output: "2" }],
+    visibleTestCases: [{ input: "5 4\n1 2\n1 3\n2 4\n1 5\n1", expectedOutput: "3", weight: 1 }, { input: "4 3\n1 2\n2 3\n3 4\n2", expectedOutput: "2", weight: 1 }],
+    hiddenTestCases: [{ input: "3 0\n2", expectedOutput: "0", weight: 1 }, { input: "2 1\n1 2\n1", expectedOutput: "1", weight: 1 }, { input: "5 5\n1 2\n1 3\n1 4\n1 5\n2 3\n1", expectedOutput: "4", weight: 1 }, { input: "4 4\n1 2\n2 3\n2 4\n3 4\n4", expectedOutput: "2", weight: 1 }, { input: "6 3\n1 2\n3 4\n5 6\n5", expectedOutput: "1", weight: 1 }]
+  },
+  {
+    id: "heap-min", label: "Heap / Priority Queue", icon: "bi-bar-chart-fill", title: "Minimum Element with a Heap",
+    description: "Given numbers, print the smallest value. Solve it using a min-heap (priority queue).",
+    inputDescription: "First line n. Second line contains n integers.",
+    outputDescription: "Print the smallest value.",
+    constraints: "1 ≤ n ≤ 1000.",
+    starterCode: "import heapq\n\nn = int(input())\na = list(map(int, input().split()))\n\n# Use heapq to create a min-heap\n",
+    examples: [{ input: "5\n7 2 9 1 6", output: "1" }, { input: "4\n10 -3 5 2", output: "-3" }],
+    visibleTestCases: [{ input: "5\n7 2 9 1 6", expectedOutput: "1", weight: 1 }, { input: "4\n10 -3 5 2", expectedOutput: "-3", weight: 1 }],
+    hiddenTestCases: [{ input: "1\n8", expectedOutput: "8", weight: 1 }, { input: "5\n5 4 3 2 1", expectedOutput: "1", weight: 1 }, { input: "4\n-10 -2 -30 -4", expectedOutput: "-30", weight: 1 }, { input: "6\n100 50 75 25 10 90", expectedOutput: "10", weight: 1 }, { input: "3\n0 5 -1", expectedOutput: "-1", weight: 1 }]
+  },
+  {
+    id: "bit-xor", label: "Bit Manipulation", icon: "bi-toggle-on", title: "Odd One Out Using XOR",
+    description: "Every number appears exactly twice except one number that appears once. Find the number that appears once using XOR.",
+    inputDescription: "First line n. Second line contains n integers. n is odd.",
+    outputDescription: "Print the number that appears once.",
+    constraints: "1 ≤ n ≤ 1001. Every number except one occurs exactly twice.",
+    starterCode: "n = int(input())\na = list(map(int, input().split()))\n\n# Use XOR (^) to find the unique number\n",
+    examples: [{ input: "5\n4 1 2 1 2", output: "4" }, { input: "7\n7 3 5 3 5 7 9", output: "9" }],
+    visibleTestCases: [{ input: "5\n4 1 2 1 2", expectedOutput: "4", weight: 1 }, { input: "7\n7 3 5 3 5 7 9", expectedOutput: "9", weight: 1 }],
+    hiddenTestCases: [{ input: "1\n8", expectedOutput: "8", weight: 1 }, { input: "5\n1 2 1 2 9", expectedOutput: "9", weight: 1 }, { input: "7\n10 20 30 20 10 40 30", expectedOutput: "40", weight: 1 }, { input: "5\n-1 -2 -1 -2 -7", expectedOutput: "-7", weight: 1 }, { input: "9\n1 2 3 4 5 4 3 2 1", expectedOutput: "5", weight: 1 }]
+  },
+  {
+    id: "dp-climbing", label: "Dynamic Programming", icon: "bi-diagram-2", title: "Climbing Stairs",
+    description: "You can climb either 1 or 2 steps at a time. Find the number of different ways to reach step n.",
+    inputDescription: "One integer n.",
+    outputDescription: "Print the number of ways. For n = 1, the answer is 1; for n = 2, the answer is 2.",
+    constraints: "1 ≤ n ≤ 30.",
+    starterCode: "n = int(input())\n\n# Use dynamic programming to build the answer\n",
+    examples: [{ input: "5", output: "8" }, { input: "6", output: "13" }],
+    visibleTestCases: [{ input: "5", expectedOutput: "8", weight: 1 }, { input: "6", expectedOutput: "13", weight: 1 }],
+    hiddenTestCases: [{ input: "1", expectedOutput: "1", weight: 1 }, { input: "2", expectedOutput: "2", weight: 1 }, { input: "3", expectedOutput: "3", weight: 1 }, { input: "10", expectedOutput: "89", weight: 1 }, { input: "20", expectedOutput: "10946", weight: 1 }]
+  },
+  {
+    id: "math-prime", label: "Basic Math", icon: "bi-calculator", title: "Check Prime Number",
+    description: "Given an integer n, determine whether it is prime.",
+    inputDescription: "One integer n.",
+    outputDescription: "Print YES if n is prime; otherwise print NO.",
+    constraints: "2 ≤ n ≤ 100000.",
+    starterCode: "n = int(input())\n\n# Check whether n has a divisor other than 1 and itself\n",
+    examples: [{ input: "17", output: "YES" }, { input: "20", output: "NO" }],
+    visibleTestCases: [{ input: "17", expectedOutput: "YES", weight: 1 }, { input: "20", expectedOutput: "NO", weight: 1 }],
+    hiddenTestCases: [{ input: "2", expectedOutput: "YES", weight: 1 }, { input: "3", expectedOutput: "YES", weight: 1 }, { input: "4", expectedOutput: "NO", weight: 1 }, { input: "97", expectedOutput: "YES", weight: 1 }, { input: "100", expectedOutput: "NO", weight: 1 }]
+  }
 ];
 
-function specialBeginnerKey(p) {
-  return `${p.contestId}-${p.index}`;
-}
-
-function chooseBeginnerProblem(topic, usedKeys) {
-  const eligible = codeforcesProblems.filter((p) => {
-    if (p.type !== "PROGRAMMING" || !p.contestId || !p.index || !p.rating) return false;
-    const rating = Number(p.rating);
-    if (rating < 800 || rating > 1000) return false;
-    if (usedKeys.has(specialBeginnerKey(p))) return false;
-    const tags = p.tags || [];
-    const hasTag = topic.tags.some((tag) => tags.includes(tag));
-    const text = String(p.name || "").toLowerCase();
-    const hasKeyword = topic.keywords.some((word) => text.includes(word));
-    // For topics with a keyword, prefer a keyword match; otherwise tag match is enough.
-    if (topic.keywords.length && !hasKeyword && topic.id !== "arrays") return false;
-    return hasTag || hasKeyword;
-  });
-
-  eligible.sort((a, b) => {
-    // Prefer the lowest rating, then a title keyword match, then more solved/simple-looking problems.
-    const ra = Number(a.rating || 9999), rb = Number(b.rating || 9999);
-    if (ra !== rb) return ra - rb;
-    const ak = topic.keywords.some((w) => String(a.name || "").toLowerCase().includes(w)) ? 0 : 1;
-    const bk = topic.keywords.some((w) => String(b.name || "").toLowerCase().includes(w)) ? 0 : 1;
-    return ak - bk || String(a.name).localeCompare(String(b.name));
-  });
-  return eligible[0] || null;
-}
-
 function updateSpecialBeginnerSelectedInfo() {
-  document.getElementById("specialBeginnerSelectedInfo").textContent = `${specialBeginnerSelectedTopics.size} topic${specialBeginnerSelectedTopics.size === 1 ? "" : "s"} selected`;
+  const n = specialBeginnerSelectedTopics.size;
+  document.getElementById("specialBeginnerSelectedInfo").textContent = `${n} topic${n === 1 ? "" : "s"} selected`;
 }
 
 function renderSpecialBeginnerTopics() {
   const wrap = document.getElementById("specialBeginnerTopicList");
-  const used = new Set();
-  const existing = new Set(
+  const existingTopics = new Set(
     (specialQuestions || [])
-      .filter((q) => q.source === "codeforces" && q.contestId && q.problemIndex)
-      .map((q) => `${q.contestId}-${q.problemIndex}`)
+      .filter((q) => q.source === "internal-beginner-dsa" && q.topicId)
+      .map((q) => q.topicId)
   );
 
-  wrap.innerHTML = SPECIAL_BEGINNER_TOPICS.map((topic) => {
-    const problem = chooseBeginnerProblem(topic, new Set([...used, ...existing]));
-    if (problem) used.add(specialBeginnerKey(problem));
-    const checked = specialBeginnerSelectedTopics.has(topic.id);
-    const disabled = !problem;
+  wrap.innerHTML = SPECIAL_BEGINNER_PROBLEMS.map((problem) => {
+    const exists = existingTopics.has(problem.id);
+    const checked = specialBeginnerSelectedTopics.has(problem.id);
     return `
-      <label class="question-card p-3 d-flex align-items-center gap-3 ${disabled ? "opacity-50" : ""}" style="cursor:${disabled ? "not-allowed" : "pointer"}">
-        <input class="form-check-input mt-0 special-beginner-check" type="checkbox" data-topic-id="${topic.id}" ${checked && !disabled ? "checked" : ""} ${disabled ? "disabled" : ""}>
-        <div class="d-flex align-items-center justify-content-center rounded-circle bg-primary-subtle text-primary" style="width:38px;height:38px;flex:0 0 38px"><i class="bi ${topic.icon}"></i></div>
+      <label class="question-card p-3 d-flex align-items-center gap-3 ${exists ? "opacity-50" : ""}" style="cursor:${exists ? "not-allowed" : "pointer"}">
+        <input class="form-check-input mt-0 special-beginner-check" type="checkbox" data-topic-id="${problem.id}" ${checked && !exists ? "checked" : ""} ${exists ? "disabled" : ""}>
+        <div class="d-flex align-items-center justify-content-center rounded-circle bg-primary-subtle text-primary" style="width:38px;height:38px;flex:0 0 38px"><i class="bi ${problem.icon}"></i></div>
         <div class="flex-grow-1 min-w-0">
-          <div class="fw-semibold">${escapeHtmlL(topic.label)}</div>
-          ${problem ? `<div class="small text-muted mt-1">${escapeHtmlL(problem.contestId + problem.index)} - ${escapeHtmlL(problem.name)} &middot; Rating ${problem.rating} &middot; ${(problem.tags || []).slice(0, 3).map(escapeHtmlL).join(", ")}</div>` : `<div class="small text-danger mt-1">No 800–1000 rating problem found for this topic.</div>`}
+          <div class="fw-semibold">${escapeHtmlL(problem.label)} <span class="text-muted">— ${escapeHtmlL(problem.title)}</span></div>
+          <div class="small text-muted mt-1">${exists ? "Already imported · students solve this inside your portal" : "Beginner · in-site judge · public + hidden tests included automatically"}</div>
         </div>
       </label>`;
   }).join("");
@@ -2192,64 +2343,44 @@ function renderSpecialBeginnerTopics() {
       updateSpecialBeginnerSelectedInfo();
     });
   });
-  document.getElementById("specialBeginnerInfo").textContent = `${SPECIAL_BEGINNER_TOPICS.length} DSA topics · one beginner problem per selected topic`;
+  document.getElementById("specialBeginnerInfo").textContent = `${SPECIAL_BEGINNER_PROBLEMS.length} beginner DSA topics · one in-site problem per topic`;
   updateSpecialBeginnerSelectedInfo();
+}
+
+function selectAllSpecialBeginnerTopics() {
+  const available = SPECIAL_BEGINNER_PROBLEMS.filter((p) =>
+    !(specialQuestions || []).some((q) => q.source === "internal-beginner-dsa" && q.topicId === p.id)
+  );
+  const allSelected = available.length > 0 && available.every((p) => specialBeginnerSelectedTopics.has(p.id));
+  specialBeginnerSelectedTopics = new Set(allSelected ? [] : available.map((p) => p.id));
+  renderSpecialBeginnerTopics();
 }
 
 async function openSpecialBeginnerImportModal() {
   specialBeginnerSelectedTopics = new Set();
   document.getElementById("specialBeginnerImportError").classList.add("d-none");
-  document.getElementById("specialBeginnerTopicList").innerHTML = `<div class="text-muted small py-3">Fetching beginner Codeforces problems...</div>`;
   new bootstrap.Modal(document.getElementById("specialBeginnerImportModal")).show();
-  try {
-    if (!codeforcesProblems.length) {
-      const response = await fetch("https://codeforces.com/api/problemset.problems?lang=en", { cache: "no-store" });
-      if (!response.ok) throw new Error(`Codeforces API returned HTTP ${response.status}`);
-      const payload = await response.json();
-      if (payload.status !== "OK") throw new Error(payload.comment || "Codeforces API request failed.");
-      codeforcesProblems = payload.result?.problems || [];
-    }
-    renderSpecialBeginnerTopics();
-  } catch (err) {
-    const errorEl = document.getElementById("specialBeginnerImportError");
-    errorEl.textContent = err.message || "Could not load beginner problems.";
-    errorEl.classList.remove("d-none");
-  }
-}
-
-function selectAllSpecialBeginnerTopics() {
-  const available = SPECIAL_BEGINNER_TOPICS.filter((topic) => chooseBeginnerProblem(topic, new Set()) !== null);
-  const allSelected = available.every((topic) => specialBeginnerSelectedTopics.has(topic.id));
-  specialBeginnerSelectedTopics = new Set(allSelected ? [] : available.map((topic) => topic.id));
   renderSpecialBeginnerTopics();
 }
 
 async function importSelectedSpecialBeginnerTopics() {
   const errorEl = document.getElementById("specialBeginnerImportError");
   errorEl.classList.add("d-none");
-  const selectedTopics = SPECIAL_BEGINNER_TOPICS.filter((t) => specialBeginnerSelectedTopics.has(t.id));
-  if (!selectedTopics.length) {
+  const selected = SPECIAL_BEGINNER_PROBLEMS.filter((p) => specialBeginnerSelectedTopics.has(p.id));
+  if (!selected.length) {
     errorEl.textContent = "Select at least one DSA topic first.";
     errorEl.classList.remove("d-none");
     return;
   }
 
-  const existingKeys = new Set(
+  const existing = new Set(
     (specialQuestions || [])
-      .filter((q) => q.source === "codeforces" && q.contestId && q.problemIndex)
-      .map((q) => `${q.contestId}-${q.problemIndex}`)
+      .filter((q) => q.source === "internal-beginner-dsa" && q.topicId)
+      .map((q) => q.topicId)
   );
-  const used = new Set(existingKeys);
-  const chosen = [];
-  for (const topic of selectedTopics) {
-    const problem = chooseBeginnerProblem(topic, used);
-    if (problem) {
-      used.add(specialBeginnerKey(problem));
-      chosen.push({ topic, problem });
-    }
-  }
+  const chosen = selected.filter((p) => !existing.has(p.id));
   if (!chosen.length) {
-    errorEl.textContent = "No new beginner problems were available for the selected topics.";
+    errorEl.textContent = "All selected beginner topics are already imported.";
     errorEl.classList.remove("d-none");
     return;
   }
@@ -2257,37 +2388,33 @@ async function importSelectedSpecialBeginnerTopics() {
   try {
     const baseOrder = specialQuestions.length;
     for (let i = 0; i < chosen.length; i++) {
-      const { topic, problem } = chosen[i];
+      const p = chosen[i];
       await createSpecialQuestion({
-        title: `${problem.contestId}${problem.index} - ${problem.name}`,
-        description: `Beginner ${topic.label} practice problem. Open the original Codeforces statement and solve it there.`,
-        inputDescription: "See the original Codeforces problem statement.",
-        outputDescription: "See the original Codeforces problem statement.",
-        constraints: "See the original Codeforces problem statement.",
+        title: p.title,
+        description: p.description,
+        inputDescription: p.inputDescription,
+        outputDescription: p.outputDescription,
+        constraints: p.constraints,
         company: "Beginner DSA",
         category: "DSA",
-        topic: topic.label,
+        topic: p.label,
+        topicId: p.id,
         difficulty: "easy",
         marks: 10,
         timeLimit: 5,
         order: baseOrder + i,
-        starterCode: "# Practice this problem on Codeforces\n",
-        examples: [],
-        visibleTestCases: [],
-        hiddenTestCases: [],
-        source: "codeforces",
-        external: true,
-        externalUrl: codeforcesUrl(problem),
-        contestId: problem.contestId,
-        problemIndex: problem.index,
-        rating: problem.rating || null,
-        tags: problem.tags || [],
+        starterCode: p.starterCode,
+        examples: p.examples,
+        visibleTestCases: p.visibleTestCases,
+        hiddenTestCases: p.hiddenTestCases,
+        source: "internal-beginner-dsa",
+        external: false,
         published: true
       });
     }
     bootstrap.Modal.getInstance(document.getElementById("specialBeginnerImportModal"))?.hide();
     await renderSpecialQuestionsList();
-    alert(`${chosen.length} beginner DSA problem${chosen.length === 1 ? "" : "s"} imported successfully.`);
+    alert(`${chosen.length} beginner DSA problem${chosen.length === 1 ? "" : "s"} imported. Students can solve them directly inside your portal.`);
   } catch (err) {
     errorEl.textContent = err.message || "Could not import beginner DSA problems.";
     errorEl.classList.remove("d-none");
