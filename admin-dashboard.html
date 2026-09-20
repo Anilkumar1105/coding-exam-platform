@@ -339,7 +339,10 @@
             <h6 class="mb-0"><i class="bi bi-gem me-1"></i>Special Coding Section</h6>
             <p class="text-muted small mb-0">Exclusive company-style interview practice questions, unlocked once a student reaches 100 Learning Points.</p>
           </div>
-          <button class="btn btn-brand btn-sm" id="addSpecialQuestionBtn"><i class="bi bi-plus-lg me-1"></i>Add Question</button>
+          <div class="d-flex gap-2 flex-wrap justify-content-end">
+            <button class="btn btn-outline-primary btn-sm" id="importSpecialBeginnerBtn"><i class="bi bi-cloud-download me-1"></i>Import Beginner DSA</button>
+            <button class="btn btn-brand btn-sm" id="addSpecialQuestionBtn"><i class="bi bi-plus-lg me-1"></i>Add Question</button>
+          </div>
         </div>
 
         <div class="d-flex flex-wrap gap-2 mb-3">
@@ -917,6 +920,37 @@
           <button type="submit" class="btn btn-brand">Save Question</button>
         </div>
       </form>
+    </div>
+  </div>
+</div>
+
+<!-- Import beginner DSA problems into Special Section -->
+<div class="modal fade" id="specialBeginnerImportModal" tabindex="-1">
+  <div class="modal-dialog modal-lg modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header">
+        <div>
+          <h5 class="modal-title"><i class="bi bi-cloud-download me-2"></i>Import Beginner DSA Problems</h5>
+          <div class="text-muted small">Automatically pick one beginner Codeforces problem for each DSA topic. No question or test-case entry is required.</div>
+        </div>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <div id="specialBeginnerImportError" class="alert alert-danger d-none small"></div>
+        <div class="alert alert-info small mb-3">
+          <strong>Beginner range:</strong> Codeforces rating 800–1000. Imported problems are stored as external practice links, so Codeforces remains responsible for the statement and hidden test cases.
+        </div>
+        <div class="d-flex justify-content-between align-items-center mb-2">
+          <div class="small text-muted" id="specialBeginnerInfo">Loading beginner topics...</div>
+          <button type="button" class="btn btn-sm btn-outline-secondary" id="specialBeginnerSelectAllBtn">Select all</button>
+        </div>
+        <div id="specialBeginnerTopicList" class="d-flex flex-column gap-2"></div>
+      </div>
+      <div class="modal-footer">
+        <span class="small text-muted me-auto" id="specialBeginnerSelectedInfo">0 topics selected</span>
+        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+        <button type="button" class="btn btn-brand" id="specialBeginnerImportBtn"><i class="bi bi-plus-lg me-1"></i>Import selected</button>
+      </div>
     </div>
   </div>
 </div>

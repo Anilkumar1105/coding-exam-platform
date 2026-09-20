@@ -115,6 +115,7 @@ let specialQuestions = [];
 let specialQuestionsLoaded = false;
 let editingSpecialQuestionId = null;
 let specialCompanyFilterValue = "all";
+let specialBeginnerSelectedTopics = new Set();
 
 /* ============================================================
    AUTH + INITIAL LOAD
@@ -2057,7 +2058,7 @@ function renderSpecialQuestionsListBody() {
               <strong>${escapeHtmlL(q.title)}</strong>
               <span class="badge ${difficultyBadge} ms-1">${(q.difficulty || "medium").toUpperCase()}</span>
               <div class="text-muted small mt-1">
-                ${q.marks} marks &middot; ${(q.visibleTestCases || []).length} public / ${(q.hiddenTestCases || []).length} hidden test cases
+                ${q.external ? `${q.topic ? `Topic: ${escapeHtmlL(q.topic)} &middot; ` : ""}${q.rating ? `Rating ${escapeHtmlL(q.rating)} &middot; ` : ""}${escapeHtmlL(q.source || "External practice")}` : `${q.marks} marks &middot; ${(q.visibleTestCases || []).length} public / ${(q.hiddenTestCases || []).length} hidden test cases`}
               </div>
             </div>
             <div class="text-nowrap">
@@ -2095,10 +2096,203 @@ function companyBadgeClass(company) {
 }
 
 document.getElementById("addSpecialQuestionBtn").addEventListener("click", () => openSpecialModal());
+document.getElementById("importSpecialBeginnerBtn").addEventListener("click", () => openSpecialBeginnerImportModal());
+document.getElementById("specialBeginnerSelectAllBtn").addEventListener("click", selectAllSpecialBeginnerTopics);
+document.getElementById("specialBeginnerImportBtn").addEventListener("click", importSelectedSpecialBeginnerTopics);
 
 document.getElementById("spCompanySelect").addEventListener("change", (e) => {
   document.getElementById("spCompanyOtherWrap").classList.toggle("d-none", e.target.value !== "Other");
 });
+
+/* ---------- Beginner DSA importer for Special Section ---------- */
+const SPECIAL_BEGINNER_TOPICS = [
+  { id: "arrays", label: "Arrays", icon: "bi-grid-3x3-gap", tags: ["implementation"], keywords: ["array", "sum", "maximum", "minimum"] },
+  { id: "strings", label: "Strings", icon: "bi-fonts", tags: ["strings"], keywords: ["string"] },
+  { id: "sorting", label: "Sorting", icon: "bi-sort-down", tags: ["sortings"], keywords: ["sort", "sorting"] },
+  { id: "searching", label: "Searching / Binary Search", icon: "bi-search", tags: ["binary search"], keywords: ["binary search"] },
+  { id: "two-pointers", label: "Two Pointers", icon: "bi-arrows-expand", tags: ["two pointers"], keywords: [] },
+  { id: "prefix-sums", label: "Prefix Sum", icon: "bi-bar-chart-steps", tags: ["prefix sums"], keywords: ["prefix"] },
+  { id: "stack", label: "Stack", icon: "bi-stack", tags: ["data structures"], keywords: ["stack", "parentheses"] },
+  { id: "queue", label: "Queue", icon: "bi-list-ol", tags: ["data structures"], keywords: ["queue"] },
+  { id: "linked-list", label: "Linked List", icon: "bi-link-45deg", tags: ["data structures"], keywords: ["linked list", "linked"] },
+  { id: "hashing", label: "Hashing / Frequency", icon: "bi-hash", tags: ["data structures"], keywords: ["frequency", "map", "hash", "distinct"] },
+  { id: "recursion", label: "Recursion / Backtracking", icon: "bi-arrow-repeat", tags: ["brute force"], keywords: ["recursion", "recursive", "permutation"] },
+  { id: "greedy", label: "Greedy", icon: "bi-lightning", tags: ["greedy"], keywords: [] },
+  { id: "trees", label: "Trees", icon: "bi-diagram-3", tags: ["trees"], keywords: ["tree"] },
+  { id: "graphs", label: "Graphs", icon: "bi-share", tags: ["graphs"], keywords: ["graph"] },
+  { id: "heap", label: "Heap / Priority Queue", icon: "bi-bar-chart-fill", tags: ["data structures"], keywords: ["heap", "priority queue"] },
+  { id: "bit-manipulation", label: "Bit Manipulation", icon: "bi-toggle-on", tags: ["bitmasks"], keywords: ["bit"] },
+  { id: "dynamic-programming", label: "Dynamic Programming", icon: "bi-diagram-2", tags: ["dp"], keywords: [] },
+  { id: "math", label: "Basic Math", icon: "bi-calculator", tags: ["math"], keywords: [] }
+];
+
+function specialBeginnerKey(p) {
+  return `${p.contestId}-${p.index}`;
+}
+
+function chooseBeginnerProblem(topic, usedKeys) {
+  const eligible = codeforcesProblems.filter((p) => {
+    if (p.type !== "PROGRAMMING" || !p.contestId || !p.index || !p.rating) return false;
+    const rating = Number(p.rating);
+    if (rating < 800 || rating > 1000) return false;
+    if (usedKeys.has(specialBeginnerKey(p))) return false;
+    const tags = p.tags || [];
+    const hasTag = topic.tags.some((tag) => tags.includes(tag));
+    const text = String(p.name || "").toLowerCase();
+    const hasKeyword = topic.keywords.some((word) => text.includes(word));
+    // For topics with a keyword, prefer a keyword match; otherwise tag match is enough.
+    if (topic.keywords.length && !hasKeyword && topic.id !== "arrays") return false;
+    return hasTag || hasKeyword;
+  });
+
+  eligible.sort((a, b) => {
+    // Prefer the lowest rating, then a title keyword match, then more solved/simple-looking problems.
+    const ra = Number(a.rating || 9999), rb = Number(b.rating || 9999);
+    if (ra !== rb) return ra - rb;
+    const ak = topic.keywords.some((w) => String(a.name || "").toLowerCase().includes(w)) ? 0 : 1;
+    const bk = topic.keywords.some((w) => String(b.name || "").toLowerCase().includes(w)) ? 0 : 1;
+    return ak - bk || String(a.name).localeCompare(String(b.name));
+  });
+  return eligible[0] || null;
+}
+
+function updateSpecialBeginnerSelectedInfo() {
+  document.getElementById("specialBeginnerSelectedInfo").textContent = `${specialBeginnerSelectedTopics.size} topic${specialBeginnerSelectedTopics.size === 1 ? "" : "s"} selected`;
+}
+
+function renderSpecialBeginnerTopics() {
+  const wrap = document.getElementById("specialBeginnerTopicList");
+  const used = new Set();
+  const existing = new Set(
+    (specialQuestions || [])
+      .filter((q) => q.source === "codeforces" && q.contestId && q.problemIndex)
+      .map((q) => `${q.contestId}-${q.problemIndex}`)
+  );
+
+  wrap.innerHTML = SPECIAL_BEGINNER_TOPICS.map((topic) => {
+    const problem = chooseBeginnerProblem(topic, new Set([...used, ...existing]));
+    if (problem) used.add(specialBeginnerKey(problem));
+    const checked = specialBeginnerSelectedTopics.has(topic.id);
+    const disabled = !problem;
+    return `
+      <label class="question-card p-3 d-flex align-items-center gap-3 ${disabled ? "opacity-50" : ""}" style="cursor:${disabled ? "not-allowed" : "pointer"}">
+        <input class="form-check-input mt-0 special-beginner-check" type="checkbox" data-topic-id="${topic.id}" ${checked && !disabled ? "checked" : ""} ${disabled ? "disabled" : ""}>
+        <div class="d-flex align-items-center justify-content-center rounded-circle bg-primary-subtle text-primary" style="width:38px;height:38px;flex:0 0 38px"><i class="bi ${topic.icon}"></i></div>
+        <div class="flex-grow-1 min-w-0">
+          <div class="fw-semibold">${escapeHtmlL(topic.label)}</div>
+          ${problem ? `<div class="small text-muted mt-1">${escapeHtmlL(problem.contestId + problem.index)} - ${escapeHtmlL(problem.name)} &middot; Rating ${problem.rating} &middot; ${(problem.tags || []).slice(0, 3).map(escapeHtmlL).join(", ")}</div>` : `<div class="small text-danger mt-1">No 800–1000 rating problem found for this topic.</div>`}
+        </div>
+      </label>`;
+  }).join("");
+
+  wrap.querySelectorAll(".special-beginner-check").forEach((input) => {
+    input.addEventListener("change", () => {
+      if (input.checked) specialBeginnerSelectedTopics.add(input.dataset.topicId);
+      else specialBeginnerSelectedTopics.delete(input.dataset.topicId);
+      updateSpecialBeginnerSelectedInfo();
+    });
+  });
+  document.getElementById("specialBeginnerInfo").textContent = `${SPECIAL_BEGINNER_TOPICS.length} DSA topics · one beginner problem per selected topic`;
+  updateSpecialBeginnerSelectedInfo();
+}
+
+async function openSpecialBeginnerImportModal() {
+  specialBeginnerSelectedTopics = new Set();
+  document.getElementById("specialBeginnerImportError").classList.add("d-none");
+  document.getElementById("specialBeginnerTopicList").innerHTML = `<div class="text-muted small py-3">Fetching beginner Codeforces problems...</div>`;
+  new bootstrap.Modal(document.getElementById("specialBeginnerImportModal")).show();
+  try {
+    if (!codeforcesProblems.length) {
+      const response = await fetch("https://codeforces.com/api/problemset.problems?lang=en", { cache: "no-store" });
+      if (!response.ok) throw new Error(`Codeforces API returned HTTP ${response.status}`);
+      const payload = await response.json();
+      if (payload.status !== "OK") throw new Error(payload.comment || "Codeforces API request failed.");
+      codeforcesProblems = payload.result?.problems || [];
+    }
+    renderSpecialBeginnerTopics();
+  } catch (err) {
+    const errorEl = document.getElementById("specialBeginnerImportError");
+    errorEl.textContent = err.message || "Could not load beginner problems.";
+    errorEl.classList.remove("d-none");
+  }
+}
+
+function selectAllSpecialBeginnerTopics() {
+  const available = SPECIAL_BEGINNER_TOPICS.filter((topic) => chooseBeginnerProblem(topic, new Set()) !== null);
+  const allSelected = available.every((topic) => specialBeginnerSelectedTopics.has(topic.id));
+  specialBeginnerSelectedTopics = new Set(allSelected ? [] : available.map((topic) => topic.id));
+  renderSpecialBeginnerTopics();
+}
+
+async function importSelectedSpecialBeginnerTopics() {
+  const errorEl = document.getElementById("specialBeginnerImportError");
+  errorEl.classList.add("d-none");
+  const selectedTopics = SPECIAL_BEGINNER_TOPICS.filter((t) => specialBeginnerSelectedTopics.has(t.id));
+  if (!selectedTopics.length) {
+    errorEl.textContent = "Select at least one DSA topic first.";
+    errorEl.classList.remove("d-none");
+    return;
+  }
+
+  const existingKeys = new Set(
+    (specialQuestions || [])
+      .filter((q) => q.source === "codeforces" && q.contestId && q.problemIndex)
+      .map((q) => `${q.contestId}-${q.problemIndex}`)
+  );
+  const used = new Set(existingKeys);
+  const chosen = [];
+  for (const topic of selectedTopics) {
+    const problem = chooseBeginnerProblem(topic, used);
+    if (problem) {
+      used.add(specialBeginnerKey(problem));
+      chosen.push({ topic, problem });
+    }
+  }
+  if (!chosen.length) {
+    errorEl.textContent = "No new beginner problems were available for the selected topics.";
+    errorEl.classList.remove("d-none");
+    return;
+  }
+
+  try {
+    const baseOrder = specialQuestions.length;
+    for (let i = 0; i < chosen.length; i++) {
+      const { topic, problem } = chosen[i];
+      await createSpecialQuestion({
+        title: `${problem.contestId}${problem.index} - ${problem.name}`,
+        description: `Beginner ${topic.label} practice problem. Open the original Codeforces statement and solve it there.`,
+        inputDescription: "See the original Codeforces problem statement.",
+        outputDescription: "See the original Codeforces problem statement.",
+        constraints: "See the original Codeforces problem statement.",
+        company: "Beginner DSA",
+        category: "DSA",
+        topic: topic.label,
+        difficulty: "easy",
+        marks: 10,
+        timeLimit: 5,
+        order: baseOrder + i,
+        starterCode: "# Practice this problem on Codeforces\n",
+        examples: [],
+        visibleTestCases: [],
+        hiddenTestCases: [],
+        source: "codeforces",
+        external: true,
+        externalUrl: codeforcesUrl(problem),
+        contestId: problem.contestId,
+        problemIndex: problem.index,
+        rating: problem.rating || null,
+        tags: problem.tags || [],
+        published: true
+      });
+    }
+    bootstrap.Modal.getInstance(document.getElementById("specialBeginnerImportModal"))?.hide();
+    await renderSpecialQuestionsList();
+    alert(`${chosen.length} beginner DSA problem${chosen.length === 1 ? "" : "s"} imported successfully.`);
+  } catch (err) {
+    errorEl.textContent = err.message || "Could not import beginner DSA problems.";
+    errorEl.classList.remove("d-none");
+  }
+}
 
 function openSpecialModal(question = null) {
   editingSpecialQuestionId = question?.id || null;

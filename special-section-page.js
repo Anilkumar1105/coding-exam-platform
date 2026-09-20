@@ -111,7 +111,7 @@ async function renderContent(points) {
                 <span class="special-question-marks">${q.marks} pts</span>
               </div>
               <div class="special-question-title">${escapeHtml(q.title)}</div>
-              <div class="special-question-cta">Practice <i class="bi bi-arrow-right ms-1"></i></div>
+              <div class="special-question-cta">${q.external ? 'Open Problem <i class="bi bi-box-arrow-up-right ms-1"></i>' : 'Practice <i class="bi bi-arrow-right ms-1"></i>'}</div>
             </div>`
             )
             .join("")}
@@ -123,7 +123,13 @@ async function renderContent(points) {
   wrap.querySelectorAll("[data-open-question]").forEach((card) => {
     card.addEventListener("click", () => {
       const question = questionGroups.flatMap((g) => g.questions).find((q) => q.id === card.dataset.openQuestion);
-      if (question) renderQuestionDetail(question, points);
+      if (question) {
+        if (question.external && question.externalUrl) {
+          window.open(question.externalUrl, "_blank", "noopener,noreferrer");
+        } else {
+          renderQuestionDetail(question, points);
+        }
+      }
     });
   });
 }
@@ -156,6 +162,24 @@ function escapeHtml(str) {
 /* ---------- Question detail / practice editor ---------- */
 function renderQuestionDetail(q, points) {
   const body = document.getElementById("pageBody");
+
+  if (q.external && q.externalUrl) {
+    body.innerHTML = `
+      <button class="btn btn-sm btn-outline-light mb-3" id="backToSpecialListBtn"><i class="bi bi-arrow-left me-1"></i>Back to Questions</button>
+      <div class="special-detail-card text-center py-5">
+        <div class="d-flex justify-content-center align-items-center gap-2 mb-3">
+          <span class="company-badge ${companyBadgeClass(q.company)}">${escapeHtml(q.company || "Beginner DSA")}</span>
+          <span class="badge ${difficultyBadgeClass(q.difficulty)}">${(q.difficulty || "easy").toUpperCase()}</span>
+        </div>
+        <div class="display-6 mb-3"><i class="bi bi-box-arrow-up-right"></i></div>
+        <h4 class="text-white">${escapeHtml(q.title)}</h4>
+        <p class="text-white-75 mx-auto" style="max-width:720px">${escapeHtml(q.description || "Practice this problem on Codeforces.")}</p>
+        ${q.topic ? `<div class="small text-white-50 mb-3">Topic: ${escapeHtml(q.topic)}${q.rating ? ` &middot; Rating: ${escapeHtml(q.rating)}` : ""}</div>` : ""}
+        <a class="btn btn-special" href="${escapeHtml(q.externalUrl)}" target="_blank" rel="noopener noreferrer"><i class="bi bi-code-slash me-1"></i>Open Codeforces Problem</a>
+      </div>`;
+    document.getElementById("backToSpecialListBtn").addEventListener("click", () => renderContent(points));
+    return;
+  }
 
   const samplesHtml = (q.examples || [])
     .map(
