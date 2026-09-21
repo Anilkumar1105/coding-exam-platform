@@ -73,7 +73,7 @@
   </section>
 
   <section class="streak-champions mb-4 d-none" id="streakChampionsSection">
-    <div class="d-flex justify-content-between align-items-center mb-2"><h6 class="fw-semibold mb-0"><i class="bi bi-fire me-2 text-danger"></i>Streak Champions</h6><span class="small text-muted">Keep learning every day 🔥</span></div>
+    <div class="d-flex justify-content-between align-items-center mb-2"><h6 class="fw-semibold mb-0"><i class="bi bi-fire me-2 text-danger"></i>Streak Champions</h6><span class="small text-muted">3+ day streak 🔥</span></div>
     <div id="streakChampionGrid" class="streak-champion-grid"></div>
   </section>
 
@@ -933,10 +933,11 @@
     try {
       const mod = await import("./streak.js");
       const data = await getStreakLeaderboard();
-      const entries = data?.entries || [];
+      // Streak Champions are students currently maintaining 3+ consecutive days.
+      const entries = (data?.entries || []).filter(e => Number(e.streak) >= 3);
       if (!entries.length) { section.classList.add("d-none"); return; }
       section.classList.remove("d-none");
-      grid.innerHTML = entries.map((e, i) => `<div class="streak-champion-card"><div class="streak-rank">${["🥇","🥈","🥉"][i] || "🔥"}</div><div class="flex-grow-1"><strong>${escapeHtml(e.name || "Student")}</strong><div class="small text-muted">${escapeHtml(e.section || "")} · ${e.streak} day${e.streak === 1 ? "" : "s"}</div></div><span class="badge bg-dark">🔥 ${e.streak}</span></div>`).join("");
+      grid.innerHTML = entries.map((e) => `<div class="streak-champion-card"><div class="streak-rank">🔥</div><div class="flex-grow-1"><strong>${escapeHtml(e.name || "Student")}</strong><div class="small text-muted">${escapeHtml(e.section || "")} · ${e.streak} day${e.streak === 1 ? "" : "s"}</div></div><span class="badge bg-dark">🔥 ${e.streak}</span></div>`).join("");
     } catch (_) { section.classList.add("d-none"); }
   }
 
@@ -947,7 +948,7 @@
     // Gracefully skip if the section is not present in an older cached page.
     if (!section || !grid) return;
     const data = await getBestLearner().catch(() => null);
-    const entries = data?.entries || [];
+    const entries = (data?.entries || []).slice(0, 3);
     if (!entries.length) {
       section.classList.add("d-none");
       return;
@@ -960,7 +961,7 @@
   async function renderAllTimePythonTopperStudent() {
     const section = document.getElementById("pythonTopperSection");
     const data = await getAllTimePythonTopper().catch(() => null);
-    const entries = data?.entries || [];
+    const entries = (data?.entries || []).slice(0, 3);
     if (!entries.length) {
       section.classList.add("d-none");
       return;
@@ -975,7 +976,7 @@
   async function renderToppersCarousel() {
     const section = document.getElementById("toppersSection");
     const data = await getWeeklyToppers().catch(() => null);
-    const entries = data?.entries || [];
+    const entries = (data?.entries || []).slice(0, 3);
 
     if (!entries.length) {
       section.classList.add("d-none");
@@ -991,7 +992,7 @@
   async function renderWeeklyCodingToppers() {
     const section = document.getElementById("codingToppersSection");
     const data = await getWeeklyCodingToppers().catch(() => null);
-    const entries = data?.entries || [];
+    const entries = (data?.entries || []).slice(0, 3);
 
     if (!entries.length) {
       section.classList.add("d-none");

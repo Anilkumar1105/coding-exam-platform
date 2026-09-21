@@ -218,12 +218,13 @@ function renderStreakLeaderboardAdmin() {
   const rows = students.map((st) => {
     const stats = calculateStreakStats(byStudent[st.uid] || []);
     return { uid: st.uid, name: st.name, rollNumber: st.rollNumber, section: st.section, streak: stats.currentStreak, bestStreak: stats.bestStreak, todayQualified: stats.todayQualified };
-  }).filter(x => x.streak > 0 || x.bestStreak > 0).sort((a,b) => b.streak - a.streak || b.bestStreak - a.bestStreak || a.name.localeCompare(b.name));
-  const top = rows.slice(0, 10);
-  if (!top.length) { section.classList.add("d-none"); publishStreakLeaderboard([]).catch(()=>{}); return; }
+  }).filter(x => x.streak >= 3).sort((a,b) => b.streak - a.streak || b.bestStreak - a.bestStreak || a.name.localeCompare(b.name));
+  // A Streak Champion is any student maintaining a current streak of 3+ days.
+  // Show all qualifying champions rather than limiting the list to the top 3.
+  if (!rows.length) { section.classList.add("d-none"); publishStreakLeaderboard([]).catch(()=>{}); return; }
   section.classList.remove("d-none");
-  grid.innerHTML = top.map((e,i) => `<div class="streak-champion-card"><div class="streak-rank">${["🥇","🥈","🥉"][i] || `#${i+1}`}</div><div class="flex-grow-1"><strong>${escapeHtmlL(e.name)}</strong><div class="small text-muted">${escapeHtmlL(e.rollNumber || "")} · ${escapeHtmlL(e.section || "")} · Best ${e.bestStreak} days</div></div><div class="text-end"><div class="fw-bold">🔥 ${e.streak}</div><div class="small text-muted">${e.todayQualified ? "Today done" : "Today pending"}</div></div></div>`).join("");
-  publishStreakLeaderboard(top.slice(0,5).map((e,i) => ({ rank:i+1, name:e.name, section:e.section, streak:e.streak, bestStreak:e.bestStreak }))).catch(()=>{});
+  grid.innerHTML = rows.map((e,i) => `<div class="streak-champion-card"><div class="streak-rank">🔥</div><div class="flex-grow-1"><strong>${escapeHtmlL(e.name)}</strong><div class="small text-muted">${escapeHtmlL(e.rollNumber || "")} · ${escapeHtmlL(e.section || "")} · Best ${e.bestStreak} days</div></div><div class="text-end"><div class="fw-bold">🔥 ${e.streak}</div><div class="small text-muted">${e.todayQualified ? "Today done" : "Today pending"}</div></div></div>`).join("");
+  publishStreakLeaderboard(rows.map((e,i) => ({ rank:i+1, name:e.name, section:e.section, streak:e.streak, bestStreak:e.bestStreak }))).catch(()=>{});
 }
 
 let topperCarouselInstances = [];
