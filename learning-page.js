@@ -17,6 +17,7 @@ import {
   computeConceptStatuses,
   allConceptsCompleted
 } from "./learning.js";
+import { recordDailyLogin, recordLearningProblemSolved } from "./streak.js";
 import { ensurePyodide, runAllTestCases } from "./python-runner.js";
 import { computeCodingMarks } from "./grading.js";
 import { awardPointsForCompletedQuestion } from "./points.js";
@@ -40,6 +41,7 @@ if (!levelId) window.location.href = "student-dashboard.html";
 
 requireRole("student", async (user) => {
   currentUser = user;
+  await recordDailyLogin(currentUser.uid).catch(() => {});
   await load();
 });
 
@@ -548,6 +550,7 @@ async function submitPractice(q) {
     // grants more points - see js/points.js.
     if (allTests.length && passedCount === allTests.length) {
       const { awarded, points } = await awardPointsForCompletedQuestion(currentUser.uid, q.id);
+      await recordLearningProblemSolved(currentUser.uid, q.id).catch(() => {});
       if (awarded) showPointsToast(points);
     }
 

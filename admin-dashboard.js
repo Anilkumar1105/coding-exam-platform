@@ -3,6 +3,7 @@
 // exams, questions (MCQ + coding), analytics, results, Excel export.
 
 import { requireRole, wireLogoutButtons } from "./auth.js";
+import { calculateStreakStats } from "./streak.js";
 import {
   SECTIONS,
   addStudent,
@@ -30,6 +31,8 @@ import {
   publishWeeklyCodingToppers,
   publishAllTimePythonTopper,
   listStudentPoints,
+  listDailyLearningActivity,
+  publishStreakLeaderboard,
   publishBestLearner
 } from "./admin.js";
 import {
@@ -88,6 +91,7 @@ let students = [];
 let exams = [];
 let submissions = [];
 let studentPoints = [];
+let dailyLearningActivity = [];
 let currentSectionFilter = "all";
 let editingStudentUid = null;
 let editingExamId = null;
@@ -127,11 +131,12 @@ requireRole("admin", async (user, profile) => {
 });
 
 async function loadEverything() {
-  [students, exams, submissions, studentPoints] = await Promise.all([
+  [students, exams, submissions, studentPoints, dailyLearningActivity] = await Promise.all([
     listStudents("all"),
     listExams(),
     listSubmissions(),
-    listStudentPoints()
+    listStudentPoints(),
+    listDailyLearningActivity()
   ]);
   await loadSchedules();
   renderStudentsTable();
@@ -196,8 +201,29 @@ function renderAnalytics() {
   renderAllTimePythonTopperAdmin();
   renderToppersCarousel();
   renderWeeklyCodingToppers();
+  renderStreakLeaderboardAdmin();
   renderChartPane();
   applyFiltersAndRenderResults();
+}
+
+function renderStreakLeaderboardAdmin() {
+  const section = document.getElementById("streakChampionsSection");
+  const grid = document.getElementById("streakChampionGrid");
+  if (!section || !grid) return;
+  const byStudent = {};
+  for (const a of dailyLearningActivity) {
+    if (!byStudent[a.studentId]) byStudent[a.studentId] = [];
+    byStudent[a.studentId].push(a);
+  }
+  const rows = students.map((st) => {
+    const stats = calculateStreakStats(byStudent[st.uid] || []);
+    return { uid: st.uid, name: st.name, rollNumber: st.rollNumber, section: st.section, streak: stats.currentStreak, bestStreak: stats.bestStreak, todayQualified: stats.todayQualified };
+  }).filter(x => x.streak > 0 || x.bestStreak > 0).sort((a,b) => b.streak - a.streak || b.bestStreak - a.bestStreak || a.name.localeCompare(b.name));
+  const top = rows.slice(0, 10);
+  if (!top.length) { section.classList.add("d-none"); publishStreakLeaderboard([]).catch(()=>{}); return; }
+  section.classList.remove("d-none");
+  grid.innerHTML = top.map((e,i) => `<div class="streak-champion-card"><div class="streak-rank">${["🥇","🥈","🥉"][i] || `#${i+1}`}</div><div class="flex-grow-1"><strong>${escapeHtml(e.name)}</strong><div class="small text-muted">${escapeHtml(e.rollNumber || "")} · ${escapeHtml(e.section || "")} · Best ${e.bestStreak} days</div></div><div class="text-end"><div class="fw-bold">🔥 ${e.streak}</div><div class="small text-muted">${e.todayQualified ? "Today done" : "Today pending"}</div></div></div>`).join("");
+  publishStreakLeaderboard(top.slice(0,5).map((e,i) => ({ rank:i+1, name:e.name, section:e.section, streak:e.streak, bestStreak:e.bestStreak }))).catch(()=>{});
 }
 
 let topperCarouselInstances = [];

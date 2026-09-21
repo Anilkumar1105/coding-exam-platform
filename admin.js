@@ -218,6 +218,20 @@ export async function listStudentPoints() {
   return snap.docs.map((d) => ({ id: d.id, ...d.data() }));
 }
 
+/** Fetch all daily Learning Section activity records for streak calculations. */
+export async function listDailyLearningActivity() {
+  const snap = await getDocs(collection(db, "dailyLearningActivity"));
+  return snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+}
+
+/** Publishes the admin-calculated streak leaderboard for students to read. */
+export function publishStreakLeaderboard(entries) {
+  return setDoc(doc(db, "streakLeaderboard", "current"), {
+    entries,
+    updatedAt: new Date().toISOString()
+  });
+}
+
 /** Publishes the all-time learning-points Best Learner leaderboard. */
 export function publishBestLearner(entries) {
   return setDoc(doc(db, "bestLearner", "current"), {

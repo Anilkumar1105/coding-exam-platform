@@ -185,6 +185,23 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
 
+    // ===================== Daily Learning Streak =====================
+    // One document per student per IST calendar day. A qualifying day
+    // requires both loginAt and solvedAt; students can only write their own.
+    match /dailyLearningActivity/{activityId} {
+      allow read: if isAdmin() || (isSignedIn() && resource.data.studentId == request.auth.uid);
+      allow create: if isSignedIn() && request.resource.data.studentId == request.auth.uid;
+      allow update: if isAdmin() || (isSignedIn() && resource.data.studentId == request.auth.uid && request.resource.data.studentId == request.auth.uid);
+      allow delete: if isAdmin();
+    }
+
+    // Admin-published streak leaderboard. Students can only read the
+    // trimmed public leaderboard, never other students' daily activity.
+    match /streakLeaderboard/{docId} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin();
+    }
+
     // ===================== Special Coding Section =====================
     // Locked until a student reaches 100 Learning Points, earned only
     // from the existing Learning Section (2 points per fully-solved

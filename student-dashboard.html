@@ -51,6 +51,32 @@
     </div>
   </a>
 
+  <section class="streak-hero mb-4" id="studentStreakSection">
+    <div class="streak-glow"></div>
+    <div class="streak-main">
+      <div class="streak-flame" id="streakFlame">🔥</div>
+      <div class="streak-copy">
+        <div class="streak-kicker">DAILY LEARNING STREAK</div>
+        <div class="streak-number"><span id="studentCurrentStreak">0</span> <small>days</small></div>
+        <div class="streak-status" id="studentStreakStatus">Login + solve 1 Learning problem today to start your streak.</div>
+      </div>
+    </div>
+    <div class="streak-progress-wrap">
+      <div class="d-flex justify-content-between align-items-center small text-white-50 mb-2">
+        <span id="streakMilestoneText">Next milestone: 3 days</span>
+        <span id="streakBestText">Best: 0 days</span>
+      </div>
+      <div class="streak-progress-track"><div class="streak-progress-fill" id="studentStreakProgress"></div></div>
+      <div class="streak-week" id="studentStreakWeek"></div>
+    </div>
+    <div class="streak-badge" id="studentStreakBadge">🌱 Start today</div>
+  </section>
+
+  <section class="streak-champions mb-4 d-none" id="streakChampionsSection">
+    <div class="d-flex justify-content-between align-items-center mb-2"><h6 class="fw-semibold mb-0"><i class="bi bi-fire me-2 text-danger"></i>Streak Champions</h6><span class="small text-muted">Keep learning every day 🔥</span></div>
+    <div id="streakChampionGrid" class="streak-champion-grid"></div>
+  </section>
+
   <div class="row g-3 mb-4" id="statCards"></div>
 
   <div id="bestLearnerSection" class="d-none mb-4">
@@ -228,6 +254,7 @@
   import { renderTopperGrid, renderCodingToppers, renderAllTimePythonTopper, renderBestLearner } from "./dashboard.js";
   import { generateReportPDF } from "./pdf-export.js";
   import { listActiveLevels, listProgressForStudent } from "./learning.js";
+  import { recordDailyLogin, getMyDailyLearningActivity, calculateStreakStats, getStreakLeaderboard } from "./streak.js";
 
   wireLogoutButtons();
 
@@ -239,6 +266,7 @@
   requireRole("student", async (user, profile) => {
     currentUser = user;
     studentProfile = profile;
+    await recordDailyLogin(user.uid).catch(() => {});
     document.getElementById("profileName").textContent = profile.name;
     document.getElementById("profileRoll").textContent = profile.rollNumber;
     document.getElementById("profileSection").textContent = profile.section;
@@ -284,6 +312,8 @@
     renderToppersCarousel();
     renderWeeklyCodingToppers();
     renderLearningPointsCard();
+    renderStudentStreak();
+    renderStreakChampions();
     renderAbsentExams(activeExams, submissions);
   });
 
@@ -859,6 +889,55 @@
           </div>`;
       })
       .join("");
+  }
+
+  /* ---------- Daily Learning Streak ---------- */
+  async function renderStudentStreak() {
+    const docs = await getMyDailyLearningActivity(currentUser.uid).catch(() => []);
+    const stats = calculateStreakStats(docs);
+    const current = document.getElementById("studentCurrentStreak");
+    const best = document.getElementById("streakBestText");
+    const status = document.getElementById("studentStreakStatus");
+    const progress = document.getElementById("studentStreakProgress");
+    const milestone = document.getElementById("streakMilestoneText");
+    const badge = document.getElementById("studentStreakBadge");
+    const week = document.getElementById("studentStreakWeek");
+    if (!current) return;
+    current.textContent = stats.currentStreak;
+    best.textContent = `Best: ${stats.bestStreak} days`;
+    milestone.textContent = `Next milestone: ${stats.nextMilestone} days`;
+    const prevMilestones = [0,3,7,14,30,60,100,180,365].filter(n => n <= stats.currentStreak).pop() || 0;
+    const range = Math.max(stats.nextMilestone - prevMilestones, 1);
+    const pct = Math.min(100, Math.round(((stats.currentStreak - prevMilestones) / range) * 100));
+    progress.style.width = `${pct}%`;
+    if (stats.todayQualified) {
+      status.textContent = `🔥 You completed today! Come back tomorrow to keep the streak alive.`;
+      badge.textContent = stats.currentStreak >= 100 ? "💎 100+ Day Legend" : stats.currentStreak >= 30 ? "🏆 30-Day Champion" : stats.currentStreak >= 7 ? "⚡ 7-Day Streak" : "🔥 Streak Active";
+    } else if (stats.currentStreak > 0) {
+      status.textContent = `You are on ${stats.currentStreak} day${stats.currentStreak === 1 ? "" : "s"}. Login + fully solve one Learning problem today!`;
+      badge.textContent = "⏳ Keep it alive today";
+    } else {
+      status.textContent = "Login + fully solve one Learning problem today to start your streak.";
+      badge.textContent = "🌱 Start today";
+    }
+    week.innerHTML = stats.last7.map((d) => {
+      const label = new Intl.DateTimeFormat("en-IN", { timeZone: "Asia/Kolkata", weekday: "short" }).format(new Date(`${d.dateKey}T12:00:00+05:30`)).slice(0,3);
+      return `<div class="streak-day ${d.qualified ? "done" : ""}"><span>${label}</span><b>${d.qualified ? "✓" : "·"}</b></div>`;
+    }).join("");
+  }
+
+  async function renderStreakChampions() {
+    const section = document.getElementById("streakChampionsSection");
+    const grid = document.getElementById("streakChampionGrid");
+    if (!section || !grid) return;
+    try {
+      const mod = await import("./streak.js");
+      const data = await getStreakLeaderboard();
+      const entries = data?.entries || [];
+      if (!entries.length) { section.classList.add("d-none"); return; }
+      section.classList.remove("d-none");
+      grid.innerHTML = entries.map((e, i) => `<div class="streak-champion-card"><div class="streak-rank">${["🥇","🥈","🥉"][i] || "🔥"}</div><div class="flex-grow-1"><strong>${escapeHtml(e.name || "Student")}</strong><div class="small text-muted">${escapeHtml(e.section || "")} · ${e.streak} day${e.streak === 1 ? "" : "s"}</div></div><span class="badge bg-dark">🔥 ${e.streak}</span></div>`).join("");
+    } catch (_) { section.classList.add("d-none"); }
   }
 
   /* ---------- Best Learner (published by admin, read-only here) ---------- */
