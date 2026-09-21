@@ -222,7 +222,7 @@ function renderStreakLeaderboardAdmin() {
   const top = rows.slice(0, 10);
   if (!top.length) { section.classList.add("d-none"); publishStreakLeaderboard([]).catch(()=>{}); return; }
   section.classList.remove("d-none");
-  grid.innerHTML = top.map((e,i) => `<div class="streak-champion-card"><div class="streak-rank">${["🥇","🥈","🥉"][i] || `#${i+1}`}</div><div class="flex-grow-1"><strong>${escapeHtml(e.name)}</strong><div class="small text-muted">${escapeHtml(e.rollNumber || "")} · ${escapeHtml(e.section || "")} · Best ${e.bestStreak} days</div></div><div class="text-end"><div class="fw-bold">🔥 ${e.streak}</div><div class="small text-muted">${e.todayQualified ? "Today done" : "Today pending"}</div></div></div>`).join("");
+  grid.innerHTML = top.map((e,i) => `<div class="streak-champion-card"><div class="streak-rank">${["🥇","🥈","🥉"][i] || `#${i+1}`}</div><div class="flex-grow-1"><strong>${escapeHtmlL(e.name)}</strong><div class="small text-muted">${escapeHtmlL(e.rollNumber || "")} · ${escapeHtmlL(e.section || "")} · Best ${e.bestStreak} days</div></div><div class="text-end"><div class="fw-bold">🔥 ${e.streak}</div><div class="small text-muted">${e.todayQualified ? "Today done" : "Today pending"}</div></div></div>`).join("");
   publishStreakLeaderboard(top.slice(0,5).map((e,i) => ({ rank:i+1, name:e.name, section:e.section, streak:e.streak, bestStreak:e.bestStreak }))).catch(()=>{});
 }
 
