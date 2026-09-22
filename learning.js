@@ -4,6 +4,7 @@
 // by the admin management UI and the student-facing learning page.
 
 import { db } from "./firebase-config.js";
+import { getDocCached, getDocsCached, clearCacheStamp } from "./firestore-cache.js";
 import {
   collection,
   doc,
@@ -28,7 +29,8 @@ export async function listLevels() {
 }
 
 export async function listActiveLevels() {
-  const snap = await getDocs(query(collection(db, "learningLevels"), where("active", "==", true)));
+  const q = query(collection(db, "learningLevels"), where("active", "==", true));
+  const snap = await getDocsCached(q, "active-learning-levels", 300000);
   return snap.docs
     .map((d) => ({ id: d.id, ...d.data() }))
     .sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
@@ -123,6 +125,8 @@ export function progressId(levelId, studentId) {
 }
 
 export async function getProgress(levelId, studentId) {
+  // This is used by write paths (ensureProgress), so keep it authoritative
+  // rather than serving a short-lived dashboard cache.
   const snap = await getDoc(doc(db, "learningProgress", progressId(levelId, studentId)));
   return snap.exists() ? snap.data() : null;
 }
@@ -135,7 +139,8 @@ export async function listProgressForLevel(levelId) {
 
 /** Fetch every progress doc for a student, across all levels. */
 export async function listProgressForStudent(studentId) {
-  const snap = await getDocs(query(collection(db, "learningProgress"), where("studentId", "==", studentId)));
+  const q = query(collection(db, "learningProgress"), where("studentId", "==", studentId));
+  const snap = await getDocsCached(q, `learning-progress-all:${studentId}`, 30000);
   return snap.docs.map((d) => d.data());
 }
 
@@ -160,6 +165,8 @@ async function ensureProgress(levelId, studentId) {
   if (existing) return existing;
   const fresh = emptyProgress(levelId, studentId);
   await setDoc(doc(db, "learningProgress", progressId(levelId, studentId)), fresh);
+  clearCacheStamp(`learning-progress-all:${studentId}`);
+  clearCacheStamp(`learning-progress:${studentId}:${levelId}`);
   return fresh;
 }
 
@@ -176,6 +183,8 @@ export async function markConceptComplete(levelId, studentId, conceptId, allConc
     updatedAt: new Date().toISOString()
   };
   await updateDoc(doc(db, "learningProgress", progressId(levelId, studentId)), data);
+  clearCacheStamp(`learning-progress-all:${studentId}`);
+  clearCacheStamp(`learning-progress:${studentId}:${levelId}`);
   return { ...progress, ...data };
 }
 
@@ -197,6 +206,8 @@ export async function recordMcqAttempt(levelId, studentId, { score, total, perce
     updatedAt: new Date().toISOString()
   };
   await updateDoc(ref, data);
+  clearCacheStamp(`learning-progress-all:${studentId}`);
+  clearCacheStamp(`learning-progress:${studentId}:${levelId}`);
   return data;
 }
 

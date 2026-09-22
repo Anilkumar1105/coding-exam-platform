@@ -254,7 +254,7 @@
   import { renderTopperGrid, renderCodingToppers, renderAllTimePythonTopper, renderBestLearner } from "./dashboard.js";
   import { generateReportPDF } from "./pdf-export.js";
   import { listActiveLevels, listProgressForStudent } from "./learning.js";
-  import { recordDailyLogin, getMyDailyLearningActivity, calculateStreakStats, getStreakLeaderboard } from "./streak.js";
+  import { recordDailyLogin, getMyStreakStats, getStreakLeaderboard } from "./streak.js";
 
   wireLogoutButtons();
 
@@ -893,8 +893,14 @@
 
   /* ---------- Daily Learning Streak ---------- */
   async function renderStudentStreak() {
-    const docs = await getMyDailyLearningActivity(currentUser.uid).catch(() => []);
-    const stats = calculateStreakStats(docs);
+    const stats = await getMyStreakStats(currentUser.uid).catch(() => ({
+      currentStreak: 0,
+      bestStreak: 0,
+      qualifiedDays: 0,
+      todayQualified: false,
+      last7: [],
+      nextMilestone: 3
+    }));
     const current = document.getElementById("studentCurrentStreak");
     const best = document.getElementById("streakBestText");
     const status = document.getElementById("studentStreakStatus");

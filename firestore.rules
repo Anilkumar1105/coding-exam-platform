@@ -195,6 +195,17 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
 
+    // Compact per-student streak summary used by the dashboard. This avoids
+    // reading the entire dailyLearningActivity history on every refresh.
+    // The summary is still owned by the same student, matching the existing
+    // client-side streak model.
+    match /streakStats/{studentId} {
+      allow read: if isAdmin() || (isSignedIn() && request.auth.uid == studentId);
+      allow create: if isSignedIn() && request.auth.uid == studentId && request.resource.data.studentId == studentId;
+      allow update: if isAdmin() || (isSignedIn() && request.auth.uid == studentId && request.resource.data.studentId == studentId);
+      allow delete: if isAdmin();
+    }
+
     // Admin-published streak leaderboard. Students can only read the
     // trimmed public leaderboard, never other students' daily activity.
     match /streakLeaderboard/{docId} {
