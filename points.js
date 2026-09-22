@@ -6,7 +6,6 @@
 // feature never needs write access to more sensitive user fields.
 
 import { db } from "./firebase-config.js";
-import { getDocCached, clearCacheStamp } from "./firestore-cache.js";
 import { doc, getDoc, runTransaction } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
 export const POINTS_PER_COMPLETED_QUESTION = 2;
@@ -24,11 +23,7 @@ function emptyPoints(studentId) {
 
 /** Reads a student's points doc, or a zeroed default if they don't have one yet (no write). */
 export async function getStudentPoints(studentId) {
-  const snap = await getDocCached(
-    doc(db, "studentPoints", studentId),
-    `student-points:${studentId}`,
-    30000
-  );
+  const snap = await getDoc(doc(db, "studentPoints", studentId));
   return snap.exists() ? snap.data() : emptyPoints(studentId);
 }
 
@@ -53,7 +48,7 @@ export function isSpecialSectionUnlocked(points) {
 export async function awardPointsForCompletedQuestion(studentId, questionId) {
   const ref = doc(db, "studentPoints", studentId);
 
-  const result = await runTransaction(db, async (transaction) => {
+  return runTransaction(db, async (transaction) => {
     const snap = await transaction.get(ref);
     const current = snap.exists() ? snap.data() : emptyPoints(studentId);
     const alreadyCompleted = (current.completedCodingQuestionIds || []).includes(questionId);
@@ -72,18 +67,14 @@ export async function awardPointsForCompletedQuestion(studentId, questionId) {
     transaction.set(ref, updated);
     return { points: updated.points, awarded: true };
   });
-  clearCacheStamp(`student-points:${studentId}`);
-  return result;
 }
 
 /** Marks the one-time unlock celebration as shown, so it doesn't replay on every visit. */
 export async function markUnlockCelebrationShown(studentId) {
   const ref = doc(db, "studentPoints", studentId);
-  const result = await runTransaction(db, async (transaction) => {
+  return runTransaction(db, async (transaction) => {
     const snap = await transaction.get(ref);
     const current = snap.exists() ? snap.data() : emptyPoints(studentId);
     transaction.set(ref, { ...current, studentId, unlockCelebrationShown: true, updatedAt: new Date().toISOString() });
   });
-  clearCacheStamp(`student-points:${studentId}`);
-  return result;
 }
