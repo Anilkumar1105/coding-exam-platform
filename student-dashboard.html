@@ -325,48 +325,8 @@
     );
     const totalExamIds = new Set([...activeExams.map((e) => e.id), ...submissions.map((s) => s.examId)]);
     const visibleCompleted = completed.filter((s) => examById[s.examId]?.showResult !== false && s.percentage != null);
-
-    // Average performance includes completed exams and exams for which the
-    // student was marked ABSENT. An absent exam contributes 0%, so for
-    // example 99% + ABSENT(0%) across 2 exams = 49.5%.
-    const countedExamIds = new Set();
-    const countedPercentages = [];
-
-    visibleCompleted.forEach((s) => {
-      countedExamIds.add(s.examId);
-      countedPercentages.push(Number(s.percentage) || 0);
-    });
-
-    // Explicit absent submissions are already recorded in Firestore.
-    submissions.forEach((s) => {
-      if (s.status === "absent" && !countedExamIds.has(s.examId) && examById[s.examId]?.showResult !== false) {
-        countedExamIds.add(s.examId);
-        countedPercentages.push(0);
-      }
-    });
-
-    // Some absent exams are synthesized from the schedule/window rather than
-    // stored as a submission. Count those as 0% too, but never count exams
-    // that are still upcoming/active or were never assigned to this section.
-    activeExams.forEach((exam) => {
-      if (countedExamIds.has(exam.id) || exam.showResult === false) return;
-
-      const submission = findSubmissionForExam(submissions, exam.id);
-      const status = computeExamAccessStatus(
-        exam,
-        submission,
-        schedulesByExamId[exam.id] || [],
-        studentProfile.section
-      );
-
-      if (status === "absent") {
-        countedExamIds.add(exam.id);
-        countedPercentages.push(0);
-      }
-    });
-
-    const avg = countedPercentages.length
-      ? Math.round((countedPercentages.reduce((sum, pct) => sum + pct, 0) / countedPercentages.length) * 100) / 100
+    const avg = visibleCompleted.length
+      ? Math.round((visibleCompleted.reduce((sum, s) => sum + s.percentage, 0) / visibleCompleted.length) * 100) / 100
       : 0;
     const passed = visibleCompleted.filter((s) => isPass(s.percentage)).length;
     const failed = visibleCompleted.length - passed;
