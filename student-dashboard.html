@@ -992,7 +992,7 @@
   async function renderWeeklyCodingToppers() {
     const section = document.getElementById("codingToppersSection");
     const data = await getWeeklyCodingToppers().catch(() => null);
-    const entries = (data?.entries || []).slice(0, 3);
+    const entries = data?.entries || [];
 
     if (!entries.length) {
       section.classList.add("d-none");
