@@ -568,7 +568,15 @@ async function submitPractice(q) {
         const { awarded, points } = await awardPointsForCompletedQuestion(currentUser.uid, q.id);
         if (awarded) showPointsToast(points);
       } catch (pointsErr) {
-        console.warn("Submission saved, but points could not be updated:", pointsErr);
+        // Submission is already safe. Surface the points problem so it is
+        // obvious why the +2 was not added instead of silently losing it.
+        console.error("Submission saved, but points could not be updated:", pointsErr);
+        const detail = pointsErr?.code ? ` (${pointsErr.code})` : "";
+        const pointsNotice = document.createElement("div");
+        pointsNotice.className = "alert alert-warning mt-2 py-2 small";
+        pointsNotice.textContent = `Code submitted successfully, but Learning Points could not be updated${detail}. Please try submitting this fully-correct question again.`;
+        const parent = statusEl?.parentElement;
+        if (parent) parent.appendChild(pointsNotice);
       }
 
       try {
