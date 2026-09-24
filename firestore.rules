@@ -223,12 +223,8 @@ service cloud.firestore {
         request.auth.uid == studentId &&
         request.resource.data.studentId == studentId;
 
-      // Existing point documents created before studentId was added may not
-      // contain resource.data.studentId. Validate the NEW document instead,
-      // while still preventing a student from changing ownership.
       allow update: if isAdmin() ||
-        (isSignedIn() && request.auth.uid == studentId &&
-         request.resource.data.studentId == studentId);
+        (isSignedIn() && request.auth.uid == studentId && resource.data.studentId == studentId);
 
       allow delete: if isAdmin();
     }
