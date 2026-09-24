@@ -36,6 +36,7 @@ let progress = null;
 let view = { type: "concept", id: null }; // current right-panel view
 let mcqAnswers = {};
 let cmEditor = null;
+let learningSubmitInProgress = false;
 
 if (!levelId) window.location.href = "student-dashboard.html";
 
@@ -516,26 +517,37 @@ async function runVisible(q) {
 }
 
 async function submitPractice(q) {
+  // Prevent double-clicks and concurrent Run/Submit operations.
+  if (learningSubmitInProgress) return;
+  learningSubmitInProgress = true;
+
   const statusEl = document.getElementById("learningPythonStatus");
   const resultsEl = document.getElementById("learningTestResults");
+  const submitBtn = document.getElementById("learningSubmitBtn");
+  const runBtn = document.getElementById("learningRunBtn");
+  const sourceCode = cmEditor.getValue();
+
   statusEl.textContent = "Submitting and grading...";
-  document.getElementById("learningSubmitBtn").disabled = true;
+  if (submitBtn) submitBtn.disabled = true;
+  if (runBtn) runBtn.disabled = true;
 
   try {
     const pyodide = await ensurePyodide();
     const allTests = [...(q.visibleTestCases || []), ...(q.hiddenTestCases || [])];
-    const results = await runAllTestCases(pyodide, cmEditor.getValue(), allTests, (q.timeLimit || 5) * 1000);
+    const results = await runAllTestCases(pyodide, sourceCode, allTests, (q.timeLimit || 5) * 1000);
     const passedCount = results.filter((r) => r.passed).length;
     const marksObtained = computeCodingMarks(q.marks, results);
     const totalExecutionTimeMs = results.reduce((sum, r) => sum + (r.executionTimeMs || 0), 0);
     const hadError = results.some((r) => r.executionStatus === "error" || r.executionStatus === "timeout");
 
+    // Save the submission first. Secondary features below must never
+    // turn a successful submission into a false "Could not submit".
     await createLearningCodeSubmission({
       studentId: currentUser.uid,
       levelId,
       questionId: q.id,
       language: "python",
-      sourceCode: cmEditor.getValue(),
+      sourceCode,
       executionStatus: hadError ? "error" : "completed",
       testCasesPassed: passedCount,
       totalTestCases: allTests.length,
@@ -544,25 +556,40 @@ async function submitPractice(q) {
       errorMessage: results.find((r) => r.errorMessage)?.errorMessage || null
     });
 
-    // "Completed" = every test case passed (a true full solve, not a
-    // partial attempt). Awarding is transaction-safe and idempotent
-    // per question, so re-submitting an already-solved question never
-    // grants more points - see js/points.js.
-    if (allTests.length && passedCount === allTests.length) {
-      const { awarded, points } = await awardPointsForCompletedQuestion(currentUser.uid, q.id);
-      await recordLearningProblemSolved(currentUser.uid, q.id).catch(() => {});
-      if (awarded) showPointsToast(points);
-    }
-
-    statusEl.textContent = `Submitted: ${passedCount} / ${allTests.length} test cases passed \u00b7 ${marksObtained} / ${q.marks} marks`;
+    statusEl.textContent = `Submitted: ${passedCount} / ${allTests.length} test cases passed · ${marksObtained} / ${q.marks} marks`;
     resultsEl.innerHTML = results
       .map((r, i) => `<div class="testcase-result ${r.passed ? "pass" : "fail"}"><strong>Test ${i + 1}: ${r.passed ? "PASSED" : "FAILED"}</strong></div>`)
       .join("");
-    renderLearningHistory(q.id);
+
+    // Points/streak are secondary writes. Their failure must not affect
+    // the already-successful code submission.
+    if (allTests.length && passedCount === allTests.length) {
+      try {
+        const { awarded, points } = await awardPointsForCompletedQuestion(currentUser.uid, q.id);
+        if (awarded) showPointsToast(points);
+      } catch (pointsErr) {
+        console.warn("Submission saved, but points could not be updated:", pointsErr);
+      }
+
+      try {
+        await recordLearningProblemSolved(currentUser.uid, q.id);
+      } catch (streakErr) {
+        console.warn("Submission saved, but learning streak could not be updated:", streakErr);
+      }
+    }
+
+    // History is informational only.
+    renderLearningHistory(q.id).catch((historyErr) => {
+      console.warn("Submission saved, but history could not be refreshed:", historyErr);
+    });
   } catch (err) {
-    statusEl.textContent = "Could not submit code.";
+    console.error("Learning code submission failed:", err);
+    const message = err?.message || String(err);
+    statusEl.textContent = `Submission failed: ${message.slice(0, 140)}`;
   } finally {
-    document.getElementById("learningSubmitBtn").disabled = false;
+    learningSubmitInProgress = false;
+    if (submitBtn) submitBtn.disabled = false;
+    if (runBtn) runBtn.disabled = false;
   }
 }
 

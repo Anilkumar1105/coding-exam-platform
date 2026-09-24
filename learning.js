@@ -217,8 +217,10 @@ export async function createLearningCodeSubmission({
   executionTimeMs,
   errorMessage
 }) {
+  // Reuse one document ID across retries. If Firestore accepted the
+  // first write but the response was lost, retrying is still idempotent.
   const ref = doc(collection(db, "learningCodeSubmissions"));
-  await setDoc(ref, {
+  const data = {
     submissionId: ref.id,
     studentId,
     levelId,
@@ -233,8 +235,20 @@ export async function createLearningCodeSubmission({
     executionTimeMs,
     memoryUsage: null,
     errorMessage: errorMessage || null
-  });
-  return ref.id;
+  };
+
+  let lastError = null;
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    try {
+      await setDoc(ref, data);
+      return ref.id;
+    } catch (err) {
+      lastError = err;
+      console.warn(`Learning submission write failed (attempt ${attempt}/3):`, err);
+      if (attempt < 3) await new Promise((resolve) => setTimeout(resolve, 500 * attempt));
+    }
+  }
+  throw lastError || new Error("Unable to save the submission.");
 }
 
 export async function listLearningCodeSubmissions(studentId, questionId) {
