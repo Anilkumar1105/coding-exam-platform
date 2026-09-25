@@ -320,8 +320,8 @@
   /* ---------- Stats ---------- */
   function renderStats(activeExams, submissions) {
     const completed = submissions.filter((s) => s.status === "submitted" || s.status === "auto-submitted");
-    const available = activeExams.filter(
-      (e) => computeExamAccessStatus(e, findSubmissionForExam(submissions, e.id), schedulesByExamId[e.id] || [], studentProfile.section) === "active"
+    const upcoming = activeExams.filter(
+      (e) => computeExamAccessStatus(e, findSubmissionForExam(submissions, e.id), schedulesByExamId[e.id] || [], studentProfile.section) === "upcoming"
     );
     const totalExamIds = new Set([...activeExams.map((e) => e.id), ...submissions.map((s) => s.examId)]);
     const visibleCompleted = completed.filter((s) => examById[s.examId]?.showResult !== false && s.percentage != null);
@@ -334,7 +334,7 @@
     const cards = [
       { label: "Total Exams", value: totalExamIds.size, icon: "bi-journal-code", color: "#4f46e5" },
       { label: "Completed", value: completed.length, icon: "bi-check2-circle", color: "#0ea5e9" },
-      { label: "Available", value: available.length, icon: "bi-hourglass-split", color: "#f59e0b" },
+      { label: "Upcoming Exams", value: upcoming.length, icon: "bi-calendar-event", color: "#f59e0b" },
       { label: "Average Score", value: `${avg}%`, icon: "bi-bar-chart-fill", color: "#8b5cf6" },
       { label: "Passed", value: passed, icon: "bi-check-circle-fill", color: "#10b981" },
       { label: "Failed", value: failed, icon: "bi-x-circle-fill", color: "#ef4444" }
