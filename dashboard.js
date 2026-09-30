@@ -559,9 +559,9 @@ export function computeBestLearner(students, studentPoints) {
     .sort((a, b) => b.points - a.points || String(a.student.name || '').localeCompare(String(b.student.name || '')));
 
   if (!rows.length || rows[0].points <= 0) return [];
-  const topPoints = rows[0].points;
-  return rows.filter((row) => row.points === topPoints).map((row) => ({
-    rank: 1,
+  // Show the top 3 learners, ordered by total learning points.
+  return rows.slice(0, 3).map((row, index) => ({
+    rank: index + 1,
     name: row.student.name,
     rollNumber: row.student.rollNumber,
     section: row.student.section,
@@ -581,10 +581,10 @@ export function renderBestLearner(containerEl, entries) {
       .map((w) => w[0]?.toUpperCase()).join('');
     return `
       <div class="best-learner-card">
-        <div class="best-learner-medal">🏆</div>
+        <div class="best-learner-medal">${t.rank === 1 ? "🥇" : t.rank === 2 ? "🥈" : "🥉"}</div>
         <div class="best-learner-avatar">${initials(t.name)}</div>
         <div class="best-learner-main">
-          <div class="best-learner-badge">#1 BEST LEARNER · ALL TIME</div>
+          <div class="best-learner-badge">#${t.rank} BEST LEARNER · ALL TIME</div>
           <div class="best-learner-name">${esc(t.name)}</div>
           <div class="best-learner-meta">${esc(t.rollNumber)} · ${esc(t.section)}</div>
         </div>
@@ -682,19 +682,17 @@ export function computeAllTimePythonTopper(students, submissions, exams, schedul
 
   if (!eligible.length) return [];
 
-  const topAverage = eligible[0].averagePercentage;
-  return eligible
-    .filter((row) => row.averagePercentage === topAverage)
-    .map((row) => ({
-      rank: 1,
-      name: row.student.name,
-      rollNumber: row.student.rollNumber,
-      section: row.student.section,
-      averagePercentage: row.averagePercentage,
-      codingExams: row.codingExams,
-      mcqExams: row.mcqExams,
-      totalExams: row.examCount
-    }));
+  // Show the top 3 eligible Python performers, ordered by average percentage.
+  return eligible.slice(0, 3).map((row, index) => ({
+    rank: index + 1,
+    name: row.student.name,
+    rollNumber: row.student.rollNumber,
+    section: row.student.section,
+    averagePercentage: row.averagePercentage,
+    codingExams: row.codingExams,
+    mcqExams: row.mcqExams,
+    totalExams: row.examCount
+  }));
 }
 
 /** Renders the premium all-time Python champion section. */
@@ -713,10 +711,10 @@ export function renderAllTimePythonTopper(containerEl, entries) {
 
   containerEl.innerHTML = entries.map((t) => `
     <div class="python-champion-card">
-      <div class="python-champion-medal">👑</div>
+      <div class="python-champion-medal">${t.rank === 1 ? "🥇" : t.rank === 2 ? "🥈" : "🥉"}</div>
       <div class="python-champion-avatar">${initials(t.name)}</div>
       <div class="python-champion-main">
-        <div class="python-champion-badge">ALL-TIME PYTHON CHAMPION</div>
+        <div class="python-champion-badge">#${t.rank} PYTHON TOPPER · TILL NOW</div>
         <div class="python-champion-name">${esc(t.name)}</div>
         <div class="python-champion-meta">${esc(t.rollNumber)} · ${esc(t.section)}</div>
       </div>
