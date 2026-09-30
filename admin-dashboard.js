@@ -622,17 +622,22 @@ function renderStudentsTable() {
           <td>${s.rollNumber}</td>
           <td>${s.name}</td>
           <td><span class="badge bg-secondary">${s.section}</span></td>
-          <td>${s.email}</td>
+          <td>
+            <span>${s.email}</span>
+            <button class="btn btn-sm btn-link p-0 ms-1" data-copy-email="${s.uid}" title="Copy email" aria-label="Copy email"><i class="bi bi-clipboard"></i></button>
+          </td>
           <td>
             ${
               s.passwordPlain
                 ? `<span class="password-mask" data-password-cell="${s.uid}">&bull;&bull;&bull;&bull;&bull;&bull;&bull;&bull;</span>
-                   <button class="btn btn-sm btn-link p-0 ms-1" data-reveal-password="${s.uid}" title="Show/hide"><i class="bi bi-eye"></i></button>`
+                   <button class="btn btn-sm btn-link p-0 ms-1" data-reveal-password="${s.uid}" title="Show/hide"><i class="bi bi-eye"></i></button>
+                   <button class="btn btn-sm btn-link p-0 ms-1" data-copy-password="${s.uid}" title="Copy password" aria-label="Copy password"><i class="bi bi-clipboard"></i></button>`
                 : `<span class="text-muted small">Not set</span>
                    <button class="btn btn-sm btn-link p-0 ms-1" data-set-password="${s.uid}">Set</button>`
             }
           </td>
           <td class="text-end">
+            <button class="btn btn-sm btn-outline-secondary me-1" data-copy-credentials="${s.uid}" title="Copy email and password"><i class="bi bi-copy me-1"></i>Copy Login</button>
             <button class="btn btn-sm btn-outline-primary me-1" data-edit="${s.uid}"><i class="bi bi-pencil"></i></button>
             <button class="btn btn-sm btn-outline-danger" data-delete="${s.uid}"><i class="bi bi-trash"></i></button>
           </td>
@@ -647,6 +652,15 @@ function renderStudentsTable() {
     );
     tbody.querySelectorAll("[data-set-password]").forEach((btn) =>
       btn.addEventListener("click", () => openEditStudent(btn.dataset.setPassword))
+    );
+    tbody.querySelectorAll("[data-copy-email]").forEach((btn) =>
+      btn.addEventListener("click", () => copyStudentCredential(btn.dataset.copyEmail, "email"))
+    );
+    tbody.querySelectorAll("[data-copy-password]").forEach((btn) =>
+      btn.addEventListener("click", () => copyStudentCredential(btn.dataset.copyPassword, "password"))
+    );
+    tbody.querySelectorAll("[data-copy-credentials]").forEach((btn) =>
+      btn.addEventListener("click", () => copyStudentCredential(btn.dataset.copyCredentials, "credentials"))
     );
   }
 
@@ -692,6 +706,45 @@ function wireStudentExportButtons(filtered) {
       filename: `${title.replace(/\s+/g, "-")}.pdf`
     });
   };
+}
+
+async function copyStudentCredential(uid, type) {
+  const student = students.find((s) => s.uid === uid);
+  if (!student) return;
+
+  const email = student.email || "";
+  const password = student.passwordPlain || "";
+  if (type === "password" && !password) return showToast("Password is not set", "warning");
+
+  const text = type === "email"
+    ? email
+    : type === "password"
+      ? password
+      : `Email: ${email}\nPassword: ${password || "Not set"}`;
+
+  try {
+    await navigator.clipboard.writeText(text);
+    showToast(type === "credentials" ? "Email and password copied" : `${type === "email" ? "Email" : "Password"} copied`, "success");
+  } catch (err) {
+    const ta = document.createElement("textarea");
+    ta.value = text;
+    ta.style.position = "fixed";
+    ta.style.opacity = "0";
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand("copy");
+    ta.remove();
+    showToast(type === "credentials" ? "Email and password copied" : `${type === "email" ? "Email" : "Password"} copied`, "success");
+  }
+}
+
+function showToast(message, type = "success") {
+  const toast = document.createElement("div");
+  toast.className = `position-fixed top-0 end-0 m-3 alert alert-${type} shadow`;
+  toast.style.zIndex = "2000";
+  toast.textContent = message;
+  document.body.appendChild(toast);
+  setTimeout(() => toast.remove(), 1800);
 }
 
 function togglePasswordCell(btn) {
