@@ -993,7 +993,13 @@
     if (personal) {
       if (mine) {
         personal.classList.remove("d-none");
-        personal.innerHTML = `<div class="personal-rank-icon">🌟</div><div class="personal-rank-main"><div class="personal-rank-label">YOUR BEST LEARNER RANK</div><div class="personal-rank-value">#${mine.rank}</div><div class="personal-rank-score">${Number(mine.points || 0)} Learning Points</div></div><div class="personal-rank-note">Keep learning and move higher 🚀</div>`;
+        const bestLearnerRank = Number(mine.rank);
+        const bestLearnerNote = bestLearnerRank === 1
+          ? "👑 You're #1! Keep leading the way!"
+          : bestLearnerRank <= 3
+            ? "🔥 You're in the Top 3! Keep pushing for #1!"
+            : "🚀 Keep learning to reach the Top 3!";
+        personal.innerHTML = `<div class="personal-rank-icon">🌟</div><div class="personal-rank-main"><div class="personal-rank-label">YOUR BEST LEARNER RANK</div><div class="personal-rank-value">#${bestLearnerRank}</div><div class="personal-rank-score">${Number(mine.points || 0)} Learning Points</div></div><div class="personal-rank-note">${bestLearnerNote}</div>`;
       } else personal.classList.add("d-none");
     }
   }
@@ -1015,7 +1021,13 @@
     if (personal) {
       if (mine) {
         personal.classList.remove("d-none");
-        personal.innerHTML = `<div class="personal-rank-icon">🏆</div><div class="personal-rank-main"><div class="personal-rank-label">YOUR PYTHON RANK · TILL NOW</div><div class="personal-rank-value">#${mine.rank}</div><div class="personal-rank-score">${Number(mine.averagePercentage || 0).toFixed(2)}% average</div></div><div class="personal-rank-note">Keep practicing to reach the Top 3 🔥</div>`;
+        const pythonRank = Number(mine.rank);
+        const pythonNote = pythonRank === 1
+          ? "👑 You're #1! Keep leading the way!"
+          : pythonRank <= 3
+            ? "🔥 You're in the Top 3! Keep pushing for #1!"
+            : "🚀 Keep practicing to reach the Top 3!";
+        personal.innerHTML = `<div class="personal-rank-icon">🏆</div><div class="personal-rank-main"><div class="personal-rank-label">YOUR PYTHON RANK · TILL NOW</div><div class="personal-rank-value">#${pythonRank}</div><div class="personal-rank-score">${Number(mine.averagePercentage || 0).toFixed(2)}% average</div></div><div class="personal-rank-note">${pythonNote}</div>`;
       } else personal.classList.add("d-none");
     }
   }
