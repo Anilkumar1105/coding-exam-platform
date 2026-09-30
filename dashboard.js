@@ -560,8 +560,9 @@ export function computeBestLearner(students, studentPoints) {
 
   if (!rows.length || rows[0].points <= 0) return [];
   // Show the top 3 learners, ordered by total learning points.
-  return rows.slice(0, 3).map((row, index) => ({
+  return rows.map((row, index) => ({
     rank: index + 1,
+    uid: row.student.uid,
     name: row.student.name,
     rollNumber: row.student.rollNumber,
     section: row.student.section,
@@ -683,8 +684,9 @@ export function computeAllTimePythonTopper(students, submissions, exams, schedul
   if (!eligible.length) return [];
 
   // Show the top 3 eligible Python performers, ordered by average percentage.
-  return eligible.slice(0, 3).map((row, index) => ({
+  return eligible.map((row, index) => ({
     rank: index + 1,
+    uid: row.student.uid,
     name: row.student.name,
     rollNumber: row.student.rollNumber,
     section: row.student.section,

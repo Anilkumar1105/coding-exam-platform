@@ -89,7 +89,8 @@
           <div class="best-learner-subtitle">Top 3 learners ranked by total Learning Points earned.</div>
         </div>
       </div>
-      <div id="bestLearnerGrid" class="best-learner-grid"></div>
+      <div id="bestLearnerPersonalRank" class="personal-rank-card d-none"></div>
+            <div id="bestLearnerGrid" class="best-learner-grid"></div>
       <div class="best-learner-footer"><i class="bi bi-stars me-1"></i>Top 3 learners are ranked by total Learning Points.</div>
     </div>
   </div>
@@ -105,7 +106,8 @@
         </div>
         <div class="python-champion-crown">👑</div>
       </div>
-      <div id="pythonTopperGrid" class="python-champion-grid"></div>
+      <div id="pythonTopperPersonalRank" class="personal-rank-card d-none"></div>
+            <div id="pythonTopperGrid" class="python-champion-grid"></div>
       <div class="python-champion-footer"><i class="bi bi-shield-check me-1"></i>Top 3 eligible students · minimum 3 coding exams and 3 MCQ exams.</div>
     </div>
   </div>
@@ -978,26 +980,44 @@
     // Gracefully skip if the section is not present in an older cached page.
     if (!section || !grid) return;
     const data = await getBestLearner().catch(() => null);
-    const entries = (data?.entries || []).slice(0, 3);
+    const allEntries = data?.entries || [];
+    const entries = allEntries.slice(0, 3);
+    const mine = allEntries.find(e => e.uid === currentUser?.uid);
     if (!entries.length) {
       section.classList.add("d-none");
       return;
     }
     section.classList.remove("d-none");
     renderBestLearner(grid, entries);
+    const personal = document.getElementById("bestLearnerPersonalRank");
+    if (personal) {
+      if (mine) {
+        personal.classList.remove("d-none");
+        personal.innerHTML = `<div class="personal-rank-icon">🌟</div><div class="personal-rank-main"><div class="personal-rank-label">YOUR BEST LEARNER RANK</div><div class="personal-rank-value">#${mine.rank}</div><div class="personal-rank-score">${Number(mine.points || 0)} Learning Points</div></div><div class="personal-rank-note">Keep learning and move higher 🚀</div>`;
+      } else personal.classList.add("d-none");
+    }
   }
 
   /* ---------- All-time Python topper (published by admin, read-only here) ---------- */
   async function renderAllTimePythonTopperStudent() {
     const section = document.getElementById("pythonTopperSection");
     const data = await getAllTimePythonTopper().catch(() => null);
-    const entries = (data?.entries || []).slice(0, 3);
+    const allEntries = data?.entries || [];
+    const entries = allEntries.slice(0, 3);
+    const mine = allEntries.find(e => e.uid === currentUser?.uid);
     if (!entries.length) {
       section.classList.add("d-none");
       return;
     }
     section.classList.remove("d-none");
     renderAllTimePythonTopper(document.getElementById("pythonTopperGrid"), entries);
+    const personal = document.getElementById("pythonTopperPersonalRank");
+    if (personal) {
+      if (mine) {
+        personal.classList.remove("d-none");
+        personal.innerHTML = `<div class="personal-rank-icon">🏆</div><div class="personal-rank-main"><div class="personal-rank-label">YOUR PYTHON RANK · TILL NOW</div><div class="personal-rank-value">#${mine.rank}</div><div class="personal-rank-score">${Number(mine.averagePercentage || 0).toFixed(2)}% average</div></div><div class="personal-rank-note">Keep practicing to reach the Top 3 🔥</div>`;
+      } else personal.classList.add("d-none");
+    }
   }
 
   /* ---------- Toppers of the Week (published by admin, read-only here) ---------- */
@@ -1060,5 +1080,10 @@
     }
   }
 </script>
+
+<style>
+.personal-rank-card{display:flex;align-items:center;gap:16px;padding:14px 18px;margin:12px 0 16px;border:1px solid rgba(13,110,253,.15);border-radius:16px;background:linear-gradient(135deg,rgba(13,110,253,.08),rgba(255,193,7,.08));box-shadow:0 4px 14px rgba(0,0,0,.05)}
+.personal-rank-icon{font-size:2rem}.personal-rank-main{flex:1}.personal-rank-label{font-size:.72rem;font-weight:800;letter-spacing:.08em;color:#6c757d}.personal-rank-value{font-size:1.7rem;font-weight:900;line-height:1.1}.personal-rank-score{font-weight:700;color:#495057}.personal-rank-note{font-size:.9rem;font-weight:700;text-align:right;color:#495057}@media(max-width:576px){.personal-rank-card{align-items:flex-start}.personal-rank-note{display:none}}
+</style>
 </body>
 </html>

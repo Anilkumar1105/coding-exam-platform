@@ -273,7 +273,7 @@ function renderBestLearnerAdmin() {
   }
 
   section.classList.remove("d-none");
-  renderBestLearner(document.getElementById("bestLearnerGrid"), entries);
+  renderBestLearner(document.getElementById("bestLearnerGrid"), entries.slice(0, 3));
   publishBestLearner(entries).then(() => { bestLearnerPublished = true; }).catch(() => {});
 }
 
@@ -290,7 +290,7 @@ function renderAllTimePythonTopperAdmin() {
   }
 
   section.classList.remove("d-none");
-  renderAllTimePythonTopper(document.getElementById("pythonTopperGrid"), entries);
+  renderAllTimePythonTopper(document.getElementById("pythonTopperGrid"), entries.slice(0, 3));
   publishAllTimePythonTopper(entries).then(() => { pythonTopperPublished = true; }).catch(() => {});
 }
 
