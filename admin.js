@@ -337,7 +337,7 @@ const ALL_BORDERS = { top: THIN_BORDER, left: THIN_BORDER, bottom: THIN_BORDER, 
 export async function exportResultsToExcel(
   rows,
   columns,
-  { filename = "results.xlsx", sheetName = "Results", title = "", filtersText = "" } = {}
+  { filename = "results.xlsx", sheetName = "Results", title = "", filtersText = "", summaryCards = [] } = {}
 ) {
   if (typeof ExcelJS === "undefined") {
     alert("Excel export library did not load. Check your internet connection and try again.");
@@ -353,6 +353,7 @@ export async function exportResultsToExcel(
   if (title) metaLines.push({ text: title, font: { bold: true, size: 14, color: { argb: "FF1F2937" } } });
   if (title) metaLines.push({ text: `Generated on: ${new Date().toLocaleString()}`, font: { italic: true, size: 10, color: { argb: "FF6B7280" } } });
   if (filtersText) metaLines.push({ text: `Filters: ${filtersText}`, font: { italic: true, size: 10, color: { argb: "FF6B7280" } } });
+  if (summaryCards.length) metaLines.push({ text: summaryCards.map((c) => `${c.label}: ${c.value}`).join("   |   "), font: { bold: true, size: 10, color: { argb: "FF374151" } } });
 
   const headerRowNum = metaLines.length ? metaLines.length + 2 : 1; // +1 blank spacer row before headers
   const sheet = workbook.addWorksheet(sheetName, { views: [{ state: "frozen", ySplit: headerRowNum }] });

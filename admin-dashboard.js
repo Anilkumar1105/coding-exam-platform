@@ -537,6 +537,19 @@ function applyFiltersAndRenderResults() {
     { key: "submittedAt", label: "Submitted Time", width: 22, type: "date" }
   ];
 
+  const totalCount = rows.length;
+  const absentCount = rows.filter((r) => r.status === "absent").length;
+  const presentCount = totalCount - absentCount;
+  const passCount = rows.filter((r) => r.result === "PASS").length;
+  const failCount = rows.filter((r) => r.result === "FAIL").length;
+  const resultSummary = [
+    { label: "Total", value: totalCount },
+    { label: "Present", value: presentCount },
+    { label: "Pass", value: passCount },
+    { label: "Fail", value: failCount },
+    { label: "Absent", value: absentCount }
+  ];
+
   document.getElementById("exportExcelBtn").onclick = async () => {
     const btn = document.getElementById("exportExcelBtn");
     btn.disabled = true;
@@ -545,7 +558,8 @@ function applyFiltersAndRenderResults() {
         filename: `${reportTitle.replace(/\s+/g, "-")}.xlsx`,
         sheetName: "Results",
         title: reportTitle,
-        filtersText
+        filtersText,
+        summaryCards: resultSummary
       });
     } finally {
       btn.disabled = false;
@@ -553,25 +567,16 @@ function applyFiltersAndRenderResults() {
   };
 
   document.getElementById("exportResultsPdfBtn").onclick = () => {
-    const scores = rows.map((r) => r.status === "absent" ? 0 : Number(r.percentage)).filter((n) => Number.isFinite(n));
-    const passCount = rows.filter((r) => r.result === "PASS").length;
-    const failCount = rows.filter((r) => r.result === "FAIL").length;
-    const avg = scores.length ? Math.round((scores.reduce((a, b) => a + b, 0) / scores.length) * 100) / 100 : 0;
-
     generateReportPDF({
       title: reportTitle,
       filtersText,
-      summaryCards: [
-        { label: "Total Records", value: rows.length },
-        { label: "Average %", value: `${avg}%` },
-        { label: "Passed", value: passCount },
-        { label: "Failed", value: failCount }
-      ],
+      summaryCards: resultSummary,
       columns: resultColumns,
       rows,
       filename: `${reportTitle.replace(/\s+/g, "-")}.pdf`
     });
   };
+
 }
 
 /* ============================================================
