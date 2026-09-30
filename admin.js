@@ -271,6 +271,45 @@ export async function listSubmissions() {
   return snap.docs.map((d) => ({ id: d.id, ...d.data() }));
 }
 
+/**
+ * Updates an existing exam result's marks from the Admin Results screen.
+ * Only score/percentage are changed; original answers and grading data stay intact.
+ */
+export function updateSubmissionMarks(submissionId, { score, percentage, totalMarks, resultNote, updatedBy }) {
+  return updateDoc(doc(db, "submissions", submissionId), {
+    score: Number(score),
+    percentage: Number(percentage),
+    totalMarks: Number(totalMarks),
+    manualMarksOverride: true,
+    manualMarksUpdatedAt: new Date().toISOString(),
+    manualMarksUpdatedBy: updatedBy || null,
+    manualMarksNote: resultNote || "",
+    status: "submitted",
+    submittedAt: new Date().toISOString()
+  });
+}
+
+/**
+ * Creates a result when an admin manually awards marks to a student who
+ * currently has no submission document (for example a synthesized ABSENT row).
+ */
+export function createManualSubmission(data) {
+  return addDoc(collection(db, "submissions"), {
+    ...data,
+    score: Number(data.score),
+    percentage: Number(data.percentage),
+    totalMarks: Number(data.totalMarks),
+    status: data.status || "submitted",
+    answers: data.answers || {},
+    violations: Number(data.violations || 0),
+    manualMarksOverride: true,
+    manualMarksUpdatedAt: new Date().toISOString(),
+    manualMarksUpdatedBy: data.updatedBy || null,
+    manualMarksNote: data.resultNote || "",
+    submittedAt: data.submittedAt || new Date().toISOString()
+  });
+}
+
 /* ============================================================
    EXCEL EXPORT (ExcelJS - loaded globally as `ExcelJS` via CDN script)
    ============================================================ */

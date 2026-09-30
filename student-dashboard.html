@@ -325,11 +325,22 @@
     );
     const totalExamIds = new Set([...activeExams.map((e) => e.id), ...submissions.map((s) => s.examId)]);
     const visibleCompleted = completed.filter((s) => examById[s.examId]?.showResult !== false && s.percentage != null);
-    const avg = visibleCompleted.length
-      ? Math.round((visibleCompleted.reduce((sum, s) => sum + s.percentage, 0) / visibleCompleted.length) * 100) / 100
+    const absentActive = activeExams
+      .map((exam) => ({ exam, sub: findSubmissionForExam(submissions, exam.id) }))
+      .filter(({ exam, sub }) =>
+        exam.showResult !== false &&
+        computeExamAccessStatus(exam, sub, schedulesByExamId[exam.id] || [], studentProfile.section) === "absent"
+      )
+      .filter(({ sub }) => !sub || sub.status === "absent" || sub.status === "in-progress");
+    const averageScores = [
+      ...visibleCompleted.map((s) => Number(s.percentage)),
+      ...absentActive.map(() => 0)
+    ].filter((n) => Number.isFinite(n));
+    const avg = averageScores.length
+      ? Math.round((averageScores.reduce((sum, n) => sum + n, 0) / averageScores.length) * 100) / 100
       : 0;
     const passed = visibleCompleted.filter((s) => isPass(s.percentage)).length;
-    const failed = visibleCompleted.length - passed;
+    const failed = visibleCompleted.length - passed + absentActive.length;
 
     const cards = [
       { label: "Total Exams", value: totalExamIds.size, icon: "bi-journal-code", color: "#4f46e5" },
@@ -672,9 +683,28 @@
           };
         });
 
-      const visible = rows.filter((r) => typeof r.percentage === "number");
+      const activeAbsentRows = activeExams
+        .map((exam) => ({ exam, sub: findSubmissionForExam(submissions, exam.id) }))
+        .filter(({ exam, sub }) =>
+          exam.showResult !== false &&
+          computeExamAccessStatus(exam, sub, schedulesByExamId[exam.id] || [], studentProfile.section) === "absent" &&
+          (!sub || sub.status === "absent" || sub.status === "in-progress")
+        )
+        .filter(({ sub }) => !sub || sub.status !== "absent")
+        .map(({ exam }) => ({
+          examTitle: exam.title || "Deleted exam",
+          examType: (exam.examType || "mcq").toUpperCase(),
+          score: "0",
+          percentage: 0,
+          result: "ABSENT",
+          violations: 0,
+          submittedAt: null
+        }));
+      rows.push(...activeAbsentRows);
+
+      const visible = rows.filter((r) => typeof r.percentage === "number" || r.result === "ABSENT");
       const avg = visible.length
-        ? Math.round((visible.reduce((sum, r) => sum + r.percentage, 0) / visible.length) * 100) / 100
+        ? Math.round((visible.reduce((sum, r) => sum + (r.result === "ABSENT" ? 0 : Number(r.percentage)), 0) / visible.length) * 100) / 100
         : 0;
 
       generateReportPDF({

@@ -21,6 +21,8 @@ import {
   updateQuestionDoc,
   deleteQuestionDoc,
   listSubmissions,
+  updateSubmissionMarks,
+  createManualSubmission,
   exportResultsToExcel,
   MAX_SCHEDULES_PER_EXAM,
   listSchedulesForExam,
@@ -55,7 +57,7 @@ import {
   renderBestLearner
 } from "./dashboard.js";
 import { generateReportPDF } from "./pdf-export.js";
-import { formatExamWindow, describeExamWindow, formatScheduleWindow, formatScheduleSections } from "./grading.js";
+import { formatExamWindow, describeExamWindow, formatScheduleWindow, formatScheduleSections, isPass } from "./grading.js";
 import { auth } from "./firebase-config.js";
 import { listCodeSubmissionsForExam } from "./student.js";
 import {
@@ -145,6 +147,14 @@ async function loadEverything() {
   renderAnalytics();
 }
 
+
+document.getElementById("resultMarksScoreInput")?.addEventListener("input", updateResultMarksPreview);
+document.getElementById("resultMarksTotalInput")?.addEventListener("input", updateResultMarksPreview);
+document.getElementById("resultMarksForm")?.addEventListener("submit", (event) => {
+  event.preventDefault();
+  saveResultMarks();
+});
+
 async function loadSchedules() {
   const entries = await Promise.all(exams.map(async (ex) => [ex.id, await listSchedulesForExam(ex.id)]));
   schedulesByExamId = Object.fromEntries(entries);
@@ -191,10 +201,10 @@ document.getElementById("sidebarToggle").addEventListener("click", () => {
    ANALYTICS
    ============================================================ */
 function renderAnalytics() {
-  const stats = computeOverallStats(students, exams, submissions);
+  const stats = computeOverallStats(students, exams, submissions, schedulesByExamId);
   renderStatCards(document.getElementById("statCards"), stats);
 
-  const sectionStats = computeSectionStats(students, submissions);
+  const sectionStats = computeSectionStats(students, submissions, "all", schedulesByExamId, exams);
   renderSectionTable(document.getElementById("sectionTableBody"), sectionStats);
 
   renderBestLearnerAdmin();
@@ -271,7 +281,7 @@ let pythonTopperPublished = false;
 
 function renderAllTimePythonTopperAdmin() {
   const section = document.getElementById("pythonTopperSection");
-  const entries = computeAllTimePythonTopper(students, submissions, exams);
+  const entries = computeAllTimePythonTopper(students, submissions, exams, schedulesByExamId);
 
   if (!entries.length) {
     section.classList.add("d-none");
@@ -316,7 +326,7 @@ function renderChartPane() {
   filterEl.value = [...filterEl.options].some((o) => o.value === previousValue) ? previousValue : "all";
   filterEl.onchange = renderChartPane;
 
-  const chartSectionStats = computeSectionStats(students, submissions, filterEl.value);
+  const chartSectionStats = computeSectionStats(students, submissions, filterEl.value, schedulesByExamId, exams);
   sectionChartInstance = renderSectionChart(
     document.getElementById("sectionChart"),
     chartSectionStats,
@@ -352,10 +362,161 @@ function currentFilters() {
   };
 }
 
+
+let editingResultContext = null;
+
+function updateResultMarksPreview() {
+  const score = Number(document.getElementById("resultMarksScoreInput")?.value);
+  const total = Number(document.getElementById("resultMarksTotalInput")?.value);
+  const pctEl = document.getElementById("resultMarksPercentagePreview");
+  const resultEl = document.getElementById("resultMarksResultPreview");
+  if (!pctEl || !resultEl) return;
+
+  if (!Number.isFinite(score) || !Number.isFinite(total) || total <= 0) {
+    pctEl.textContent = "0%";
+    resultEl.textContent = "-";
+    resultEl.className = "";
+    return;
+  }
+  const pct = Math.round((score / total) * 10000) / 100;
+  pctEl.textContent = `${pct}%`;
+  const pass = isPass(pct);
+  resultEl.textContent = pass ? "PASS" : "FAIL";
+  resultEl.className = pass ? "text-success" : "text-danger";
+}
+
+function openResultMarksModal(row) {
+  const exam = exams.find((e) => e.id === row.examId);
+  const student = students.find((s) => s.uid === row.studentId);
+  if (!exam || !student) return;
+
+  const existing = row.submissionId ? submissions.find((s) => s.id === row.submissionId) : null;
+  editingResultContext = { row, existing };
+
+  document.getElementById("resultMarksStudentInfo").textContent =
+    `${student.rollNumber || ""} · ${student.name || ""} · ${student.section || ""}`;
+  document.getElementById("resultMarksExamInput").value = exam.title || "";
+  document.getElementById("resultMarksScoreInput").value =
+    existing?.score ?? row.score ?? 0;
+  document.getElementById("resultMarksTotalInput").value =
+    existing?.totalMarks ?? row.totalMarks ?? exam.totalMarks ?? 0;
+  document.getElementById("resultMarksNoteInput").value =
+    existing?.manualMarksNote || "";
+  document.getElementById("resultMarksFormError").classList.add("d-none");
+  updateResultMarksPreview();
+
+  const modal = bootstrap.Modal.getOrCreateInstance(document.getElementById("resultMarksModal"));
+  modal.show();
+}
+
+async function saveResultMarks() {
+  const errorEl = document.getElementById("resultMarksFormError");
+  const btn = document.getElementById("saveResultMarksBtn");
+  const score = Number(document.getElementById("resultMarksScoreInput").value);
+  const totalMarks = Number(document.getElementById("resultMarksTotalInput").value);
+  const note = document.getElementById("resultMarksNoteInput").value.trim();
+  const { row, existing } = editingResultContext || {};
+
+  if (!row) return;
+  if (!Number.isFinite(totalMarks) || totalMarks <= 0) {
+    errorEl.textContent = "Total marks must be greater than 0.";
+    errorEl.classList.remove("d-none");
+    return;
+  }
+  if (!Number.isFinite(score) || score < 0 || score > totalMarks) {
+    errorEl.textContent = `Marks must be between 0 and ${totalMarks}.`;
+    errorEl.classList.remove("d-none");
+    return;
+  }
+
+  const percentage = Math.round((score / totalMarks) * 10000) / 100;
+  btn.disabled = true;
+  errorEl.classList.add("d-none");
+
+  try {
+    if (row.submissionId) {
+      await updateSubmissionMarks(row.submissionId, {
+        score,
+        percentage,
+        totalMarks,
+        resultNote: note,
+        updatedBy: auth.currentUser?.uid
+      });
+      const local = submissions.find((s) => s.id === row.submissionId);
+      if (local) {
+        Object.assign(local, {
+          score,
+          percentage,
+          totalMarks,
+          status: "submitted",
+          submittedAt: new Date().toISOString(),
+          manualMarksOverride: true,
+          manualMarksNote: note
+        });
+      }
+    } else {
+      const student = students.find((s) => s.uid === row.studentId);
+      const exam = exams.find((e) => e.id === row.examId);
+      if (!student || !exam) throw new Error("Student or exam could not be found.");
+
+      const created = await createManualSubmission({
+        examId: exam.id,
+        studentId: student.uid,
+        rollNumber: student.rollNumber,
+        section: student.section,
+        score,
+        percentage,
+        totalMarks,
+        status: "submitted",
+        violations: 0,
+        submittedAt: new Date().toISOString(),
+        updatedBy: auth.currentUser?.uid,
+        resultNote: note
+      });
+
+      submissions.push({
+        id: created.id,
+        examId: exam.id,
+        studentId: student.uid,
+        rollNumber: student.rollNumber,
+        section: student.section,
+        score,
+        percentage,
+        totalMarks,
+        status: "submitted",
+        violations: 0,
+        submittedAt: new Date().toISOString(),
+        manualMarksOverride: true,
+        manualMarksNote: note
+      });
+    }
+
+    bootstrap.Modal.getInstance(document.getElementById("resultMarksModal"))?.hide();
+    renderAnalytics();
+  } catch (err) {
+    errorEl.textContent = err?.message || "Could not save marks.";
+    errorEl.classList.remove("d-none");
+  } finally {
+    btn.disabled = false;
+  }
+}
+
 function applyFiltersAndRenderResults() {
   const filters = currentFilters();
   const rows = buildResultRowsWithAbsent(submissions, students, exams, filters, schedulesByExamId);
   renderResultsTable(document.getElementById("resultsTableBody"), rows);
+
+  document.querySelectorAll("[data-edit-result]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const rows = buildResultRowsWithAbsent(submissions, students, exams, currentFilters(), schedulesByExamId);
+      const row = rows.find((r) =>
+        String(r.studentId) === String(btn.dataset.studentId) &&
+        String(r.examId) === String(btn.dataset.examId) &&
+        String(r.submissionId || "") === String(btn.dataset.submissionId || "")
+      );
+      if (row) openResultMarksModal(row);
+    });
+  });
 
   document.querySelectorAll("[data-view-code]").forEach((btn) => {
     btn.addEventListener("click", () => openCodeSubmissionsModal(btn.dataset.viewCode, btn.dataset.examId));
@@ -392,7 +553,7 @@ function applyFiltersAndRenderResults() {
   };
 
   document.getElementById("exportResultsPdfBtn").onclick = () => {
-    const scores = rows.map((r) => Number(r.percentage)).filter((n) => !Number.isNaN(n));
+    const scores = rows.map((r) => r.status === "absent" ? 0 : Number(r.percentage)).filter((n) => Number.isFinite(n));
     const passCount = rows.filter((r) => r.result === "PASS").length;
     const failCount = rows.filter((r) => r.result === "FAIL").length;
     const avg = scores.length ? Math.round((scores.reduce((a, b) => a + b, 0) / scores.length) * 100) / 100 : 0;

@@ -15,20 +15,27 @@ function round(n) {
  * Computes the top-level stat cards from raw students + submissions.
  * A student is "attempted" if they have at least one submission.
  */
-export function computeOverallStats(students, exams, submissions) {
+export function computeOverallStats(students, exams, submissions, schedulesByExamId = {}) {
   const attemptedIds = new Set(submissions.map((s) => s.studentId));
   const totalStudents = students.length;
   const attempted = attemptedIds.size;
   const notAttempted = Math.max(totalStudents - attempted, 0);
 
-  const scores = submissions
+  // For averages, an ABSENT exam is a real zero-score attempt. Missing
+  // submission rows are synthesized from closed exam windows below.
+  const absentRows = buildAbsentRows(students, submissions.filter((s) => s.status !== "absent"), exams, {}, schedulesByExamId);
+  const scoreRows = [
+    ...submissions.map((s) => ({ ...s, percentage: s.status === "absent" ? 0 : Number(s.percentage) })),
+    ...absentRows.map((s) => ({ ...s, percentage: 0 }))
+  ];
+  const scores = scoreRows
     .map((s) => Number(s.percentage))
-    .filter((n) => !Number.isNaN(n));
+    .filter((n) => Number.isFinite(n));
 
   const average = scores.length ? round(scores.reduce((a, b) => a + b, 0) / scores.length) : 0;
   const highest = scores.length ? round(Math.max(...scores)) : 0;
   const lowest = scores.length ? round(Math.min(...scores)) : 0;
-  const passed = scores.filter((s) => isPass(s)).length;
+  const passed = scoreRows.filter((s) => Number.isFinite(Number(s.percentage)) && isPass(Number(s.percentage))).length;
   const passPercentage = scores.length ? round((passed / scores.length) * 100) : 0;
 
   return {
@@ -48,8 +55,9 @@ export function computeOverallStats(students, exams, submissions) {
  * Pass `examId` to restrict to one exam's submissions; "all" (default)
  * combines every exam's submissions per section.
  */
-export function computeSectionStats(students, submissions, examId = "all") {
+export function computeSectionStats(students, submissions, examId = "all", schedulesByExamId = {}, exams = []) {
   const scoped = examId === "all" ? submissions : submissions.filter((s) => s.examId === examId);
+  const scopedExams = examId === "all" ? exams : exams.filter((e) => e.id === examId);
 
   return SECTIONS.map((section) => {
     const sectionStudents = students.filter((s) => s.section === section);
@@ -57,9 +65,17 @@ export function computeSectionStats(students, submissions, examId = "all") {
     const sectionSubs = scoped.filter((sub) => sectionIds.has(sub.studentId));
     const attemptedIds = new Set(sectionSubs.map((s) => s.studentId));
 
-    const scores = sectionSubs
-      .map((s) => Number(s.percentage))
-      .filter((n) => !Number.isNaN(n));
+    const sectionAbsentRows = buildAbsentRows(
+      sectionStudents,
+      scoped.filter((s) => s.status !== "absent"),
+      scopedExams,
+      {},
+      schedulesByExamId
+    );
+    const scores = [
+      ...sectionSubs.map((s) => (s.status === "absent" ? 0 : Number(s.percentage))),
+      ...sectionAbsentRows.map(() => 0)
+    ].filter((n) => Number.isFinite(n));
 
     const average = scores.length ? round(scores.reduce((a, b) => a + b, 0) / scores.length) : 0;
     const highest = scores.length ? round(Math.max(...scores)) : 0;
@@ -229,10 +245,18 @@ export function renderResultsTable(tbodyEl, rows) {
         <td>${statusBadge(r.status)}</td>
         <td>${r.violations ?? 0}</td>
         <td>${r.submittedAt ? new Date(r.submittedAt).toLocaleString() : "-"}</td>
-        <td class="text-end">
+        <td class="text-end text-nowrap">
+          <button class="btn btn-sm btn-outline-primary me-1"
+            data-edit-result="true"
+            data-submission-id="${r.submissionId || ""}"
+            data-student-id="${r.studentId}"
+            data-exam-id="${r.examId}"
+            title="${r.status === "absent" ? "Add Marks" : "Edit Marks"}">
+            <i class="bi bi-pencil-square"></i>
+          </button>
           ${
             r.examType === "coding" && r.status !== "absent"
-              ? `<button class="btn btn-sm btn-outline-secondary" data-view-code="${r.studentId}" data-exam-id="${r.examId}"><i class="bi bi-code-slash"></i></button>`
+              ? `<button class="btn btn-sm btn-outline-secondary" data-view-code="${r.studentId}" data-exam-id="${r.examId}" title="View Code"><i class="bi bi-code-slash"></i></button>`
               : ""
           }
         </td>
@@ -276,6 +300,7 @@ export function buildResultRows(submissions, students, exams, filters = {}) {
         rollNumber: sub.rollNumber || student.rollNumber,
         name: student.name,
         section: sub.section || student.section,
+        submissionId: sub.id,
         examId: sub.examId,
         examTitle: exam.title,
         examType: exam.examType,
@@ -350,6 +375,7 @@ export function buildAbsentRows(students, submissions, exams, filters = {}, sche
         examId: exam.id,
         examTitle: exam.title,
         examType: exam.examType,
+        submissionId: sub?.id || null,
         score: null,
         percentage: null,
         result: "ABSENT",
@@ -571,7 +597,7 @@ export function renderBestLearner(containerEl, entries) {
   }).join('');
 }
 
-export function computeAllTimePythonTopper(students, submissions, exams) {
+export function computeAllTimePythonTopper(students, submissions, exams, schedulesByExamId = {}) {
   const examById = new Map(exams.map((e) => [e.id, e]));
   const studentById = new Map(students.map((s) => [s.uid, s]));
   const totals = new Map();
@@ -611,6 +637,36 @@ export function computeAllTimePythonTopper(students, submissions, exams) {
     current.percentageSum += percentage;
     current.examCount += 1;
     totals.set(sub.studentId, current);
+  });
+
+  // Closed scheduled exams with no submission count as 0% in the
+  // average, but do NOT satisfy the minimum completed-exam eligibility.
+  const absentRows = buildAbsentRows(
+    students,
+    submissions.filter((s) => s.status !== "absent"),
+    exams,
+    {},
+    schedulesByExamId
+  );
+  absentRows.forEach((row) => {
+    const exam = examById.get(row.examId);
+    const student = studentById.get(row.studentId);
+    if (!exam || !student) return;
+    const isCoding = exam.examType === "coding";
+    const isPythonCoding = isCoding && (
+      !exam.language ||
+      String(exam.language).toLowerCase() === "python" ||
+      (Array.isArray(exam.allowedLanguages) && exam.allowedLanguages.some((l) => String(l).toLowerCase() === "python"))
+    );
+    const isMcq = exam.examType === "mcq";
+    if (!isPythonCoding && !isMcq) return;
+
+    const current = totals.get(row.studentId) || {
+      student, codingExams: 0, mcqExams: 0, percentageSum: 0, examCount: 0
+    };
+    current.percentageSum += 0;
+    current.examCount += 1;
+    totals.set(row.studentId, current);
   });
 
   const eligible = [...totals.values()]
