@@ -12,7 +12,8 @@ import {
   query,
   where,
   documentId,
-  getDocs
+  getDocs,
+  onSnapshot
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
 /** Fetch all exams currently marked active (visible to students). */
@@ -80,6 +81,34 @@ export async function getBestLearner() {
 /** Read-only: fetch an exam's schedules, sorted earliest-first. Both
  *  admin.js (management UI) and student-facing pages import this from
  *  here so student pages never need to pull in admin-only Auth code. */
+/**
+ * Keep exam-schedule caches coherent across different student browsers.
+ *
+ * A single tiny version document is listened to instead of listening to the
+ * entire examSchedules collection. When an admin changes any schedule, the
+ * version changes and every open student tab invalidates only its schedule
+ * cache. Refreshing a page also receives the current version immediately, so
+ * a stale cached schedule is discarded without requiring logout/login.
+ */
+export function watchExamScheduleChanges() {
+  const versionRef = doc(db, "cacheVersions", "examSchedules");
+  const storageKey = "cep:exam-schedule-cache-version";
+  let lastVersion = null;
+  try { lastVersion = sessionStorage.getItem(storageKey); } catch {}
+
+  return onSnapshot(versionRef, (snap) => {
+    const version = snap.exists() ? String(snap.data()?.version || "") : "";
+    if (!version) return;
+    if (lastVersion && lastVersion !== version) {
+      invalidateCollection("examSchedules");
+    }
+    lastVersion = version;
+    try { sessionStorage.setItem(storageKey, version); } catch {}
+  }, (error) => {
+    console.warn("Exam schedule version listener unavailable:", error);
+  });
+}
+
 export async function listSchedulesForExam(examId) {
   const q = query(collection(db, "examSchedules"), where("examId", "==", examId));
   const snap = await getDocsCached(q, `col:examSchedules:exam:${examId}`);

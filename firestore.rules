@@ -57,7 +57,13 @@ service cloud.firestore {
     // single startTime/endTime pair on the exam doc itself). Students
     // need read access to compute which schedule window is currently
     // open; only admins can add/edit/remove schedules.
-    match /examSchedules/{scheduleId} {
+    // Tiny cross-client cache version documents. Students may read; admins may update.
+  match /cacheVersions/{versionId} {
+    allow read: if isSignedIn();
+    allow write: if isAdmin();
+  }
+
+  match /examSchedules/{scheduleId} {
       allow read: if isSignedIn();
       allow create, update, delete: if isAdmin();
     }

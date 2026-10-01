@@ -16,7 +16,8 @@ import {
   createCodeSubmission,
   listCodeSubmissions,
   listCodeSubmissionsForExam,
-  listSchedulesForExam
+  listSchedulesForExam,
+  watchExamScheduleChanges
 } from "./student.js";
 import { ensurePyodide, runAllTestCases } from "./python-runner.js";
 import {
@@ -30,6 +31,7 @@ import {
 } from "./grading.js";
 
 wireLogoutButtons();
+watchExamScheduleChanges();
 
 const params = new URLSearchParams(window.location.search);
 const examId = params.get("examId");

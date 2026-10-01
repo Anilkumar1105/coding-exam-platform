@@ -166,16 +166,33 @@ export const MAX_SCHEDULES_PER_EXAM = 7;
 // this admin-only module just for a read).
 export { listSchedulesForExam } from "./student.js";
 
-export function createSchedule(examId, startTime, sections = []) {
-  return addDoc(collection(db, "examSchedules"), { examId, startTime, sections, createdAt: new Date().toISOString() }).then((r) => { invalidateCollection("examSchedules"); return r; });
+async function bumpExamScheduleVersion() {
+  await setDoc(
+    doc(db, "cacheVersions", "examSchedules"),
+    { version: Date.now(), updatedAt: new Date().toISOString() },
+    { merge: true }
+  );
 }
 
-export function updateSchedule(scheduleId, startTime, sections = []) {
-  return updateDoc(doc(db, "examSchedules", scheduleId), { startTime, sections }).then((r) => { invalidateCollection("examSchedules"); return r; });
+export async function createSchedule(examId, startTime, sections = []) {
+  const result = await addDoc(collection(db, "examSchedules"), { examId, startTime, sections, createdAt: new Date().toISOString() });
+  invalidateCollection("examSchedules");
+  await bumpExamScheduleVersion();
+  return result;
 }
 
-export function deleteSchedule(scheduleId) {
-  return deleteDoc(doc(db, "examSchedules", scheduleId)).then((r) => { invalidateCollection("examSchedules"); return r; });
+export async function updateSchedule(scheduleId, startTime, sections = []) {
+  const result = await updateDoc(doc(db, "examSchedules", scheduleId), { startTime, sections });
+  invalidateCollection("examSchedules");
+  await bumpExamScheduleVersion();
+  return result;
+}
+
+export async function deleteSchedule(scheduleId) {
+  const result = await deleteDoc(doc(db, "examSchedules", scheduleId));
+  invalidateCollection("examSchedules");
+  await bumpExamScheduleVersion();
+  return result;
 }
 
 /**

@@ -246,6 +246,7 @@
     findSubmissionForExam,
     getExamsByIds,
     listSchedulesForExams,
+    watchExamScheduleChanges,
     getQuestionsForExam,
     listCodeSubmissionsForExam,
     getAllTimePythonTopper,
@@ -260,6 +261,8 @@
   import { recordDailyLogin, getMyDailyLearningActivity, calculateStreakStats, getStreakLeaderboard } from "./streak.js";
 
   wireLogoutButtons();
+  // Keep cached exam schedules synchronized when an admin changes them.
+  watchExamScheduleChanges();
 
   let studentProfile = null;
   let examById = {};
