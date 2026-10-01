@@ -149,7 +149,7 @@ export async function getSubmission(examId, studentId) {
 }
 
 /** Creates the submission doc the moment a student starts an exam. */
-export function startSubmission(examId, student, maxViolations) {
+export async function startSubmission(examId, student, maxViolations) {
   const id = submissionId(examId, student.uid);
   const result = await setDoc(doc(db, "submissions", id), {
     examId,
