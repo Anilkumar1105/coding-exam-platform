@@ -321,6 +321,31 @@
     renderStudentStreak();
     renderStreakChampions();
     renderAbsentExams(activeExams, submissions);
+
+    // Remote schedule version changes invalidate the cached schedules.
+    // Re-fetch only the schedules and immediately re-render the exam cards;
+    // do not require logout/login or a full-page refresh.
+    window.addEventListener("exam-schedule-cache-invalidated", async () => {
+      try {
+        schedulesByExamId = await listSchedulesForExams(activeExams.map((e) => e.id));
+        const relevantActiveExams = activeExams.filter((e) => {
+          const sub = findSubmissionForExam(submissions, e.id);
+          const status = computeExamAccessStatus(
+            e,
+            sub,
+            schedulesByExamId[e.id] || [],
+            studentProfile.section
+          );
+          return status !== "not-assigned";
+        });
+        renderStats(relevantActiveExams, submissions);
+        renderExams(relevantActiveExams, submissions);
+        renderAbsentExams(activeExams, submissions);
+        console.info("Exam schedule updated automatically from remote cache change.");
+      } catch (error) {
+        console.error("Failed to refresh exam schedules after remote update:", error);
+      }
+    }, { once: false });
   });
 
   /* ---------- Stats ---------- */
