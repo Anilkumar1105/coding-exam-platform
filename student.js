@@ -2,7 +2,7 @@
 // Data-layer functions for the student dashboard and the exam page.
 
 import { db } from "./firebase-config.js";
-import { getDocCached, getDocsCached, invalidateCollection, invalidateCache, setCachedDoc, upsertCachedQueryDoc, mergeCachedDoc } from "./firestore-cache.js";
+import { getDocCached, getDocsCached, invalidateCollection, invalidateCache, setCachedDoc, upsertCachedQueryDoc, mergeCachedDoc, watchRemoteCacheChanges } from "./firestore-cache.js";
 import {
   collection,
   doc,
@@ -80,6 +80,20 @@ export async function getBestLearner() {
 /** Read-only: fetch an exam's schedules, sorted earliest-first. Both
  *  admin.js (management UI) and student-facing pages import this from
  *  here so student pages never need to pull in admin-only Auth code. */
+/**
+ * Keep exam-schedule cache synchronized across student tabs when an admin
+ * changes a schedule. The listener watches only the tiny remote version
+ * document; it does not subscribe to the whole examSchedules collection.
+ */
+export function watchExamScheduleChanges() {
+  return watchRemoteCacheChanges(db, (collectionName) => {
+    if (collectionName !== "examSchedules") return;
+    // Notify the dashboard/exam page so it can re-read schedules from the
+    // cache (which was just invalidated) and update its UI without logout.
+    window.dispatchEvent(new CustomEvent("exam-schedule-cache-invalidated"));
+  });
+}
+
 export async function listSchedulesForExam(examId) {
   const q = query(collection(db, "examSchedules"), where("examId", "==", examId));
   const snap = await getDocsCached(q, `col:examSchedules:exam:${examId}`);
