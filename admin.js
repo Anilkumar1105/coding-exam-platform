@@ -4,6 +4,7 @@
 // UI wiring lives in admin-dashboard.html's inline module script.
 
 import { db, secondaryAuth } from "./firebase-config.js";
+import { getDocCached, getDocsCached, invalidateCache, invalidateCollection } from "./firestore-cache.js";
 import {
   createUserWithEmailAndPassword,
   sendPasswordResetEmail,
@@ -64,7 +65,7 @@ export async function addStudent({ name, rollNumber, section, email, password })
     role: "student",
     createdAt: new Date().toISOString()
   });
-
+  invalidateCollection("users");
   return { uid };
 }
 
@@ -82,7 +83,7 @@ export function updateStudent(uid, { name, rollNumber, section, password }) {
   const data = { name, rollNumber, section };
   const trimmed = password ? String(password).trim() : "";
   if (trimmed) data.passwordPlain = trimmed;
-  return updateDoc(doc(db, "users", uid), data);
+  return updateDoc(doc(db, "users", uid), data).then((r) => { invalidateCollection("users"); invalidateCache(`user:${uid}:col:users:doc:${uid}`); return r; });
 }
 
 /**
@@ -104,7 +105,7 @@ export function sendStudentPasswordReset(email) {
  * Firebase Console if needed.
  */
 export function deleteStudentProfile(uid) {
-  return deleteDoc(doc(db, "users", uid));
+  return deleteDoc(doc(db, "users", uid)).then((r) => { invalidateCollection("users"); return r; });
 }
 
 /** Fetch all students, optionally filtered by section. */
@@ -115,7 +116,7 @@ export async function listStudents(section = "all") {
       ? query(usersRef, where("role", "==", "student"))
       : query(usersRef, where("role", "==", "student"), where("section", "==", section));
 
-  const snap = await getDocs(q);
+  const snap = await getDocsCached(q, `admin:users:section:${section}`);
   return snap.docs.map((d) => d.data());
 }
 
@@ -125,12 +126,12 @@ export async function listStudents(section = "all") {
 
 /** Fetch all exams, newest first. */
 export async function listExams() {
-  const snap = await getDocs(query(collection(db, "exams"), orderBy("createdAt", "desc")));
+  const snap = await getDocsCached(query(collection(db, "exams"), orderBy("createdAt", "desc")), "admin:exams:all");
   return snap.docs.map((d) => ({ id: d.id, ...d.data() }));
 }
 
 export async function getExam(examId) {
-  const snap = await getDoc(doc(db, "exams", examId));
+  const snap = await getDocCached(doc(db, "exams", examId), `col:exams:doc:${examId}`);
   return snap.exists() ? { id: snap.id, ...snap.data() } : null;
 }
 
@@ -139,19 +140,19 @@ export function createExam(data, createdBy) {
     ...data,
     createdBy,
     createdAt: new Date().toISOString()
-  });
+  }).then((r) => { invalidateCollection("exams"); return r; });
 }
 
 export function updateExamDoc(examId, data) {
-  return updateDoc(doc(db, "exams", examId), data);
+  return updateDoc(doc(db, "exams", examId), data).then((r) => { invalidateCollection("exams"); invalidateCache(`col:exams:doc:${examId}`); invalidateCache("col:exams:active"); return r; });
 }
 
 export function toggleExamActive(examId, active) {
-  return updateDoc(doc(db, "exams", examId), { active });
+  return updateDoc(doc(db, "exams", examId), { active }).then((r) => { invalidateCollection("exams"); invalidateCache(`col:exams:doc:${examId}`); invalidateCache("col:exams:active"); return r; });
 }
 
 export function deleteExamDoc(examId) {
-  return deleteDoc(doc(db, "exams", examId));
+  return deleteDoc(doc(db, "exams", examId)).then((r) => { invalidateCollection("exams"); return r; });
 }
 
 /* ============================================================
@@ -166,15 +167,15 @@ export const MAX_SCHEDULES_PER_EXAM = 7;
 export { listSchedulesForExam } from "./student.js";
 
 export function createSchedule(examId, startTime, sections = []) {
-  return addDoc(collection(db, "examSchedules"), { examId, startTime, sections, createdAt: new Date().toISOString() });
+  return addDoc(collection(db, "examSchedules"), { examId, startTime, sections, createdAt: new Date().toISOString() }).then((r) => { invalidateCollection("examSchedules"); return r; });
 }
 
 export function updateSchedule(scheduleId, startTime, sections = []) {
-  return updateDoc(doc(db, "examSchedules", scheduleId), { startTime, sections });
+  return updateDoc(doc(db, "examSchedules", scheduleId), { startTime, sections }).then((r) => { invalidateCollection("examSchedules"); return r; });
 }
 
 export function deleteSchedule(scheduleId) {
-  return deleteDoc(doc(db, "examSchedules", scheduleId));
+  return deleteDoc(doc(db, "examSchedules", scheduleId)).then((r) => { invalidateCollection("examSchedules"); return r; });
 }
 
 /**
@@ -189,7 +190,7 @@ export function publishWeeklyToppers(entries) {
   return setDoc(doc(db, "weeklyToppers", "current"), {
     entries,
     updatedAt: new Date().toISOString()
-  });
+  }).then((r) => { invalidateCollection("weeklyToppers"); return r; });
 }
 
 /**
@@ -201,7 +202,7 @@ export function publishWeeklyCodingToppers(entries) {
   return setDoc(doc(db, "weeklyCodingToppers", "current"), {
     entries,
     updatedAt: new Date().toISOString()
-  });
+  }).then((r) => { invalidateCollection("weeklyCodingToppers"); return r; });
 }
 
 /** Publishes the all-time Python champion leaderboard. */
@@ -209,18 +210,18 @@ export function publishAllTimePythonTopper(entries) {
   return setDoc(doc(db, "allTimePythonTopper", "current"), {
     entries,
     updatedAt: new Date().toISOString()
-  });
+  }).then((r) => { invalidateCollection("allTimePythonTopper"); return r; });
 }
 
 /** Fetch all student learning-point documents for admin leaderboard calculations. */
 export async function listStudentPoints() {
-  const snap = await getDocs(collection(db, "studentPoints"));
+  const snap = await getDocsCached(collection(db, "studentPoints"), "admin:studentPoints:all");
   return snap.docs.map((d) => ({ id: d.id, ...d.data() }));
 }
 
 /** Fetch all daily Learning Section activity records for streak calculations. */
 export async function listDailyLearningActivity() {
-  const snap = await getDocs(collection(db, "dailyLearningActivity"));
+  const snap = await getDocsCached(collection(db, "dailyLearningActivity"), "admin:dailyLearningActivity:all");
   return snap.docs.map((d) => ({ id: d.id, ...d.data() }));
 }
 
@@ -229,7 +230,7 @@ export function publishStreakLeaderboard(entries) {
   return setDoc(doc(db, "streakLeaderboard", "current"), {
     entries,
     updatedAt: new Date().toISOString()
-  });
+  }).then((r) => { invalidateCollection("streakLeaderboard"); return r; });
 }
 
 /** Publishes the all-time learning-points Best Learner leaderboard. */
@@ -237,7 +238,7 @@ export function publishBestLearner(entries) {
   return setDoc(doc(db, "bestLearner", "current"), {
     entries,
     updatedAt: new Date().toISOString()
-  });
+  }).then((r) => { invalidateCollection("bestLearner"); return r; });
 }
 
 /* ============================================================
@@ -246,20 +247,20 @@ export function publishBestLearner(entries) {
 
 export async function listQuestionsForExam(examId) {
   const q = query(collection(db, "questions"), where("examId", "==", examId));
-  const snap = await getDocs(q);
+  const snap = await getDocsCached(q, "admin:questions:exam:" + examId);
   return snap.docs.map((d) => ({ id: d.id, ...d.data() }));
 }
 
 export function addQuestion(data) {
-  return addDoc(collection(db, "questions"), { ...data, createdAt: new Date().toISOString() });
+  return addDoc(collection(db, "questions"), { ...data, createdAt: new Date().toISOString() }).then((r) => { invalidateCollection("questions"); return r; });
 }
 
 export function updateQuestionDoc(questionId, data) {
-  return updateDoc(doc(db, "questions", questionId), data);
+  return updateDoc(doc(db, "questions", questionId), data).then((r) => { invalidateCollection("questions"); return r; });
 }
 
 export function deleteQuestionDoc(questionId) {
-  return deleteDoc(doc(db, "questions", questionId));
+  return deleteDoc(doc(db, "questions", questionId)).then((r) => { invalidateCollection("questions"); return r; });
 }
 
 /* ============================================================
@@ -267,7 +268,7 @@ export function deleteQuestionDoc(questionId) {
    ============================================================ */
 
 export async function listSubmissions() {
-  const snap = await getDocs(collection(db, "submissions"));
+  const snap = await getDocsCached(collection(db, "submissions"), "admin:submissions:all");
   return snap.docs.map((d) => ({ id: d.id, ...d.data() }));
 }
 
@@ -286,7 +287,7 @@ export function updateSubmissionMarks(submissionId, { score, percentage, totalMa
     manualMarksNote: resultNote || "",
     status: "submitted",
     submittedAt: new Date().toISOString()
-  });
+  }).then((r) => { invalidateCollection("submissions"); return r; });
 }
 
 /**
@@ -307,7 +308,7 @@ export function createManualSubmission(data) {
     manualMarksUpdatedBy: data.updatedBy || null,
     manualMarksNote: data.resultNote || "",
     submittedAt: data.submittedAt || new Date().toISOString()
-  });
+  }).then((r) => { invalidateCollection("submissions"); return r; });
 }
 
 /* ============================================================

@@ -2,6 +2,7 @@
 // Shared authentication + role-guard helpers.
 
 import { auth, db } from "./firebase-config.js";
+import { getDocCached, clearFirestoreCache } from "./firestore-cache.js";
 import {
   signInWithEmailAndPassword,
   signOut,
@@ -18,13 +19,14 @@ export function loginUser(email, password) {
 }
 
 /** Log the current user out. */
-export function logoutUser() {
+export async function logoutUser() {
+  clearFirestoreCache();
   return signOut(auth);
 }
 
 /** Fetch the Firestore profile (users/{uid}) for a given uid. */
 export async function getUserProfile(uid) {
-  const snap = await getDoc(doc(db, "users", uid));
+  const snap = await getDocCached(doc(db, "users", uid), `user:${uid}:col:users:doc:${uid}`);
   return snap.exists() ? snap.data() : null;
 }
 
@@ -35,8 +37,12 @@ export async function getUserProfile(uid) {
  * - Signed in with the WRONG role -> redirect to their correct dashboard
  * - Signed in with the RIGHT role -> calls onReady(user, profile)
  */
+let lastAuthUid = null;
+
 export function requireRole(expectedRole, onReady) {
   onAuthStateChanged(auth, async (user) => {
+    if (user && lastAuthUid && lastAuthUid !== user.uid) clearFirestoreCache();
+    lastAuthUid = user?.uid || null;
     if (!user) {
       window.location.href = "login.html";
       return;

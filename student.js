@@ -2,6 +2,7 @@
 // Data-layer functions for the student dashboard and the exam page.
 
 import { db } from "./firebase-config.js";
+import { getDocCached, getDocsCached, invalidateCollection, invalidateCache } from "./firestore-cache.js";
 import {
   collection,
   doc,
@@ -17,12 +18,12 @@ import {
 /** Fetch all exams currently marked active (visible to students). */
 export async function listActiveExams() {
   const q = query(collection(db, "exams"), where("active", "==", true));
-  const snap = await getDocs(q);
+  const snap = await getDocsCached(q, "col:exams:active");
   return snap.docs.map((d) => ({ id: d.id, ...d.data() }));
 }
 
 export async function getExamById(examId) {
-  const snap = await getDoc(doc(db, "exams", examId));
+  const snap = await getDocCached(doc(db, "exams", examId), `col:exams:doc:${examId}`);
   return snap.exists() ? { id: snap.id, ...snap.data() } : null;
 }
 
@@ -43,7 +44,8 @@ export async function getExamsByIds(examIds) {
   const results = await Promise.all(
     batches.map(async (batch) => {
       const q = query(collection(db, "exams"), where(documentId(), "in", batch));
-      const snap = await getDocs(q);
+      const key = `col:exams:ids:${batch.slice().sort().join(",")}`;
+      const snap = await getDocsCached(q, key);
       return snap.docs.map((d) => ({ id: d.id, ...d.data() }));
     })
   );
@@ -53,25 +55,25 @@ export async function getExamsByIds(examIds) {
 
 /** Reads the admin-published "Toppers of the Week" leaderboard, or null if none has been published yet. */
 export async function getWeeklyToppers() {
-  const snap = await getDoc(doc(db, "weeklyToppers", "current"));
+  const snap = await getDocCached(doc(db, "weeklyToppers", "current"), "col:weeklyToppers:doc:current");
   return snap.exists() ? snap.data() : null;
 }
 
 /** Reads the separate admin-published weekly coding-exam leaderboard. */
 export async function getWeeklyCodingToppers() {
-  const snap = await getDoc(doc(db, "weeklyCodingToppers", "current"));
+  const snap = await getDocCached(doc(db, "weeklyCodingToppers", "current"), "col:weeklyCodingToppers:doc:current");
   return snap.exists() ? snap.data() : null;
 }
 
 /** Reads the admin-published all-time Python topper leaderboard. */
 export async function getAllTimePythonTopper() {
-  const snap = await getDoc(doc(db, "allTimePythonTopper", "current"));
+  const snap = await getDocCached(doc(db, "allTimePythonTopper", "current"), "col:allTimePythonTopper:doc:current");
   return snap.exists() ? snap.data() : null;
 }
 
 /** Reads the admin-published all-time Best Learner leaderboard. */
 export async function getBestLearner() {
-  const snap = await getDoc(doc(db, "bestLearner", "current"));
+  const snap = await getDocCached(doc(db, "bestLearner", "current"), "col:bestLearner:doc:current");
   return snap.exists() ? snap.data() : null;
 }
 
@@ -80,7 +82,7 @@ export async function getBestLearner() {
  *  here so student pages never need to pull in admin-only Auth code. */
 export async function listSchedulesForExam(examId) {
   const q = query(collection(db, "examSchedules"), where("examId", "==", examId));
-  const snap = await getDocs(q);
+  const snap = await getDocsCached(q, `col:examSchedules:exam:${examId}`);
   return snap.docs
     .map((d) => ({ id: d.id, ...d.data() }))
     .sort((a, b) => new Date(a.startTime) - new Date(b.startTime));
@@ -100,7 +102,7 @@ export async function listSchedulesForExams(examIds) {
   for (let i = 0; i < uniqueIds.length; i += 30) {
     const batch = uniqueIds.slice(i, i + 30);
     const q = query(collection(db, "examSchedules"), where("examId", "in", batch));
-    const snap = await getDocs(q);
+    const snap = await getDocsCached(q, `col:examSchedules:exams:${batch.slice().sort().join(",")}`);
     snap.docs.forEach((d) => {
       const data = { id: d.id, ...d.data() };
       if (!byExamId[data.examId]) byExamId[data.examId] = [];
@@ -120,14 +122,14 @@ export async function getQuestionsForExam(examId) {
     where("examId", "==", examId),
     where("published", "==", true)
   );
-  const snap = await getDocs(q);
+  const snap = await getDocsCached(q, `col:questions:exam:${examId}:published`);
   return snap.docs.map((d) => ({ id: d.id, ...d.data() }));
 }
 
 /** Fetch all submissions belonging to the given student uid. */
 export async function getStudentSubmissions(uid) {
   const q = query(collection(db, "submissions"), where("studentId", "==", uid));
-  const snap = await getDocs(q);
+  const snap = await getDocsCached(q, `user:${uid}:col:submissions`);
   return snap.docs.map((d) => ({ id: d.id, ...d.data() }));
 }
 
@@ -142,14 +144,14 @@ export function submissionId(examId, studentId) {
 }
 
 export async function getSubmission(examId, studentId) {
-  const snap = await getDoc(doc(db, "submissions", submissionId(examId, studentId)));
+  const snap = await getDocCached(doc(db, "submissions", submissionId(examId, studentId)), `user:${studentId}:col:submissions:doc:${submissionId(examId, studentId)}`);
   return snap.exists() ? snap.data() : null;
 }
 
 /** Creates the submission doc the moment a student starts an exam. */
 export function startSubmission(examId, student, maxViolations) {
   const id = submissionId(examId, student.uid);
-  return setDoc(doc(db, "submissions", id), {
+  const result = await setDoc(doc(db, "submissions", id), {
     examId,
     studentId: student.uid,
     rollNumber: student.rollNumber,
@@ -163,25 +165,33 @@ export function startSubmission(examId, student, maxViolations) {
     startedAt: new Date().toISOString(),
     submittedAt: null
   });
+  invalidateCollection("submissions");
+  return result;
 }
 
 /** Autosaves partial answers without changing status. */
 export function saveAnswers(examId, studentId, answers) {
-  return updateDoc(doc(db, "submissions", submissionId(examId, studentId)), { answers });
+  const result = await updateDoc(doc(db, "submissions", submissionId(examId, studentId)), { answers });
+  invalidateCollection("submissions");
+  return result;
 }
 
 /** Saves which questions the student has flagged "for review" before final submit. */
 export function saveFlags(examId, studentId, flaggedQuestionIds) {
-  return updateDoc(doc(db, "submissions", submissionId(examId, studentId)), { flaggedQuestionIds });
+  const result = await updateDoc(doc(db, "submissions", submissionId(examId, studentId)), { flaggedQuestionIds });
+  invalidateCollection("submissions");
+  return result;
 }
 
 export function incrementViolation(examId, studentId, newCount) {
-  return updateDoc(doc(db, "submissions", submissionId(examId, studentId)), { violations: newCount });
+  const result = await updateDoc(doc(db, "submissions", submissionId(examId, studentId)), { violations: newCount });
+  invalidateCollection("submissions");
+  return result;
 }
 
 /** Final submit: writes score/status/submittedAt. */
 export function finalizeSubmission(examId, studentId, { answers, score, mcqScore, codingScore, totalMarks, percentage, status }) {
-  return updateDoc(doc(db, "submissions", submissionId(examId, studentId)), {
+  const result = await updateDoc(doc(db, "submissions", submissionId(examId, studentId)), {
     answers,
     score,
     mcqScore,
@@ -191,6 +201,8 @@ export function finalizeSubmission(examId, studentId, { answers, score, mcqScore
     status,
     submittedAt: new Date().toISOString()
   });
+  invalidateCollection("submissions");
+  return result;
 }
 
 /* ============================================================
@@ -231,6 +243,7 @@ export async function createCodeSubmission({
     memoryUsage: memoryUsage ?? null,
     errorMessage: errorMessage || null
   });
+  invalidateCollection("codeSubmissions");
   return ref.id;
 }
 
@@ -241,7 +254,7 @@ export async function listCodeSubmissions(studentId, questionId) {
     where("studentId", "==", studentId),
     where("questionId", "==", questionId)
   );
-  const snap = await getDocs(q);
+  const snap = await getDocsCached(q, `user:${studentId}:col:codeSubmissions:question:${questionId}`);
   return snap.docs
     .map((d) => ({ id: d.id, ...d.data() }))
     .sort((a, b) => new Date(b.submittedAt) - new Date(a.submittedAt));
@@ -254,6 +267,6 @@ export async function listCodeSubmissionsForExam(studentId, examId) {
     where("studentId", "==", studentId),
     where("examId", "==", examId)
   );
-  const snap = await getDocs(q);
+  const snap = await getDocsCached(q, `user:${studentId}:col:codeSubmissions:exam:${examId}`);
   return snap.docs.map((d) => ({ id: d.id, ...d.data() }));
 }

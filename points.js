@@ -7,6 +7,7 @@
 
 import { db } from "./firebase-config.js";
 import { doc, getDoc, runTransaction } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+import { getDocCached, setCachedDoc } from "./firestore-cache.js";
 
 export const POINTS_PER_COMPLETED_QUESTION = 2;
 export const SPECIAL_SECTION_UNLOCK_POINTS = 100;
@@ -23,7 +24,7 @@ function emptyPoints(studentId) {
 
 /** Reads a student's points doc, or a zeroed default if they don't have one yet (no write). */
 export async function getStudentPoints(studentId) {
-  const snap = await getDoc(doc(db, "studentPoints", studentId));
+  const snap = await getDocCached(doc(db, "studentPoints", studentId), `col:studentPoints:doc:${studentId}`);
   return snap.exists() ? snap.data() : emptyPoints(studentId);
 }
 
@@ -48,52 +49,46 @@ export function isSpecialSectionUnlocked(points) {
 export async function awardPointsForCompletedQuestion(studentId, questionId) {
   const ref = doc(db, "studentPoints", studentId);
 
-  // Firestore transactions already retry on contention. These additional
-  // retries handle short-lived client/network failures so a successful
-  // coding submission is less likely to lose its Learning Points.
-  let lastError = null;
-  for (let attempt = 1; attempt <= 3; attempt++) {
-    try {
-      return await runTransaction(db, async (transaction) => {
-        const snap = await transaction.get(ref);
-        const current = snap.exists() ? snap.data() : emptyPoints(studentId);
-        const alreadyCompleted = (current.completedCodingQuestionIds || []).includes(questionId);
+  const result = await runTransaction(db, async (transaction) => {
+    const snap = await transaction.get(ref);
+    const current = snap.exists() ? snap.data() : emptyPoints(studentId);
+    const alreadyCompleted = (current.completedCodingQuestionIds || []).includes(questionId);
 
-        if (alreadyCompleted) {
-          return { points: Number(current.points || 0), awarded: false };
-        }
-
-        const updated = {
-          ...current,
-          studentId,
-          points: Number(current.points || 0) + POINTS_PER_COMPLETED_QUESTION,
-          completedCodingQuestionIds: [
-            ...(current.completedCodingQuestionIds || []),
-            questionId
-          ],
-          updatedAt: new Date().toISOString()
-        };
-
-        transaction.set(ref, updated);
-        return { points: updated.points, awarded: true };
-      });
-    } catch (error) {
-      lastError = error;
-      if (attempt < 3) {
-        await new Promise((resolve) => setTimeout(resolve, 400 * attempt));
-      }
+    if (alreadyCompleted) {
+      return { points: Number(current.points || 0), awarded: false, data: current };
     }
-  }
 
-  throw lastError;
+    const updated = {
+      ...current,
+      studentId,
+      points: Number(current.points || 0) + POINTS_PER_COMPLETED_QUESTION,
+      completedCodingQuestionIds: [
+        ...(current.completedCodingQuestionIds || []),
+        questionId
+      ],
+      updatedAt: new Date().toISOString()
+    };
+
+    transaction.set(ref, updated);
+    return { points: updated.points, awarded: true, data: updated };
+  });
+
+  // Keep the cache authoritative after the successful server write.
+  // Do not delete it and immediately read the same document again.
+  setCachedDoc(`col:studentPoints:doc:${studentId}`, studentId, result.data || emptyPoints(studentId), true);
+  return result;
 }
 
 /** Marks the one-time unlock celebration as shown, so it doesn't replay on every visit. */
 export async function markUnlockCelebrationShown(studentId) {
   const ref = doc(db, "studentPoints", studentId);
-  return runTransaction(db, async (transaction) => {
+  const result = await runTransaction(db, async (transaction) => {
     const snap = await transaction.get(ref);
     const current = snap.exists() ? snap.data() : emptyPoints(studentId);
-    transaction.set(ref, { ...current, studentId, unlockCelebrationShown: true, updatedAt: new Date().toISOString() });
+    const updated = { ...current, studentId, unlockCelebrationShown: true, updatedAt: new Date().toISOString() };
+    transaction.set(ref, updated);
+    return updated;
   });
+  setCachedDoc(`col:studentPoints:doc:${studentId}`, studentId, result, true);
+  return result;
 }

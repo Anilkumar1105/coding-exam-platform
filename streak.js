@@ -3,6 +3,7 @@
 // logged in AND fully solved at least one Learning Section coding problem.
 
 import { db } from "./firebase-config.js";
+import { getDocCached, getDocsCached, invalidateCache, invalidateCollection, setCachedDoc } from "./firestore-cache.js";
 import {
   collection,
   doc,
@@ -32,18 +33,20 @@ function activityId(studentId, dateKey) {
 export async function recordDailyLogin(studentId) {
   const dateKey = getTodayKey();
   const ref = doc(db, COLLECTION, activityId(studentId, dateKey));
-  const snap = await getDoc(ref);
-  const existing = snap.exists() ? snap.data() : {};
+  const now = new Date().toISOString();
   await setDoc(ref, {
     studentId,
     dateKey,
-    loginAt: existing.loginAt || new Date().toISOString(),
-    solvedAt: existing.solvedAt || null,
-    solvedQuestionId: existing.solvedQuestionId || null,
-    qualified: Boolean(existing.solvedAt),
-    updatedAt: new Date().toISOString()
+    // Merge-only write: no read is needed just to record a login.
+    // The daily document remains idempotent for the same student/date.
+    loginAt: now,
+    updatedAt: now
   }, { merge: true });
-  return { ...existing, studentId, dateKey, loginAt: existing.loginAt || new Date().toISOString() };
+  setCachedDoc(`col:${COLLECTION}:doc:${activityId(studentId, dateKey)}`, activityId(studentId, dateKey), { studentId, dateKey, loginAt: now, updatedAt: now }, true);
+  // Query caches are aggregates; invalidate them because this write changes their contents.
+  invalidateCache(`user:${studentId}:col:${COLLECTION}:all`);
+  invalidateCache(`col:${COLLECTION}:all`);
+  return { studentId, dateKey, loginAt: now };
 }
 
 export async function recordLearningProblemSolved(studentId, questionId) {
@@ -54,7 +57,7 @@ export async function recordLearningProblemSolved(studentId, questionId) {
   // student opens the coding page directly, or the login write was lost
   // because of a transient error, solving a problem should still create a
   // complete qualifying activity record.
-  return runTransaction(db, async (transaction) => {
+  const result = await runTransaction(db, async (transaction) => {
     const snap = await transaction.get(ref);
     const existing = snap.exists() ? snap.data() : {};
     const now = new Date().toISOString();
@@ -72,15 +75,20 @@ export async function recordLearningProblemSolved(studentId, questionId) {
     transaction.set(ref, updated, { merge: true });
     return updated;
   });
+  setCachedDoc(`col:${COLLECTION}:doc:${activityId(studentId, dateKey)}`, activityId(studentId, dateKey), result, true);
+  // Query caches are aggregates; invalidate them because this write changes their contents.
+  invalidateCache(`user:${studentId}:col:${COLLECTION}:all`);
+  invalidateCache(`col:${COLLECTION}:all`);
+  return result;
 }
 
 export async function getMyDailyLearningActivity(studentId) {
-  const snap = await getDocs(query(collection(db, COLLECTION), where("studentId", "==", studentId)));
+  const snap = await getDocsCached(query(collection(db, COLLECTION), where("studentId", "==", studentId)), `user:${studentId}:col:${COLLECTION}:all`);
   return snap.docs.map((d) => ({ id: d.id, ...d.data() }));
 }
 
 export async function listAllDailyLearningActivity() {
-  const snap = await getDocs(collection(db, COLLECTION));
+  const snap = await getDocsCached(collection(db, COLLECTION), `col:${COLLECTION}:all`);
   return snap.docs.map((d) => ({ id: d.id, ...d.data() }));
 }
 
@@ -138,6 +146,6 @@ export function calculateStreakStats(activityDocs, todayKey = getTodayKey()) {
 
 
 export async function getStreakLeaderboard() {
-  const snap = await getDoc(doc(db, "streakLeaderboard", "current"));
+  const snap = await getDocCached(doc(db, "streakLeaderboard", "current"), "col:streakLeaderboard:doc:current");
   return snap.exists() ? snap.data() : null;
 }

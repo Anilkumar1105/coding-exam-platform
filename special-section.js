@@ -7,6 +7,7 @@
 // unchanged - only the storage collection and the `company` field are new.
 
 import { db } from "./firebase-config.js";
+import { getDocsCached, invalidateCollection } from "./firestore-cache.js";
 import {
   collection,
   doc,
@@ -26,20 +27,20 @@ export const COMPANY_OPTIONS = ["Google", "Amazon", "Microsoft", "TCS", "Infosys
    ============================================================ */
 
 export async function listAllSpecialQuestions() {
-  const snap = await getDocs(collection(db, "specialCodingQuestions"));
+  const snap = await getDocsCached(collection(db, "specialCodingQuestions"), "col:specialCodingQuestions:all");
   return snap.docs.map((d) => ({ id: d.id, ...d.data() })).sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
 }
 
 export function createSpecialQuestion(data) {
-  return addDoc(collection(db, "specialCodingQuestions"), { ...data, createdAt: new Date().toISOString() });
+  return addDoc(collection(db, "specialCodingQuestions"), { ...data, createdAt: new Date().toISOString() }).then((r) => { invalidateCollection("specialCodingQuestions"); return r; });
 }
 
 export function updateSpecialQuestion(questionId, data) {
-  return updateDoc(doc(db, "specialCodingQuestions", questionId), data);
+  return updateDoc(doc(db, "specialCodingQuestions", questionId), data).then((r) => { invalidateCollection("specialCodingQuestions"); return r; });
 }
 
 export function deleteSpecialQuestion(questionId) {
-  return deleteDoc(doc(db, "specialCodingQuestions", questionId));
+  return deleteDoc(doc(db, "specialCodingQuestions", questionId)).then((r) => { invalidateCollection("specialCodingQuestions"); return r; });
 }
 
 /* ============================================================
@@ -48,7 +49,7 @@ export function deleteSpecialQuestion(questionId) {
 
 export async function listPublishedSpecialQuestions() {
   const q = query(collection(db, "specialCodingQuestions"), where("published", "==", true));
-  const snap = await getDocs(q);
+  const snap = await getDocsCached(q, "col:specialCodingQuestions:published");
   return snap.docs.map((d) => ({ id: d.id, ...d.data() })).sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
 }
 
@@ -96,6 +97,7 @@ export async function createSpecialCodeSubmission({
     memoryUsage: null,
     errorMessage: errorMessage || null
   });
+  invalidateCollection("specialCodeSubmissions");
   return ref.id;
 }
 
@@ -105,7 +107,7 @@ export async function listSpecialCodeSubmissions(studentId, questionId) {
     where("studentId", "==", studentId),
     where("questionId", "==", questionId)
   );
-  const snap = await getDocs(q);
+  const snap = await getDocsCached(q, `user:${studentId}:col:specialCodeSubmissions:question:${questionId}`);
   return snap.docs
     .map((d) => ({ id: d.id, ...d.data() }))
     .sort((a, b) => new Date(b.submittedAt) - new Date(a.submittedAt));

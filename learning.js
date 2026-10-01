@@ -4,6 +4,7 @@
 // by the admin management UI and the student-facing learning page.
 
 import { db } from "./firebase-config.js";
+import { getDocCached, getDocsCached, invalidateCache, invalidateCollection, setCachedDoc } from "./firestore-cache.js";
 import {
   collection,
   doc,
@@ -15,7 +16,8 @@ import {
   getDocs,
   query,
   where,
-  orderBy
+  orderBy,
+  increment
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
 /* ============================================================
@@ -23,32 +25,32 @@ import {
    ============================================================ */
 
 export async function listLevels() {
-  const snap = await getDocs(query(collection(db, "learningLevels"), orderBy("order", "asc")));
+  const snap = await getDocsCached(query(collection(db, "learningLevels"), orderBy("order", "asc")), "col:learningLevels:all");
   return snap.docs.map((d) => ({ id: d.id, ...d.data() }));
 }
 
 export async function listActiveLevels() {
-  const snap = await getDocs(query(collection(db, "learningLevels"), where("active", "==", true)));
+  const snap = await getDocsCached(query(collection(db, "learningLevels"), where("active", "==", true)), "col:learningLevels:active");
   return snap.docs
     .map((d) => ({ id: d.id, ...d.data() }))
     .sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
 }
 
 export async function getLevel(levelId) {
-  const snap = await getDoc(doc(db, "learningLevels", levelId));
+  const snap = await getDocCached(doc(db, "learningLevels", levelId), `col:learningLevels:doc:${levelId}`);
   return snap.exists() ? { id: snap.id, ...snap.data() } : null;
 }
 
 export function createLevel(data) {
-  return addDoc(collection(db, "learningLevels"), { ...data, createdAt: new Date().toISOString() });
+  return addDoc(collection(db, "learningLevels"), { ...data, createdAt: new Date().toISOString() }).then((r) => { invalidateCollection("learningLevels"); return r; });
 }
 
 export function updateLevel(levelId, data) {
-  return updateDoc(doc(db, "learningLevels", levelId), data);
+  return updateDoc(doc(db, "learningLevels", levelId), data).then((r) => { invalidateCollection("learningLevels"); invalidateCache(`col:learningLevels:doc:${levelId}`); return r; });
 }
 
 export function deleteLevel(levelId) {
-  return deleteDoc(doc(db, "learningLevels", levelId));
+  return deleteDoc(doc(db, "learningLevels", levelId)).then((r) => { invalidateCollection("learningLevels"); invalidateCollection("learningConcepts"); invalidateCollection("learningMcqQuestions"); invalidateCollection("learningCodingQuestions"); return r; });
 }
 
 /* ============================================================
@@ -56,20 +58,20 @@ export function deleteLevel(levelId) {
    ============================================================ */
 
 export async function listConcepts(levelId) {
-  const snap = await getDocs(query(collection(db, "learningConcepts"), where("levelId", "==", levelId)));
+  const snap = await getDocsCached(query(collection(db, "learningConcepts"), where("levelId", "==", levelId)), `col:learningConcepts:level:${levelId}`);
   return snap.docs.map((d) => ({ id: d.id, ...d.data() })).sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
 }
 
 export function createConcept(data) {
-  return addDoc(collection(db, "learningConcepts"), { ...data, createdAt: new Date().toISOString() });
+  return addDoc(collection(db, "learningConcepts"), { ...data, createdAt: new Date().toISOString() }).then((r) => { invalidateCollection("learningConcepts"); return r; });
 }
 
 export function updateConcept(conceptId, data) {
-  return updateDoc(doc(db, "learningConcepts", conceptId), data);
+  return updateDoc(doc(db, "learningConcepts", conceptId), data).then((r) => { invalidateCollection("learningConcepts"); return r; });
 }
 
 export function deleteConcept(conceptId) {
-  return deleteDoc(doc(db, "learningConcepts", conceptId));
+  return deleteDoc(doc(db, "learningConcepts", conceptId)).then((r) => { invalidateCollection("learningConcepts"); return r; });
 }
 
 /* ============================================================
@@ -77,20 +79,20 @@ export function deleteConcept(conceptId) {
    ============================================================ */
 
 export async function listMcqQuestions(levelId) {
-  const snap = await getDocs(query(collection(db, "learningMcqQuestions"), where("levelId", "==", levelId)));
+  const snap = await getDocsCached(query(collection(db, "learningMcqQuestions"), where("levelId", "==", levelId)), `col:learningMcqQuestions:level:${levelId}`);
   return snap.docs.map((d) => ({ id: d.id, ...d.data() })).sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
 }
 
 export function createMcqQuestion(data) {
-  return addDoc(collection(db, "learningMcqQuestions"), { ...data, createdAt: new Date().toISOString() });
+  return addDoc(collection(db, "learningMcqQuestions"), { ...data, createdAt: new Date().toISOString() }).then((r) => { invalidateCollection("learningMcqQuestions"); return r; });
 }
 
 export function updateMcqQuestion(questionId, data) {
-  return updateDoc(doc(db, "learningMcqQuestions", questionId), data);
+  return updateDoc(doc(db, "learningMcqQuestions", questionId), data).then((r) => { invalidateCollection("learningMcqQuestions"); return r; });
 }
 
 export function deleteMcqQuestion(questionId) {
-  return deleteDoc(doc(db, "learningMcqQuestions", questionId));
+  return deleteDoc(doc(db, "learningMcqQuestions", questionId)).then((r) => { invalidateCollection("learningMcqQuestions"); return r; });
 }
 
 /* ============================================================
@@ -98,20 +100,20 @@ export function deleteMcqQuestion(questionId) {
    ============================================================ */
 
 export async function listLearningCodingQuestions(levelId) {
-  const snap = await getDocs(query(collection(db, "learningCodingQuestions"), where("levelId", "==", levelId)));
+  const snap = await getDocsCached(query(collection(db, "learningCodingQuestions"), where("levelId", "==", levelId)), `col:learningCodingQuestions:level:${levelId}`);
   return snap.docs.map((d) => ({ id: d.id, ...d.data() })).sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
 }
 
 export function createLearningCodingQuestion(data) {
-  return addDoc(collection(db, "learningCodingQuestions"), { ...data, createdAt: new Date().toISOString() });
+  return addDoc(collection(db, "learningCodingQuestions"), { ...data, createdAt: new Date().toISOString() }).then((r) => { invalidateCollection("learningCodingQuestions"); return r; });
 }
 
 export function updateLearningCodingQuestion(questionId, data) {
-  return updateDoc(doc(db, "learningCodingQuestions", questionId), data);
+  return updateDoc(doc(db, "learningCodingQuestions", questionId), data).then((r) => { invalidateCollection("learningCodingQuestions"); return r; });
 }
 
 export function deleteLearningCodingQuestion(questionId) {
-  return deleteDoc(doc(db, "learningCodingQuestions", questionId));
+  return deleteDoc(doc(db, "learningCodingQuestions", questionId)).then((r) => { invalidateCollection("learningCodingQuestions"); return r; });
 }
 
 /* ============================================================
@@ -123,19 +125,19 @@ export function progressId(levelId, studentId) {
 }
 
 export async function getProgress(levelId, studentId) {
-  const snap = await getDoc(doc(db, "learningProgress", progressId(levelId, studentId)));
+  const snap = await getDocCached(doc(db, "learningProgress", progressId(levelId, studentId)), `user:${studentId}:col:learningProgress:doc:${progressId(levelId, studentId)}`);
   return snap.exists() ? snap.data() : null;
 }
 
 /** Fetch every progress doc for a level (admin's "student progress" view). */
 export async function listProgressForLevel(levelId) {
-  const snap = await getDocs(query(collection(db, "learningProgress"), where("levelId", "==", levelId)));
+  const snap = await getDocsCached(query(collection(db, "learningProgress"), where("levelId", "==", levelId)), `col:learningProgress:level:${levelId}`);
   return snap.docs.map((d) => d.data());
 }
 
 /** Fetch every progress doc for a student, across all levels. */
 export async function listProgressForStudent(studentId) {
-  const snap = await getDocs(query(collection(db, "learningProgress"), where("studentId", "==", studentId)));
+  const snap = await getDocsCached(query(collection(db, "learningProgress"), where("studentId", "==", studentId)), `user:${studentId}:col:learningProgress:all`);
   return snap.docs.map((d) => d.data());
 }
 
@@ -160,6 +162,8 @@ async function ensureProgress(levelId, studentId) {
   if (existing) return existing;
   const fresh = emptyProgress(levelId, studentId);
   await setDoc(doc(db, "learningProgress", progressId(levelId, studentId)), fresh);
+  setCachedDoc(`user:${studentId}:col:learningProgress:doc:${progressId(levelId, studentId)}`, progressId(levelId, studentId), fresh, true);
+  invalidateCollection("learningProgress");
   return fresh;
 }
 
@@ -176,27 +180,31 @@ export async function markConceptComplete(levelId, studentId, conceptId, allConc
     updatedAt: new Date().toISOString()
   };
   await updateDoc(doc(db, "learningProgress", progressId(levelId, studentId)), data);
-  return { ...progress, ...data };
+  const updatedProgress = { ...progress, ...data };
+  setCachedDoc(`user:${studentId}:col:learningProgress:doc:${progressId(levelId, studentId)}`, progressId(levelId, studentId), updatedProgress, true);
+  invalidateCollection("learningProgress");
+  return updatedProgress;
 }
 
 /** Records an MCQ test attempt and unlocks coding questions if passed. */
 export async function recordMcqAttempt(levelId, studentId, { score, total, percentage, passed, answers = {} }) {
-  await ensureProgress(levelId, studentId);
+  const progress = await ensureProgress(levelId, studentId);
   const ref = doc(db, "learningProgress", progressId(levelId, studentId));
-  const current = await getDoc(ref);
-  const attempts = (current.data()?.mcqAttempts || 0) + 1;
 
   const data = {
     mcqScore: score,
     mcqTotal: total,
     mcqPercentage: percentage,
     mcqPassed: passed,
-    mcqAttempts: attempts,
+    mcqAttempts: increment(1),
     mcqAnswers: answers,
-    codingUnlocked: passed || current.data()?.codingUnlocked || false,
+    ...(passed ? { codingUnlocked: true } : {}),
     updatedAt: new Date().toISOString()
   };
   await updateDoc(ref, data);
+  const updatedProgress = { ...progress, ...data, mcqAttempts: Number(progress?.mcqAttempts || 0) + 1 };
+  setCachedDoc(`user:${studentId}:col:learningProgress:doc:${progressId(levelId, studentId)}`, progressId(levelId, studentId), updatedProgress, true);
+  invalidateCollection("learningProgress");
   return data;
 }
 
@@ -236,32 +244,16 @@ export async function createLearningCodeSubmission({
     updatedAt: new Date().toISOString()
   };
 
-  let lastError = null;
-  for (let attempt = 1; attempt <= 3; attempt++) {
-    try {
-      await setDoc(ref, data);
-      return ref.id;
-    } catch (error) {
-      lastError = error;
-      if (attempt < 3) await new Promise((resolve) => setTimeout(resolve, 500 * attempt));
-    }
-  }
-  throw lastError;
+  await setDoc(ref, data);
+  invalidateCollection("learningCodeSubmissions");
+  return ref.id;
 }
 
 export async function updateLearningCodeSubmission(submissionId, data) {
   const ref = doc(db, "learningCodeSubmissions", submissionId);
-  let lastError = null;
-  for (let attempt = 1; attempt <= 3; attempt++) {
-    try {
-      await updateDoc(ref, { ...data, updatedAt: new Date().toISOString() });
-      return true;
-    } catch (error) {
-      lastError = error;
-      if (attempt < 3) await new Promise((resolve) => setTimeout(resolve, 500 * attempt));
-    }
-  }
-  throw lastError;
+  await updateDoc(ref, { ...data, updatedAt: new Date().toISOString() });
+  invalidateCollection("learningCodeSubmissions");
+  return true;
 }
 
 export async function listLearningCodeSubmissions(studentId, questionId) {
@@ -270,7 +262,7 @@ export async function listLearningCodeSubmissions(studentId, questionId) {
     where("studentId", "==", studentId),
     where("questionId", "==", questionId)
   );
-  const snap = await getDocs(q);
+  const snap = await getDocsCached(q, `user:${studentId}:col:learningCodeSubmissions:question:${questionId}`);
   return snap.docs
     .map((d) => ({ id: d.id, ...d.data() }))
     .sort((a, b) => new Date(b.submittedAt) - new Date(a.submittedAt));
