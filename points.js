@@ -48,25 +48,44 @@ export function isSpecialSectionUnlocked(points) {
 export async function awardPointsForCompletedQuestion(studentId, questionId) {
   const ref = doc(db, "studentPoints", studentId);
 
-  return runTransaction(db, async (transaction) => {
-    const snap = await transaction.get(ref);
-    const current = snap.exists() ? snap.data() : emptyPoints(studentId);
-    const alreadyCompleted = (current.completedCodingQuestionIds || []).includes(questionId);
+  // Firestore transactions already retry on contention. These additional
+  // retries handle short-lived client/network failures so a successful
+  // coding submission is less likely to lose its Learning Points.
+  let lastError = null;
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    try {
+      return await runTransaction(db, async (transaction) => {
+        const snap = await transaction.get(ref);
+        const current = snap.exists() ? snap.data() : emptyPoints(studentId);
+        const alreadyCompleted = (current.completedCodingQuestionIds || []).includes(questionId);
 
-    if (alreadyCompleted) {
-      return { points: current.points || 0, awarded: false };
+        if (alreadyCompleted) {
+          return { points: Number(current.points || 0), awarded: false };
+        }
+
+        const updated = {
+          ...current,
+          studentId,
+          points: Number(current.points || 0) + POINTS_PER_COMPLETED_QUESTION,
+          completedCodingQuestionIds: [
+            ...(current.completedCodingQuestionIds || []),
+            questionId
+          ],
+          updatedAt: new Date().toISOString()
+        };
+
+        transaction.set(ref, updated);
+        return { points: updated.points, awarded: true };
+      });
+    } catch (error) {
+      lastError = error;
+      if (attempt < 3) {
+        await new Promise((resolve) => setTimeout(resolve, 400 * attempt));
+      }
     }
+  }
 
-    const updated = {
-      ...current,
-      studentId,
-      points: (current.points || 0) + POINTS_PER_COMPLETED_QUESTION,
-      completedCodingQuestionIds: [...(current.completedCodingQuestionIds || []), questionId],
-      updatedAt: new Date().toISOString()
-    };
-    transaction.set(ref, updated);
-    return { points: updated.points, awarded: true };
-  });
+  throw lastError;
 }
 
 /** Marks the one-time unlock celebration as shown, so it doesn't replay on every visit. */

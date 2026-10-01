@@ -210,15 +210,15 @@ export async function createLearningCodeSubmission({
   questionId,
   language,
   sourceCode,
-  executionStatus,
-  testCasesPassed,
-  totalTestCases,
-  marksObtained,
-  executionTimeMs,
-  errorMessage
+  executionStatus = "processing",
+  testCasesPassed = 0,
+  totalTestCases = 0,
+  marksObtained = 0,
+  executionTimeMs = 0,
+  errorMessage = null
 }) {
   const ref = doc(collection(db, "learningCodeSubmissions"));
-  await setDoc(ref, {
+  const data = {
     submissionId: ref.id,
     studentId,
     levelId,
@@ -232,9 +232,36 @@ export async function createLearningCodeSubmission({
     marksObtained,
     executionTimeMs,
     memoryUsage: null,
-    errorMessage: errorMessage || null
-  });
-  return ref.id;
+    errorMessage: errorMessage || null,
+    updatedAt: new Date().toISOString()
+  };
+
+  let lastError = null;
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    try {
+      await setDoc(ref, data);
+      return ref.id;
+    } catch (error) {
+      lastError = error;
+      if (attempt < 3) await new Promise((resolve) => setTimeout(resolve, 500 * attempt));
+    }
+  }
+  throw lastError;
+}
+
+export async function updateLearningCodeSubmission(submissionId, data) {
+  const ref = doc(db, "learningCodeSubmissions", submissionId);
+  let lastError = null;
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    try {
+      await updateDoc(ref, { ...data, updatedAt: new Date().toISOString() });
+      return true;
+    } catch (error) {
+      lastError = error;
+      if (attempt < 3) await new Promise((resolve) => setTimeout(resolve, 500 * attempt));
+    }
+  }
+  throw lastError;
 }
 
 export async function listLearningCodeSubmissions(studentId, questionId) {

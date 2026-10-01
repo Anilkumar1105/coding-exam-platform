@@ -120,7 +120,8 @@ service cloud.firestore {
       allow create: if isSignedIn() &&
         request.resource.data.studentId == request.auth.uid;
 
-      allow update: if false;
+      allow update: if isAdmin() ||
+        (isSignedIn() && resource.data.studentId == request.auth.uid && request.resource.data.studentId == request.auth.uid);
       allow delete: if isAdmin();
     }
 
@@ -181,7 +182,9 @@ service cloud.firestore {
       allow create: if isSignedIn() &&
         request.resource.data.studentId == request.auth.uid;
 
-      allow update: if false;
+      allow update: if isAdmin() ||
+        (isSignedIn() && resource.data.studentId == request.auth.uid &&
+         request.resource.data.studentId == request.auth.uid);
       allow delete: if isAdmin();
     }
 

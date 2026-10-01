@@ -10,7 +10,8 @@ import {
   getDocs,
   query,
   where,
-  setDoc
+  setDoc,
+  runTransaction
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
 const COLLECTION = "dailyLearningActivity";
@@ -48,18 +49,29 @@ export async function recordDailyLogin(studentId) {
 export async function recordLearningProblemSolved(studentId, questionId) {
   const dateKey = getTodayKey();
   const ref = doc(db, COLLECTION, activityId(studentId, dateKey));
-  const snap = await getDoc(ref);
-  const existing = snap.exists() ? snap.data() : {};
-  await setDoc(ref, {
-    studentId,
-    dateKey,
-    loginAt: existing.loginAt || null,
-    solvedAt: existing.solvedAt || new Date().toISOString(),
-    solvedQuestionId: existing.solvedQuestionId || questionId,
-    qualified: true,
-    updatedAt: new Date().toISOString()
-  }, { merge: true });
-  return { ...existing, studentId, dateKey, solvedAt: existing.solvedAt || new Date().toISOString(), qualified: true };
+
+  // Do not depend on the separate login write having succeeded. If a
+  // student opens the coding page directly, or the login write was lost
+  // because of a transient error, solving a problem should still create a
+  // complete qualifying activity record.
+  return runTransaction(db, async (transaction) => {
+    const snap = await transaction.get(ref);
+    const existing = snap.exists() ? snap.data() : {};
+    const now = new Date().toISOString();
+
+    const updated = {
+      studentId,
+      dateKey,
+      loginAt: existing.loginAt || now,
+      solvedAt: existing.solvedAt || now,
+      solvedQuestionId: existing.solvedQuestionId || questionId,
+      qualified: true,
+      updatedAt: now
+    };
+
+    transaction.set(ref, updated, { merge: true });
+    return updated;
+  });
 }
 
 export async function getMyDailyLearningActivity(studentId) {

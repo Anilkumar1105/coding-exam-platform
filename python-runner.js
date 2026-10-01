@@ -90,7 +90,14 @@ export async function runTestCase(pyodide, code, testCase, timeoutMs = 5000) {
 export async function runAllTestCases(pyodide, code, testCases, timeoutMs = 5000) {
   const results = [];
   for (const tc of testCases) {
-    results.push(await runTestCase(pyodide, code, tc, timeoutMs));
+    const result = await runTestCase(pyodide, code, tc, timeoutMs);
+    results.push(result);
+
+    // Do not start another test after a timeout/error. A timed-out Pyodide
+    // execution may still be unwinding in the browser, so starting the next
+    // case immediately can cause overlapping execution and make the submit
+    // flow appear to hang or fail intermittently.
+    if (result.executionStatus === "timeout" || result.executionStatus === "error") break;
   }
   return results;
 }

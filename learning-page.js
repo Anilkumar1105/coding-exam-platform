@@ -13,6 +13,7 @@ import {
   markConceptComplete,
   recordMcqAttempt,
   createLearningCodeSubmission,
+  updateLearningCodeSubmission,
   listLearningCodeSubmissions,
   computeConceptStatuses,
   allConceptsCompleted
@@ -41,7 +42,9 @@ if (!levelId) window.location.href = "student-dashboard.html";
 
 requireRole("student", async (user) => {
   currentUser = user;
-  await recordDailyLogin(currentUser.uid).catch(() => {});
+  await recordDailyLogin(currentUser.uid).catch((error) => {
+    console.warn("Daily learning login could not be recorded:", error);
+  });
   await load();
 });
 
@@ -518,51 +521,126 @@ async function runVisible(q) {
 async function submitPractice(q) {
   const statusEl = document.getElementById("learningPythonStatus");
   const resultsEl = document.getElementById("learningTestResults");
-  statusEl.textContent = "Submitting and grading...";
-  document.getElementById("learningSubmitBtn").disabled = true;
+  const submitBtn = document.getElementById("learningSubmitBtn");
+
+  // Prevent double-clicks / duplicate submissions while grading.
+  if (submitBtn.disabled) return;
+  submitBtn.disabled = true;
+  statusEl.textContent = "Saving your submission...";
+  resultsEl.innerHTML = "";
+
+  const sourceCode = cmEditor.getValue();
+  const allTests = [...(q.visibleTestCases || []), ...(q.hiddenTestCases || [])];
+  const draftKey = `learningSubmissionDraft:${currentUser.uid}:${levelId}:${q.id}`;
+  const draft = {
+    studentId: currentUser.uid,
+    levelId,
+    questionId: q.id,
+    sourceCode,
+    savedAt: new Date().toISOString()
+  };
+
+  // Keep a local backup so a temporary Firebase/browser failure does not
+  // destroy the student's typed solution.
+  try { localStorage.setItem(draftKey, JSON.stringify(draft)); } catch (_) {}
+
+  let submissionId = null;
+  let finalStatusMessage = "";
 
   try {
-    const pyodide = await ensurePyodide();
-    const allTests = [...(q.visibleTestCases || []), ...(q.hiddenTestCases || [])];
-    const results = await runAllTestCases(pyodide, cmEditor.getValue(), allTests, (q.timeLimit || 5) * 1000);
-    const passedCount = results.filter((r) => r.passed).length;
-    const marksObtained = computeCodingMarks(q.marks, results);
-    const totalExecutionTimeMs = results.reduce((sum, r) => sum + (r.executionTimeMs || 0), 0);
-    const hadError = results.some((r) => r.executionStatus === "error" || r.executionStatus === "timeout");
-
-    await createLearningCodeSubmission({
+    // IMPORTANT: create the submission BEFORE running Pyodide. This gives
+    // us a durable record even if grading later times out or the browser has
+    // a transient failure.
+    submissionId = await createLearningCodeSubmission({
       studentId: currentUser.uid,
       levelId,
       questionId: q.id,
       language: "python",
-      sourceCode: cmEditor.getValue(),
-      executionStatus: hadError ? "error" : "completed",
+      sourceCode,
+      executionStatus: "processing",
+      testCasesPassed: 0,
+      totalTestCases: allTests.length,
+      marksObtained: 0,
+      executionTimeMs: 0,
+      errorMessage: null
+    });
+
+    statusEl.textContent = "Submitting and grading...";
+
+    const pyodide = await ensurePyodide();
+    const results = await runAllTestCases(
+      pyodide,
+      sourceCode,
+      allTests,
+      (q.timeLimit || 5) * 1000
+    );
+
+    const passedCount = results.filter((r) => r.passed).length;
+    const marksObtained = computeCodingMarks(q.marks, results);
+    const totalExecutionTimeMs = results.reduce((sum, r) => sum + (r.executionTimeMs || 0), 0);
+    const hadError = results.some((r) => r.executionStatus === "error" || r.executionStatus === "timeout");
+    const executionStatus = hadError ? "error" : "completed";
+    const errorMessage = results.find((r) => r.errorMessage)?.errorMessage || null;
+
+    await updateLearningCodeSubmission(submissionId, {
+      executionStatus,
       testCasesPassed: passedCount,
       totalTestCases: allTests.length,
       marksObtained,
       executionTimeMs: totalExecutionTimeMs,
-      errorMessage: results.find((r) => r.errorMessage)?.errorMessage || null
+      errorMessage
     });
 
-    // "Completed" = every test case passed (a true full solve, not a
-    // partial attempt). Awarding is transaction-safe and idempotent
-    // per question, so re-submitting an already-solved question never
-    // grants more points - see js/points.js.
     if (allTests.length && passedCount === allTests.length) {
-      const { awarded, points } = await awardPointsForCompletedQuestion(currentUser.uid, q.id);
-      await recordLearningProblemSolved(currentUser.uid, q.id).catch(() => {});
-      if (awarded) showPointsToast(points);
+      const [pointsResult, streakResult] = await Promise.allSettled([
+        awardPointsForCompletedQuestion(currentUser.uid, q.id),
+        recordLearningProblemSolved(currentUser.uid, q.id)
+      ]);
+
+      const messages = [];
+      if (pointsResult.status === "fulfilled") {
+        const { awarded, points } = pointsResult.value;
+        if (awarded) showPointsToast(points);
+      } else {
+        console.error("Learning Points could not be saved:", pointsResult.reason);
+        messages.push("Points save failed — please submit this solved question again.");
+      }
+
+      if (streakResult.status === "rejected") {
+        console.error("Learning streak could not be saved:", streakResult.reason);
+        messages.push("Streak save failed — please submit again.");
+      }
+      finalStatusMessage = messages.length ? ` · ${messages.join(" · ")}` : "";
     }
 
-    statusEl.textContent = `Submitted: ${passedCount} / ${allTests.length} test cases passed \u00b7 ${marksObtained} / ${q.marks} marks`;
+    statusEl.textContent = `Submitted: ${passedCount} / ${allTests.length} test cases passed · ${marksObtained} / ${q.marks} marks${finalStatusMessage}`;
     resultsEl.innerHTML = results
-      .map((r, i) => `<div class="testcase-result ${r.passed ? "pass" : "fail"}"><strong>Test ${i + 1}: ${r.passed ? "PASSED" : "FAILED"}</strong></div>`)
+      .map((r, i) => `<div class="testcase-result ${r.passed ? "pass" : "fail"}"><strong>Test ${i + 1}: ${r.passed ? "PASSED" : "FAILED"}</strong>${r.errorMessage ? ` · ${escapeHtml(r.errorMessage)}` : ""}</div>`)
       .join("");
+
+    try { localStorage.removeItem(draftKey); } catch (_) {}
     renderLearningHistory(q.id);
   } catch (err) {
-    statusEl.textContent = "Could not submit code.";
+    console.error("Learning code submission failed:", err);
+
+    // If the submission was created, leave a visible processing/error record
+    // rather than pretending that nothing was submitted.
+    if (submissionId) {
+      try {
+        await updateLearningCodeSubmission(submissionId, {
+          executionStatus: "error",
+          errorMessage: String(err?.message || err || "Submission failed")
+        });
+      } catch (updateError) {
+        console.error("Could not update failed submission record:", updateError);
+      }
+    }
+
+    statusEl.textContent = submissionId
+      ? "Your code was saved, but grading failed. Please try Submit again."
+      : "Could not save your submission. Your code is kept in this browser — please check your connection and submit again.";
   } finally {
-    document.getElementById("learningSubmitBtn").disabled = false;
+    submitBtn.disabled = false;
   }
 }
 
