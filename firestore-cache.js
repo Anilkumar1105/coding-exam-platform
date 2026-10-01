@@ -14,6 +14,49 @@ import { getDoc, getDocs, doc, setDoc, onSnapshot } from "https://www.gstatic.co
 const PREFIX = "cep:firestore-cache:v5:";
 const inFlight = new Map();
 
+// One realtime listener per browser page, even if multiple modules ask for it.
+// Each caller may register its own callback, but Firebase only receives one
+// onSnapshot subscription for cacheVersions/global.
+let remoteWatchUnsubscribe = null;
+const remoteWatchCallbacks = new Set();
+let remoteWatchDb = null;
+
+// Revisions prevent an older Firestore request that was already in flight
+// from repopulating a cache after that cache was invalidated or updated.
+const keyRevisions = new Map();
+const collectionRevisions = new Map();
+let globalRevision = 0;
+
+function collectionFromKey(key) {
+  const match = String(key).match(/(?:^|:)col:([^:]+):/);
+  return match ? match[1] : null;
+}
+
+function revisionSnapshot(key) {
+  const collection = collectionFromKey(key);
+  return {
+    key: keyRevisions.get(key) || 0,
+    collection: collection ? (collectionRevisions.get(collection) || 0) : 0,
+    global: globalRevision
+  };
+}
+
+function revisionChanged(key, snapshot) {
+  const current = revisionSnapshot(key);
+  return current.key !== snapshot.key ||
+    current.collection !== snapshot.collection ||
+    current.global !== snapshot.global;
+}
+
+function bumpKeyRevision(key) {
+  keyRevisions.set(key, (keyRevisions.get(key) || 0) + 1);
+}
+
+function bumpCollectionRevision(collectionName) {
+  const collection = String(collectionName);
+  collectionRevisions.set(collection, (collectionRevisions.get(collection) || 0) + 1);
+}
+
 function storageKey(key) {
   return `${PREFIX}${key}`;
 }
@@ -75,21 +118,68 @@ export async function bumpRemoteCacheVersion(db, collectionName) {
   }, { merge: true });
 }
 
-/** Listen to one shared version document and invalidate changed collections. */
+/**
+ * Listen to one shared version document and invalidate changed collections.
+ *
+ * This function is intentionally idempotent: auth.js, dashboard modules, and
+ * future pages can all call it without creating duplicate Firestore listeners.
+ */
 export function watchRemoteCacheChanges(db, onChanged) {
-  return onSnapshot(doc(db, "cacheVersions", "global"), (snap) => {
-    if (!snap.exists()) return;
-    const values = snap.data() || {};
-    let previous = {};
-    try { previous = JSON.parse(sessionStorage.getItem("cep:remote-cache-versions") || "{}"); } catch {}
-    const changed = [];
-    Object.entries(values).forEach(([name, version]) => {
-      if (name === "updatedAt") return;
-      if (previous[name] && String(previous[name]) !== String(version)) changed.push(name);
-    });
-    try { sessionStorage.setItem("cep:remote-cache-versions", JSON.stringify(values)); } catch {}
-    changed.forEach((name) => { invalidateCollection(name); onChanged?.(name); });
-  }, (error) => console.warn("Remote cache version listener unavailable:", error));
+  if (typeof onChanged === "function") remoteWatchCallbacks.add(onChanged);
+
+  if (!remoteWatchUnsubscribe || remoteWatchDb !== db) {
+    if (remoteWatchUnsubscribe) {
+      try { remoteWatchUnsubscribe(); } catch {}
+    }
+    remoteWatchDb = db;
+    remoteWatchUnsubscribe = onSnapshot(doc(db, "cacheVersions", "global"), (snap) => {
+      if (!snap.exists()) return;
+
+      const values = snap.data() || {};
+      let previous = {};
+      try {
+        previous = JSON.parse(sessionStorage.getItem("cep:remote-cache-versions") || "{}");
+      } catch {}
+
+      const changed = [];
+      Object.entries(values).forEach(([name, version]) => {
+        if (name === "updatedAt") return;
+        // First snapshot establishes the baseline. Only a real version change
+        // invalidates a cache, preventing a burst of reads on initial login.
+        if (previous[name] !== undefined && String(previous[name]) !== String(version)) {
+          changed.push(name);
+        }
+      });
+
+      try {
+        sessionStorage.setItem("cep:remote-cache-versions", JSON.stringify(values));
+      } catch {}
+
+      changed.forEach((name) => {
+        invalidateCollection(name);
+
+        // Generic event for UI modules. This makes realtime cache invalidation
+        // independent from the data-layer module that requested the listener.
+        try {
+          window.dispatchEvent(new CustomEvent("firestore-cache-invalidated", {
+            detail: { collectionName: name }
+          }));
+        } catch {}
+
+        remoteWatchCallbacks.forEach((callback) => {
+          try { callback(name); } catch (error) {
+            console.warn("Remote cache callback failed:", error);
+          }
+        });
+      });
+    }, (error) => console.warn("Remote cache version listener unavailable:", error));
+  }
+
+  // Return a per-caller cleanup function. Removing a callback never tears down
+  // the shared Firebase listener while other modules still use it.
+  return () => {
+    if (typeof onChanged === "function") remoteWatchCallbacks.delete(onChanged);
+  };
 }
 
 /** Cache a single Firestore document forever until explicitly invalidated. */
@@ -99,13 +189,16 @@ export async function getDocCached(ref, key) {
 
   if (inFlight.has(key)) return inFlight.get(key);
 
+  const revision = revisionSnapshot(key);
   const promise = getDoc(ref).then((snap) => {
-    writeEntry(key, {
-      kind: "doc",
-      id: snap.id || null,
-      exists: snap.exists(),
-      data: snap.exists() ? snap.data() : null
-    });
+    if (!revisionChanged(key, revision)) {
+      writeEntry(key, {
+        kind: "doc",
+        id: snap.id || null,
+        exists: snap.exists(),
+        data: snap.exists() ? snap.data() : null
+      });
+    }
     return snap;
   }).finally(() => inFlight.delete(key));
 
@@ -120,11 +213,14 @@ export async function getDocsCached(q, key) {
 
   if (inFlight.has(key)) return inFlight.get(key);
 
+  const revision = revisionSnapshot(key);
   const promise = getDocs(q).then((snap) => {
-    writeEntry(key, {
-      kind: "query",
-      docs: snap.docs.map((d) => ({ id: d.id, data: d.data() }))
-    });
+    if (!revisionChanged(key, revision)) {
+      writeEntry(key, {
+        kind: "query",
+        docs: snap.docs.map((d) => ({ id: d.id, data: d.data() }))
+      });
+    }
     return snap;
   }).finally(() => inFlight.delete(key));
 
@@ -134,6 +230,7 @@ export async function getDocsCached(q, key) {
 
 /** Merge one known document into an already-cached query without a Firestore read. */
 export function upsertCachedQueryDoc(key, id, data) {
+  bumpKeyRevision(key);
   const cached = cachedValue(key);
   if (cached?.kind !== "query") return false;
   const docs = Array.isArray(cached.docs) ? [...cached.docs] : [];
@@ -146,6 +243,7 @@ export function upsertCachedQueryDoc(key, id, data) {
 
 /** Invalidate one exact cache entry. */
 export function invalidateCache(key) {
+  bumpKeyRevision(key);
   removeStorageKey(key);
 }
 
@@ -154,6 +252,7 @@ export function invalidateCache(key) {
  * This avoids the common write -> invalidate -> read-again pattern.
  */
 export function setCachedDoc(key, id, data, exists = true) {
+  bumpKeyRevision(key);
   writeEntry(key, {
     kind: "doc",
     id: id || null,
@@ -172,6 +271,7 @@ export function mergeCachedDoc(key, id, patch) {
 
 /** Replace a cached query snapshot after a known successful refresh. */
 export function setCachedQuery(key, docs) {
+  bumpKeyRevision(key);
   writeEntry(key, {
     kind: "query",
     docs: Array.isArray(docs) ? docs.map((d) => ({ id: d.id, data: d.data || d })) : []
@@ -181,6 +281,7 @@ export function setCachedQuery(key, docs) {
 /** Invalidate every cached read belonging to a Firestore collection. */
 export function invalidateCollection(collectionName) {
   const token = `col:${collectionName}:`;
+  bumpCollectionRevision(collectionName);
   try {
     const keys = [];
     for (let i = 0; i < sessionStorage.length; i++) {
@@ -193,6 +294,9 @@ export function invalidateCollection(collectionName) {
 
 /** Invalidate all cached reads for the current browser tab/session. */
 export function clearFirestoreCache() {
+  globalRevision += 1;
+  keyRevisions.clear();
+  collectionRevisions.clear();
   try {
     const keys = [];
     for (let i = 0; i < sessionStorage.length; i++) {

@@ -117,7 +117,7 @@ export async function listStudents(section = "all") {
       ? query(usersRef, where("role", "==", "student"))
       : query(usersRef, where("role", "==", "student"), where("section", "==", section));
 
-  const snap = await getDocsCached(q, `admin:users:section:${section}`);
+  const snap = await getDocsCached(q, `col:users:admin:section:${section}`);
   return snap.docs.map((d) => d.data());
 }
 
@@ -127,7 +127,7 @@ export async function listStudents(section = "all") {
 
 /** Fetch all exams, newest first. */
 export async function listExams() {
-  const snap = await getDocsCached(query(collection(db, "exams"), orderBy("createdAt", "desc")), "admin:exams:all");
+  const snap = await getDocsCached(query(collection(db, "exams"), orderBy("createdAt", "desc")), "col:exams:admin:all");
   return snap.docs.map((d) => ({ id: d.id, ...d.data() }));
 }
 
@@ -166,18 +166,9 @@ export const MAX_SCHEDULES_PER_EXAM = 7;
 // this admin-only module just for a read).
 export { listSchedulesForExam } from "./student.js";
 
-async function bumpExamScheduleVersion() {
-  await setDoc(
-    doc(db, "cacheVersions", "examSchedules"),
-    { version: Date.now(), updatedAt: new Date().toISOString() },
-    { merge: true }
-  );
-}
-
 export async function createSchedule(examId, startTime, sections = []) {
   const result = await addDoc(collection(db, "examSchedules"), { examId, startTime, sections, createdAt: new Date().toISOString() });
   invalidateCollection("examSchedules");
-  await bumpExamScheduleVersion();
   await bumpRemoteCacheVersion(db, "examSchedules");
   return result;
 }
@@ -185,7 +176,6 @@ export async function createSchedule(examId, startTime, sections = []) {
 export async function updateSchedule(scheduleId, startTime, sections = []) {
   const result = await updateDoc(doc(db, "examSchedules", scheduleId), { startTime, sections });
   invalidateCollection("examSchedules");
-  await bumpExamScheduleVersion();
   await bumpRemoteCacheVersion(db, "examSchedules");
   return result;
 }
@@ -193,7 +183,6 @@ export async function updateSchedule(scheduleId, startTime, sections = []) {
 export async function deleteSchedule(scheduleId) {
   const result = await deleteDoc(doc(db, "examSchedules", scheduleId));
   invalidateCollection("examSchedules");
-  await bumpExamScheduleVersion();
   await bumpRemoteCacheVersion(db, "examSchedules");
   return result;
 }
@@ -235,13 +224,13 @@ export function publishAllTimePythonTopper(entries) {
 
 /** Fetch all student learning-point documents for admin leaderboard calculations. */
 export async function listStudentPoints() {
-  const snap = await getDocsCached(collection(db, "studentPoints"), "admin:studentPoints:all");
+  const snap = await getDocsCached(collection(db, "studentPoints"), "col:studentPoints:admin:all");
   return snap.docs.map((d) => ({ id: d.id, ...d.data() }));
 }
 
 /** Fetch all daily Learning Section activity records for streak calculations. */
 export async function listDailyLearningActivity() {
-  const snap = await getDocsCached(collection(db, "dailyLearningActivity"), "admin:dailyLearningActivity:all");
+  const snap = await getDocsCached(collection(db, "dailyLearningActivity"), "col:dailyLearningActivity:admin:all");
   return snap.docs.map((d) => ({ id: d.id, ...d.data() }));
 }
 
@@ -267,7 +256,7 @@ export function publishBestLearner(entries) {
 
 export async function listQuestionsForExam(examId) {
   const q = query(collection(db, "questions"), where("examId", "==", examId));
-  const snap = await getDocsCached(q, "admin:questions:exam:" + examId);
+  const snap = await getDocsCached(q, "col:questions:admin:exam:" + examId);
   return snap.docs.map((d) => ({ id: d.id, ...d.data() }));
 }
 
@@ -288,7 +277,7 @@ export function deleteQuestionDoc(questionId) {
    ============================================================ */
 
 export async function listSubmissions() {
-  const snap = await getDocsCached(collection(db, "submissions"), "admin:submissions:all");
+  const snap = await getDocsCached(collection(db, "submissions"), "col:submissions:admin:all");
   return snap.docs.map((d) => ({ id: d.id, ...d.data() }));
 }
 

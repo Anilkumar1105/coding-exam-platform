@@ -86,12 +86,9 @@ export async function getBestLearner() {
  * document; it does not subscribe to the whole examSchedules collection.
  */
 export function watchExamScheduleChanges() {
-  return watchRemoteCacheChanges(db, (collectionName) => {
-    if (collectionName !== "examSchedules") return;
-    // Notify the dashboard/exam page so it can re-read schedules from the
-    // cache (which was just invalidated) and update its UI without logout.
-    window.dispatchEvent(new CustomEvent("exam-schedule-cache-invalidated"));
-  });
+  // Backward-compatible API. The cache layer owns one shared Firebase
+  // listener and emits the generic invalidation event itself.
+  return watchRemoteCacheChanges(db);
 }
 
 export async function listSchedulesForExam(examId) {

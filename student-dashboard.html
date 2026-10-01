@@ -325,7 +325,8 @@
     // Remote schedule version changes invalidate the cached schedules.
     // Re-fetch only the schedules and immediately re-render the exam cards;
     // do not require logout/login or a full-page refresh.
-    window.addEventListener("exam-schedule-cache-invalidated", async () => {
+    window.addEventListener("firestore-cache-invalidated", async (event) => {
+      if (event.detail?.collectionName !== "examSchedules") return;
       try {
         schedulesByExamId = await listSchedulesForExams(activeExams.map((e) => e.id));
         const relevantActiveExams = activeExams.filter((e) => {
