@@ -9,9 +9,9 @@
 // student, so data must disappear when the tab/session is closed. User-specific
 // cache keys should include the Firebase UID.
 
-import { getDoc, getDocs } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+import { getDoc, getDocs, doc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
-const PREFIX = "cep:firestore-cache:v3:";
+const PREFIX = "cep:firestore-cache:v5:";
 const inFlight = new Map();
 
 function storageKey(key) {
@@ -66,6 +66,32 @@ function cachedValue(key) {
   return entry?.value || null;
 }
 
+/** Publish a tiny remote version marker after an admin-controlled data change. */
+export async function bumpRemoteCacheVersion(db, collectionName) {
+  const field = String(collectionName).replace(/[^a-zA-Z0-9_]/g, "_");
+  return setDoc(doc(db, "cacheVersions", "global"), {
+    [field]: Date.now(),
+    updatedAt: new Date().toISOString()
+  }, { merge: true });
+}
+
+/** Listen to one shared version document and invalidate changed collections. */
+export function watchRemoteCacheChanges(db, onChanged) {
+  return onSnapshot(doc(db, "cacheVersions", "global"), (snap) => {
+    if (!snap.exists()) return;
+    const values = snap.data() || {};
+    let previous = {};
+    try { previous = JSON.parse(sessionStorage.getItem("cep:remote-cache-versions") || "{}"); } catch {}
+    const changed = [];
+    Object.entries(values).forEach(([name, version]) => {
+      if (name === "updatedAt") return;
+      if (previous[name] && String(previous[name]) !== String(version)) changed.push(name);
+    });
+    try { sessionStorage.setItem("cep:remote-cache-versions", JSON.stringify(values)); } catch {}
+    changed.forEach((name) => { invalidateCollection(name); onChanged?.(name); });
+  }, (error) => console.warn("Remote cache version listener unavailable:", error));
+}
+
 /** Cache a single Firestore document forever until explicitly invalidated. */
 export async function getDocCached(ref, key) {
   const cached = cachedValue(key);
@@ -106,6 +132,18 @@ export async function getDocsCached(q, key) {
   return promise;
 }
 
+/** Merge one known document into an already-cached query without a Firestore read. */
+export function upsertCachedQueryDoc(key, id, data) {
+  const cached = cachedValue(key);
+  if (cached?.kind !== "query") return false;
+  const docs = Array.isArray(cached.docs) ? [...cached.docs] : [];
+  const index = docs.findIndex((row) => row.id === id);
+  const row = { id, data };
+  if (index >= 0) docs[index] = row; else docs.push(row);
+  writeEntry(key, { kind: "query", docs });
+  return true;
+}
+
 /** Invalidate one exact cache entry. */
 export function invalidateCache(key) {
   removeStorageKey(key);
@@ -122,6 +160,14 @@ export function setCachedDoc(key, id, data, exists = true) {
     exists: !!exists,
     data: exists ? data : null
   });
+}
+
+/** Merge fields into a cached document without reading Firestore. */
+export function mergeCachedDoc(key, id, patch) {
+  const cached = cachedValue(key);
+  const current = cached?.kind === "doc" && cached.exists ? (cached.data || {}) : {};
+  setCachedDoc(key, id, { ...current, ...(patch || {}) }, true);
+  return { ...current, ...(patch || {}) };
 }
 
 /** Replace a cached query snapshot after a known successful refresh. */

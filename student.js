@@ -2,7 +2,7 @@
 // Data-layer functions for the student dashboard and the exam page.
 
 import { db } from "./firebase-config.js";
-import { getDocCached, getDocsCached, invalidateCollection, invalidateCache } from "./firestore-cache.js";
+import { getDocCached, getDocsCached, invalidateCollection, invalidateCache, setCachedDoc, upsertCachedQueryDoc, mergeCachedDoc } from "./firestore-cache.js";
 import {
   collection,
   doc,
@@ -12,8 +12,7 @@ import {
   query,
   where,
   documentId,
-  getDocs,
-  onSnapshot
+  getDocs
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
 /** Fetch all exams currently marked active (visible to students). */
@@ -81,34 +80,6 @@ export async function getBestLearner() {
 /** Read-only: fetch an exam's schedules, sorted earliest-first. Both
  *  admin.js (management UI) and student-facing pages import this from
  *  here so student pages never need to pull in admin-only Auth code. */
-/**
- * Keep exam-schedule caches coherent across different student browsers.
- *
- * A single tiny version document is listened to instead of listening to the
- * entire examSchedules collection. When an admin changes any schedule, the
- * version changes and every open student tab invalidates only its schedule
- * cache. Refreshing a page also receives the current version immediately, so
- * a stale cached schedule is discarded without requiring logout/login.
- */
-export function watchExamScheduleChanges() {
-  const versionRef = doc(db, "cacheVersions", "examSchedules");
-  const storageKey = "cep:exam-schedule-cache-version";
-  let lastVersion = null;
-  try { lastVersion = sessionStorage.getItem(storageKey); } catch {}
-
-  return onSnapshot(versionRef, (snap) => {
-    const version = snap.exists() ? String(snap.data()?.version || "") : "";
-    if (!version) return;
-    if (lastVersion && lastVersion !== version) {
-      invalidateCollection("examSchedules");
-    }
-    lastVersion = version;
-    try { sessionStorage.setItem(storageKey, version); } catch {}
-  }, (error) => {
-    console.warn("Exam schedule version listener unavailable:", error);
-  });
-}
-
 export async function listSchedulesForExam(examId) {
   const q = query(collection(db, "examSchedules"), where("examId", "==", examId));
   const snap = await getDocsCached(q, `col:examSchedules:exam:${examId}`);
@@ -180,6 +151,7 @@ export async function getSubmission(examId, studentId) {
 /** Creates the submission doc the moment a student starts an exam. */
 export async function startSubmission(examId, student, maxViolations) {
   const id = submissionId(examId, student.uid);
+  const startTime = new Date().toISOString();
   const result = await setDoc(doc(db, "submissions", id), {
     examId,
     studentId: student.uid,
@@ -191,46 +163,61 @@ export async function startSubmission(examId, student, maxViolations) {
     violations: 0,
     maxViolations,
     status: "in-progress",
-    startedAt: new Date().toISOString(),
+    startedAt: startTime,
     submittedAt: null
   });
-  invalidateCollection("submissions");
+  const submission = {
+    id,
+    examId,
+    studentId: student.uid,
+    rollNumber: student.rollNumber,
+    section: student.section,
+    answers: {}, score: null, percentage: null, violations: 0, maxViolations,
+    status: "in-progress", startedAt: startTime, submittedAt: null
+  };
+  setCachedDoc(`user:${student.uid}:col:submissions:doc:${id}`, id, submission, true);
+  upsertCachedQueryDoc(`user:${student.uid}:col:submissions`, id, submission);
   return result;
 }
 
 /** Autosaves partial answers without changing status. */
 export async function saveAnswers(examId, studentId, answers) {
-  const result = await updateDoc(doc(db, "submissions", submissionId(examId, studentId)), { answers });
-  invalidateCollection("submissions");
+  const id = submissionId(examId, studentId);
+  const result = await updateDoc(doc(db, "submissions", id), { answers });
+  const merged = mergeCachedDoc(`user:${studentId}:col:submissions:doc:${id}`, id, { answers });
+  upsertCachedQueryDoc(`user:${studentId}:col:submissions`, id, merged);
   return result;
 }
 
 /** Saves which questions the student has flagged "for review" before final submit. */
 export async function saveFlags(examId, studentId, flaggedQuestionIds) {
-  const result = await updateDoc(doc(db, "submissions", submissionId(examId, studentId)), { flaggedQuestionIds });
-  invalidateCollection("submissions");
+  const id = submissionId(examId, studentId);
+  const result = await updateDoc(doc(db, "submissions", id), { flaggedQuestionIds });
+  const merged = mergeCachedDoc(`user:${studentId}:col:submissions:doc:${id}`, id, { flaggedQuestionIds });
+  upsertCachedQueryDoc(`user:${studentId}:col:submissions`, id, merged);
   return result;
 }
 
 export async function incrementViolation(examId, studentId, newCount) {
-  const result = await updateDoc(doc(db, "submissions", submissionId(examId, studentId)), { violations: newCount });
-  invalidateCollection("submissions");
+  const id = submissionId(examId, studentId);
+  const result = await updateDoc(doc(db, "submissions", id), { violations: newCount });
+  const merged = mergeCachedDoc(`user:${studentId}:col:submissions:doc:${id}`, id, { violations: newCount });
+  upsertCachedQueryDoc(`user:${studentId}:col:submissions`, id, merged);
   return result;
 }
 
 /** Final submit: writes score/status/submittedAt. */
 export async function finalizeSubmission(examId, studentId, { answers, score, mcqScore, codingScore, totalMarks, percentage, status }) {
-  const result = await updateDoc(doc(db, "submissions", submissionId(examId, studentId)), {
-    answers,
-    score,
-    mcqScore,
-    codingScore,
-    totalMarks,
-    percentage,
-    status,
-    submittedAt: new Date().toISOString()
+  const id = submissionId(examId, studentId);
+  const submittedAt = new Date().toISOString();
+  const result = await updateDoc(doc(db, "submissions", id), {
+    answers, score, mcqScore, codingScore, totalMarks, percentage, status, submittedAt
   });
-  invalidateCollection("submissions");
+  const cached = {
+    id, examId, studentId, answers, score, mcqScore, codingScore, totalMarks, percentage, status, submittedAt
+  };
+  setCachedDoc(`user:${studentId}:col:submissions:doc:${id}`, id, cached, true);
+  upsertCachedQueryDoc(`user:${studentId}:col:submissions`, id, cached);
   return result;
 }
 
@@ -255,14 +242,15 @@ export async function createCodeSubmission({
   errorMessage
 }) {
   const ref = doc(collection(db, "codeSubmissions"));
-  await setDoc(ref, {
+  const submittedAt = new Date().toISOString();
+  const data = {
     submissionId: ref.id,
     studentId,
     examId,
     questionId,
     language,
     sourceCode,
-    submittedAt: new Date().toISOString(),
+    submittedAt,
     compilationStatus,
     executionStatus,
     testCasesPassed,
@@ -271,8 +259,11 @@ export async function createCodeSubmission({
     executionTimeMs,
     memoryUsage: memoryUsage ?? null,
     errorMessage: errorMessage || null
-  });
-  invalidateCollection("codeSubmissions");
+  };
+  await setDoc(ref, data);
+  setCachedDoc(`user:${studentId}:col:codeSubmissions:doc:${ref.id}`, ref.id, data, true);
+  upsertCachedQueryDoc(`user:${studentId}:col:codeSubmissions:question:${questionId}`, ref.id, data);
+  upsertCachedQueryDoc(`user:${studentId}:col:codeSubmissions:exam:${examId}`, ref.id, data);
   return ref.id;
 }
 

@@ -2,7 +2,7 @@
 // Shared authentication + role-guard helpers.
 
 import { auth, db } from "./firebase-config.js";
-import { getDocCached, clearFirestoreCache } from "./firestore-cache.js";
+import { getDocCached, clearFirestoreCache, watchRemoteCacheChanges } from "./firestore-cache.js";
 import {
   signInWithEmailAndPassword,
   signOut,
@@ -38,14 +38,20 @@ export async function getUserProfile(uid) {
  * - Signed in with the RIGHT role -> calls onReady(user, profile)
  */
 let lastAuthUid = null;
+let stopRemoteCacheWatch = null;
 
 export function requireRole(expectedRole, onReady) {
   onAuthStateChanged(auth, async (user) => {
     if (user && lastAuthUid && lastAuthUid !== user.uid) clearFirestoreCache();
     lastAuthUid = user?.uid || null;
     if (!user) {
+      if (stopRemoteCacheWatch) { stopRemoteCacheWatch(); stopRemoteCacheWatch = null; }
       window.location.href = "login.html";
       return;
+    }
+    if (lastAuthUid && lastAuthUid !== user.uid && stopRemoteCacheWatch) {
+      stopRemoteCacheWatch();
+      stopRemoteCacheWatch = null;
     }
 
     const profile = await getUserProfile(user.uid);
@@ -63,6 +69,7 @@ export function requireRole(expectedRole, onReady) {
       return;
     }
 
+    if (profile.role === "student" && !stopRemoteCacheWatch) stopRemoteCacheWatch = watchRemoteCacheChanges(db);
     onReady(user, profile);
   });
 }

@@ -4,7 +4,7 @@
 // UI wiring lives in admin-dashboard.html's inline module script.
 
 import { db, secondaryAuth } from "./firebase-config.js";
-import { getDocCached, getDocsCached, invalidateCache, invalidateCollection } from "./firestore-cache.js";
+import { getDocCached, getDocsCached, invalidateCache, invalidateCollection, bumpRemoteCacheVersion } from "./firestore-cache.js";
 import {
   createUserWithEmailAndPassword,
   sendPasswordResetEmail,
@@ -66,6 +66,7 @@ export async function addStudent({ name, rollNumber, section, email, password })
     createdAt: new Date().toISOString()
   });
   invalidateCollection("users");
+  await bumpRemoteCacheVersion(db, "users");
   return { uid };
 }
 
@@ -83,7 +84,7 @@ export function updateStudent(uid, { name, rollNumber, section, password }) {
   const data = { name, rollNumber, section };
   const trimmed = password ? String(password).trim() : "";
   if (trimmed) data.passwordPlain = trimmed;
-  return updateDoc(doc(db, "users", uid), data).then((r) => { invalidateCollection("users"); invalidateCache(`user:${uid}:col:users:doc:${uid}`); return r; });
+  return updateDoc(doc(db, "users", uid), data).then(async (r) => { invalidateCollection("users"); invalidateCache(`user:${uid}:col:users:doc:${uid}`); await bumpRemoteCacheVersion(db, "users"); return r; });
 }
 
 /**
@@ -105,7 +106,7 @@ export function sendStudentPasswordReset(email) {
  * Firebase Console if needed.
  */
 export function deleteStudentProfile(uid) {
-  return deleteDoc(doc(db, "users", uid)).then((r) => { invalidateCollection("users"); return r; });
+  return deleteDoc(doc(db, "users", uid)).then(async (r) => { invalidateCollection("users"); await bumpRemoteCacheVersion(db, "users"); return r; });
 }
 
 /** Fetch all students, optionally filtered by section. */
@@ -135,24 +136,23 @@ export async function getExam(examId) {
   return snap.exists() ? { id: snap.id, ...snap.data() } : null;
 }
 
-export function createExam(data, createdBy) {
-  return addDoc(collection(db, "exams"), {
-    ...data,
-    createdBy,
-    createdAt: new Date().toISOString()
-  }).then((r) => { invalidateCollection("exams"); return r; });
+export async function createExam(data, createdBy) {
+  const r = await addDoc(collection(db, "exams"), { ...data, createdBy, createdAt: new Date().toISOString() });
+  invalidateCollection("exams"); await bumpRemoteCacheVersion(db, "exams"); return r;
 }
 
-export function updateExamDoc(examId, data) {
-  return updateDoc(doc(db, "exams", examId), data).then((r) => { invalidateCollection("exams"); invalidateCache(`col:exams:doc:${examId}`); invalidateCache("col:exams:active"); return r; });
+export async function updateExamDoc(examId, data) {
+  const r = await updateDoc(doc(db, "exams", examId), data);
+  invalidateCollection("exams"); invalidateCache(`col:exams:doc:${examId}`); invalidateCache("col:exams:active"); await bumpRemoteCacheVersion(db, "exams"); return r;
 }
 
-export function toggleExamActive(examId, active) {
-  return updateDoc(doc(db, "exams", examId), { active }).then((r) => { invalidateCollection("exams"); invalidateCache(`col:exams:doc:${examId}`); invalidateCache("col:exams:active"); return r; });
+export async function toggleExamActive(examId, active) {
+  const r = await updateDoc(doc(db, "exams", examId), { active });
+  invalidateCollection("exams"); invalidateCache(`col:exams:doc:${examId}`); invalidateCache("col:exams:active"); await bumpRemoteCacheVersion(db, "exams"); return r;
 }
 
-export function deleteExamDoc(examId) {
-  return deleteDoc(doc(db, "exams", examId)).then((r) => { invalidateCollection("exams"); return r; });
+export async function deleteExamDoc(examId) {
+  const r = await deleteDoc(doc(db, "exams", examId)); invalidateCollection("exams"); await bumpRemoteCacheVersion(db, "exams"); return r;
 }
 
 /* ============================================================
@@ -178,6 +178,7 @@ export async function createSchedule(examId, startTime, sections = []) {
   const result = await addDoc(collection(db, "examSchedules"), { examId, startTime, sections, createdAt: new Date().toISOString() });
   invalidateCollection("examSchedules");
   await bumpExamScheduleVersion();
+  await bumpRemoteCacheVersion(db, "examSchedules");
   return result;
 }
 
@@ -185,6 +186,7 @@ export async function updateSchedule(scheduleId, startTime, sections = []) {
   const result = await updateDoc(doc(db, "examSchedules", scheduleId), { startTime, sections });
   invalidateCollection("examSchedules");
   await bumpExamScheduleVersion();
+  await bumpRemoteCacheVersion(db, "examSchedules");
   return result;
 }
 
@@ -192,6 +194,7 @@ export async function deleteSchedule(scheduleId) {
   const result = await deleteDoc(doc(db, "examSchedules", scheduleId));
   invalidateCollection("examSchedules");
   await bumpExamScheduleVersion();
+  await bumpRemoteCacheVersion(db, "examSchedules");
   return result;
 }
 
@@ -207,7 +210,7 @@ export function publishWeeklyToppers(entries) {
   return setDoc(doc(db, "weeklyToppers", "current"), {
     entries,
     updatedAt: new Date().toISOString()
-  }).then((r) => { invalidateCollection("weeklyToppers"); return r; });
+  }).then(async (r) => { invalidateCollection("weeklyToppers"); await bumpRemoteCacheVersion(db, "weeklyToppers"); return r; });
 }
 
 /**
@@ -219,7 +222,7 @@ export function publishWeeklyCodingToppers(entries) {
   return setDoc(doc(db, "weeklyCodingToppers", "current"), {
     entries,
     updatedAt: new Date().toISOString()
-  }).then((r) => { invalidateCollection("weeklyCodingToppers"); return r; });
+  }).then(async (r) => { invalidateCollection("weeklyCodingToppers"); await bumpRemoteCacheVersion(db, "weeklyCodingToppers"); return r; });
 }
 
 /** Publishes the all-time Python champion leaderboard. */
@@ -227,7 +230,7 @@ export function publishAllTimePythonTopper(entries) {
   return setDoc(doc(db, "allTimePythonTopper", "current"), {
     entries,
     updatedAt: new Date().toISOString()
-  }).then((r) => { invalidateCollection("allTimePythonTopper"); return r; });
+  }).then(async (r) => { invalidateCollection("allTimePythonTopper"); await bumpRemoteCacheVersion(db, "allTimePythonTopper"); return r; });
 }
 
 /** Fetch all student learning-point documents for admin leaderboard calculations. */
@@ -247,7 +250,7 @@ export function publishStreakLeaderboard(entries) {
   return setDoc(doc(db, "streakLeaderboard", "current"), {
     entries,
     updatedAt: new Date().toISOString()
-  }).then((r) => { invalidateCollection("streakLeaderboard"); return r; });
+  }).then(async (r) => { invalidateCollection("streakLeaderboard"); await bumpRemoteCacheVersion(db, "streakLeaderboard"); return r; });
 }
 
 /** Publishes the all-time learning-points Best Learner leaderboard. */
@@ -255,7 +258,7 @@ export function publishBestLearner(entries) {
   return setDoc(doc(db, "bestLearner", "current"), {
     entries,
     updatedAt: new Date().toISOString()
-  }).then((r) => { invalidateCollection("bestLearner"); return r; });
+  }).then(async (r) => { invalidateCollection("bestLearner"); await bumpRemoteCacheVersion(db, "bestLearner"); return r; });
 }
 
 /* ============================================================
@@ -269,15 +272,15 @@ export async function listQuestionsForExam(examId) {
 }
 
 export function addQuestion(data) {
-  return addDoc(collection(db, "questions"), { ...data, createdAt: new Date().toISOString() }).then((r) => { invalidateCollection("questions"); return r; });
+  return addDoc(collection(db, "questions"), { ...data, createdAt: new Date().toISOString() }).then(async (r) => { invalidateCollection("questions"); await bumpRemoteCacheVersion(db, "questions"); return r; });
 }
 
 export function updateQuestionDoc(questionId, data) {
-  return updateDoc(doc(db, "questions", questionId), data).then((r) => { invalidateCollection("questions"); return r; });
+  return updateDoc(doc(db, "questions", questionId), data).then(async (r) => { invalidateCollection("questions"); invalidateCache(`col:questions:doc:${questionId}`); await bumpRemoteCacheVersion(db, "questions"); return r; });
 }
 
 export function deleteQuestionDoc(questionId) {
-  return deleteDoc(doc(db, "questions", questionId)).then((r) => { invalidateCollection("questions"); return r; });
+  return deleteDoc(doc(db, "questions", questionId)).then(async (r) => { invalidateCollection("questions"); invalidateCache(`col:questions:doc:${questionId}`); await bumpRemoteCacheVersion(db, "questions"); return r; });
 }
 
 /* ============================================================
@@ -304,7 +307,7 @@ export function updateSubmissionMarks(submissionId, { score, percentage, totalMa
     manualMarksNote: resultNote || "",
     status: "submitted",
     submittedAt: new Date().toISOString()
-  }).then((r) => { invalidateCollection("submissions"); return r; });
+  }).then(async (r) => { invalidateCollection("submissions"); await bumpRemoteCacheVersion(db, "submissions"); return r; });
 }
 
 /**
@@ -325,7 +328,7 @@ export function createManualSubmission(data) {
     manualMarksUpdatedBy: data.updatedBy || null,
     manualMarksNote: data.resultNote || "",
     submittedAt: data.submittedAt || new Date().toISOString()
-  }).then((r) => { invalidateCollection("submissions"); return r; });
+  }).then(async (r) => { invalidateCollection("submissions"); await bumpRemoteCacheVersion(db, "submissions"); return r; });
 }
 
 /* ============================================================

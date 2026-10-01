@@ -4,7 +4,7 @@
 // by the admin management UI and the student-facing learning page.
 
 import { db } from "./firebase-config.js";
-import { getDocCached, getDocsCached, invalidateCache, invalidateCollection, setCachedDoc } from "./firestore-cache.js";
+import { getDocCached, getDocsCached, invalidateCache, invalidateCollection, setCachedDoc, upsertCachedQueryDoc, bumpRemoteCacheVersion } from "./firestore-cache.js";
 import {
   collection,
   doc,
@@ -42,15 +42,15 @@ export async function getLevel(levelId) {
 }
 
 export function createLevel(data) {
-  return addDoc(collection(db, "learningLevels"), { ...data, createdAt: new Date().toISOString() }).then((r) => { invalidateCollection("learningLevels"); return r; });
+  return addDoc(collection(db, "learningLevels"), { ...data, createdAt: new Date().toISOString() }).then(async (r) => { invalidateCollection("learningLevels"); await bumpRemoteCacheVersion(db, "learningLevels"); return r; });
 }
 
 export function updateLevel(levelId, data) {
-  return updateDoc(doc(db, "learningLevels", levelId), data).then((r) => { invalidateCollection("learningLevels"); invalidateCache(`col:learningLevels:doc:${levelId}`); return r; });
+  return updateDoc(doc(db, "learningLevels", levelId), data).then(async (r) => { invalidateCollection("learningLevels"); invalidateCache(`col:learningLevels:doc:${levelId}`); await bumpRemoteCacheVersion(db, "learningLevels"); return r; });
 }
 
 export function deleteLevel(levelId) {
-  return deleteDoc(doc(db, "learningLevels", levelId)).then((r) => { invalidateCollection("learningLevels"); invalidateCollection("learningConcepts"); invalidateCollection("learningMcqQuestions"); invalidateCollection("learningCodingQuestions"); return r; });
+  return deleteDoc(doc(db, "learningLevels", levelId)).then(async (r) => { invalidateCollection("learningLevels"); invalidateCollection("learningConcepts"); invalidateCollection("learningMcqQuestions"); invalidateCollection("learningCodingQuestions"); await bumpRemoteCacheVersion(db, "learningLevels"); await bumpRemoteCacheVersion(db, "learningConcepts"); await bumpRemoteCacheVersion(db, "learningMcqQuestions"); await bumpRemoteCacheVersion(db, "learningCodingQuestions"); return r; });
 }
 
 /* ============================================================
@@ -63,15 +63,15 @@ export async function listConcepts(levelId) {
 }
 
 export function createConcept(data) {
-  return addDoc(collection(db, "learningConcepts"), { ...data, createdAt: new Date().toISOString() }).then((r) => { invalidateCollection("learningConcepts"); return r; });
+  return addDoc(collection(db, "learningConcepts"), { ...data, createdAt: new Date().toISOString() }).then(async (r) => { invalidateCollection("learningConcepts"); await bumpRemoteCacheVersion(db, "learningConcepts"); return r; });
 }
 
 export function updateConcept(conceptId, data) {
-  return updateDoc(doc(db, "learningConcepts", conceptId), data).then((r) => { invalidateCollection("learningConcepts"); return r; });
+  return updateDoc(doc(db, "learningConcepts", conceptId), data).then(async (r) => { invalidateCollection("learningConcepts"); await bumpRemoteCacheVersion(db, "learningConcepts"); return r; });
 }
 
 export function deleteConcept(conceptId) {
-  return deleteDoc(doc(db, "learningConcepts", conceptId)).then((r) => { invalidateCollection("learningConcepts"); return r; });
+  return deleteDoc(doc(db, "learningConcepts", conceptId)).then(async (r) => { invalidateCollection("learningConcepts"); await bumpRemoteCacheVersion(db, "learningConcepts"); return r; });
 }
 
 /* ============================================================
@@ -84,15 +84,15 @@ export async function listMcqQuestions(levelId) {
 }
 
 export function createMcqQuestion(data) {
-  return addDoc(collection(db, "learningMcqQuestions"), { ...data, createdAt: new Date().toISOString() }).then((r) => { invalidateCollection("learningMcqQuestions"); return r; });
+  return addDoc(collection(db, "learningMcqQuestions"), { ...data, createdAt: new Date().toISOString() }).then(async (r) => { invalidateCollection("learningMcqQuestions"); await bumpRemoteCacheVersion(db, "learningMcqQuestions"); return r; });
 }
 
 export function updateMcqQuestion(questionId, data) {
-  return updateDoc(doc(db, "learningMcqQuestions", questionId), data).then((r) => { invalidateCollection("learningMcqQuestions"); return r; });
+  return updateDoc(doc(db, "learningMcqQuestions", questionId), data).then(async (r) => { invalidateCollection("learningMcqQuestions"); await bumpRemoteCacheVersion(db, "learningMcqQuestions"); return r; });
 }
 
 export function deleteMcqQuestion(questionId) {
-  return deleteDoc(doc(db, "learningMcqQuestions", questionId)).then((r) => { invalidateCollection("learningMcqQuestions"); return r; });
+  return deleteDoc(doc(db, "learningMcqQuestions", questionId)).then(async (r) => { invalidateCollection("learningMcqQuestions"); await bumpRemoteCacheVersion(db, "learningMcqQuestions"); return r; });
 }
 
 /* ============================================================
@@ -105,15 +105,15 @@ export async function listLearningCodingQuestions(levelId) {
 }
 
 export function createLearningCodingQuestion(data) {
-  return addDoc(collection(db, "learningCodingQuestions"), { ...data, createdAt: new Date().toISOString() }).then((r) => { invalidateCollection("learningCodingQuestions"); return r; });
+  return addDoc(collection(db, "learningCodingQuestions"), { ...data, createdAt: new Date().toISOString() }).then(async (r) => { invalidateCollection("learningCodingQuestions"); await bumpRemoteCacheVersion(db, "learningCodingQuestions"); return r; });
 }
 
 export function updateLearningCodingQuestion(questionId, data) {
-  return updateDoc(doc(db, "learningCodingQuestions", questionId), data).then((r) => { invalidateCollection("learningCodingQuestions"); return r; });
+  return updateDoc(doc(db, "learningCodingQuestions", questionId), data).then(async (r) => { invalidateCollection("learningCodingQuestions"); await bumpRemoteCacheVersion(db, "learningCodingQuestions"); return r; });
 }
 
 export function deleteLearningCodingQuestion(questionId) {
-  return deleteDoc(doc(db, "learningCodingQuestions", questionId)).then((r) => { invalidateCollection("learningCodingQuestions"); return r; });
+  return deleteDoc(doc(db, "learningCodingQuestions", questionId)).then(async (r) => { invalidateCollection("learningCodingQuestions"); await bumpRemoteCacheVersion(db, "learningCodingQuestions"); return r; });
 }
 
 /* ============================================================
@@ -163,7 +163,7 @@ async function ensureProgress(levelId, studentId) {
   const fresh = emptyProgress(levelId, studentId);
   await setDoc(doc(db, "learningProgress", progressId(levelId, studentId)), fresh);
   setCachedDoc(`user:${studentId}:col:learningProgress:doc:${progressId(levelId, studentId)}`, progressId(levelId, studentId), fresh, true);
-  invalidateCollection("learningProgress");
+  upsertCachedQueryDoc(`user:${studentId}:col:learningProgress:all`, progressId(levelId, studentId), fresh);
   return fresh;
 }
 
@@ -182,7 +182,7 @@ export async function markConceptComplete(levelId, studentId, conceptId, allConc
   await updateDoc(doc(db, "learningProgress", progressId(levelId, studentId)), data);
   const updatedProgress = { ...progress, ...data };
   setCachedDoc(`user:${studentId}:col:learningProgress:doc:${progressId(levelId, studentId)}`, progressId(levelId, studentId), updatedProgress, true);
-  invalidateCollection("learningProgress");
+  upsertCachedQueryDoc(`user:${studentId}:col:learningProgress:all`, progressId(levelId, studentId), updatedProgress);
   return updatedProgress;
 }
 
@@ -204,7 +204,7 @@ export async function recordMcqAttempt(levelId, studentId, { score, total, perce
   await updateDoc(ref, data);
   const updatedProgress = { ...progress, ...data, mcqAttempts: Number(progress?.mcqAttempts || 0) + 1 };
   setCachedDoc(`user:${studentId}:col:learningProgress:doc:${progressId(levelId, studentId)}`, progressId(levelId, studentId), updatedProgress, true);
-  invalidateCollection("learningProgress");
+  upsertCachedQueryDoc(`user:${studentId}:col:learningProgress:all`, progressId(levelId, studentId), updatedProgress);
   return data;
 }
 
@@ -245,14 +245,15 @@ export async function createLearningCodeSubmission({
   };
 
   await setDoc(ref, data);
-  invalidateCollection("learningCodeSubmissions");
+  setCachedDoc(`user:${studentId}:col:learningCodeSubmissions:doc:${ref.id}`, ref.id, data, true);
+  upsertCachedQueryDoc(`user:${studentId}:col:learningCodeSubmissions:question:${questionId}`, ref.id, data);
   return ref.id;
 }
 
 export async function updateLearningCodeSubmission(submissionId, data) {
   const ref = doc(db, "learningCodeSubmissions", submissionId);
-  await updateDoc(ref, { ...data, updatedAt: new Date().toISOString() });
-  invalidateCollection("learningCodeSubmissions");
+  const updatedAt = new Date().toISOString();
+  await updateDoc(ref, { ...data, updatedAt });
   return true;
 }
 

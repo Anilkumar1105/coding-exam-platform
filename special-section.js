@@ -7,7 +7,7 @@
 // unchanged - only the storage collection and the `company` field are new.
 
 import { db } from "./firebase-config.js";
-import { getDocsCached, invalidateCollection } from "./firestore-cache.js";
+import { getDocsCached, invalidateCollection, bumpRemoteCacheVersion } from "./firestore-cache.js";
 import {
   collection,
   doc,
@@ -32,15 +32,15 @@ export async function listAllSpecialQuestions() {
 }
 
 export function createSpecialQuestion(data) {
-  return addDoc(collection(db, "specialCodingQuestions"), { ...data, createdAt: new Date().toISOString() }).then((r) => { invalidateCollection("specialCodingQuestions"); return r; });
+  return addDoc(collection(db, "specialCodingQuestions"), { ...data, createdAt: new Date().toISOString() }).then(async (r) => { invalidateCollection("specialCodingQuestions"); await bumpRemoteCacheVersion(db, "specialCodingQuestions"); return r; });
 }
 
 export function updateSpecialQuestion(questionId, data) {
-  return updateDoc(doc(db, "specialCodingQuestions", questionId), data).then((r) => { invalidateCollection("specialCodingQuestions"); return r; });
+  return updateDoc(doc(db, "specialCodingQuestions", questionId), data).then(async (r) => { invalidateCollection("specialCodingQuestions"); await bumpRemoteCacheVersion(db, "specialCodingQuestions"); return r; });
 }
 
 export function deleteSpecialQuestion(questionId) {
-  return deleteDoc(doc(db, "specialCodingQuestions", questionId)).then((r) => { invalidateCollection("specialCodingQuestions"); return r; });
+  return deleteDoc(doc(db, "specialCodingQuestions", questionId)).then(async (r) => { invalidateCollection("specialCodingQuestions"); await bumpRemoteCacheVersion(db, "specialCodingQuestions"); return r; });
 }
 
 /* ============================================================

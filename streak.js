@@ -3,7 +3,7 @@
 // logged in AND fully solved at least one Learning Section coding problem.
 
 import { db } from "./firebase-config.js";
-import { getDocCached, getDocsCached, invalidateCache, invalidateCollection, setCachedDoc } from "./firestore-cache.js";
+import { getDocCached, getDocsCached, invalidateCache, invalidateCollection, setCachedDoc, upsertCachedQueryDoc } from "./firestore-cache.js";
 import {
   collection,
   doc,
@@ -44,8 +44,7 @@ export async function recordDailyLogin(studentId) {
   }, { merge: true });
   setCachedDoc(`col:${COLLECTION}:doc:${activityId(studentId, dateKey)}`, activityId(studentId, dateKey), { studentId, dateKey, loginAt: now, updatedAt: now }, true);
   // Query caches are aggregates; invalidate them because this write changes their contents.
-  invalidateCache(`user:${studentId}:col:${COLLECTION}:all`);
-  invalidateCache(`col:${COLLECTION}:all`);
+  upsertCachedQueryDoc(`user:${studentId}:col:${COLLECTION}:all`, activityId(studentId, dateKey), { studentId, dateKey, loginAt: now, updatedAt: now });
   return { studentId, dateKey, loginAt: now };
 }
 
@@ -77,8 +76,7 @@ export async function recordLearningProblemSolved(studentId, questionId) {
   });
   setCachedDoc(`col:${COLLECTION}:doc:${activityId(studentId, dateKey)}`, activityId(studentId, dateKey), result, true);
   // Query caches are aggregates; invalidate them because this write changes their contents.
-  invalidateCache(`user:${studentId}:col:${COLLECTION}:all`);
-  invalidateCache(`col:${COLLECTION}:all`);
+  upsertCachedQueryDoc(`user:${studentId}:col:${COLLECTION}:all`, activityId(studentId, dateKey), result);
   return result;
 }
 
