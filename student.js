@@ -170,27 +170,27 @@ export async function startSubmission(examId, student, maxViolations) {
 }
 
 /** Autosaves partial answers without changing status. */
-export function saveAnswers(examId, studentId, answers) {
+export async function saveAnswers(examId, studentId, answers) {
   const result = await updateDoc(doc(db, "submissions", submissionId(examId, studentId)), { answers });
   invalidateCollection("submissions");
   return result;
 }
 
 /** Saves which questions the student has flagged "for review" before final submit. */
-export function saveFlags(examId, studentId, flaggedQuestionIds) {
+export async function saveFlags(examId, studentId, flaggedQuestionIds) {
   const result = await updateDoc(doc(db, "submissions", submissionId(examId, studentId)), { flaggedQuestionIds });
   invalidateCollection("submissions");
   return result;
 }
 
-export function incrementViolation(examId, studentId, newCount) {
+export async function incrementViolation(examId, studentId, newCount) {
   const result = await updateDoc(doc(db, "submissions", submissionId(examId, studentId)), { violations: newCount });
   invalidateCollection("submissions");
   return result;
 }
 
 /** Final submit: writes score/status/submittedAt. */
-export function finalizeSubmission(examId, studentId, { answers, score, mcqScore, codingScore, totalMarks, percentage, status }) {
+export async function finalizeSubmission(examId, studentId, { answers, score, mcqScore, codingScore, totalMarks, percentage, status }) {
   const result = await updateDoc(doc(db, "submissions", submissionId(examId, studentId)), {
     answers,
     score,
