@@ -558,7 +558,7 @@ body {
 }
 
 .testcase-result.fail {
-  background: #fef2f2;
+ 
   border: 1px solid #fecaca;
 }
 
