@@ -553,7 +553,6 @@ body {
 }
 
 .testcase-result.pass {
-  background: #ecfdf5;
   border: 1px solid #a7f3d0;
 }
 
