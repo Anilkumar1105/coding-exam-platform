@@ -126,6 +126,7 @@ async function loadExam() {
       // They started but never finished, and the deadline has now passed
       // while they were away - finalize with whatever they had, marked absent.
       questions = await getQuestionsForExam(examId);
+      questions = applyStudentQuestionPattern(questions, currentUser.uid, examId);
       answers = existing.answers || {};
       const { score, mcqScore, codingScore, totalMarks } = await gradeSubmission();
       const percentage = totalMarks ? Math.round((score / totalMarks) * 10000) / 100 : 0;
@@ -147,6 +148,9 @@ async function loadExam() {
   }
 
   questions = await getQuestionsForExam(examId);
+  // Stable per-student question pattern: different students see different
+  // orders, while refresh/resume keeps the same order for this exam attempt.
+  questions = applyStudentQuestionPattern(questions, currentUser.uid, examId);
   maxViolations = exam.maxViolations || 3;
 
   document.getElementById("startExamTitle").textContent = exam.title;
@@ -273,9 +277,63 @@ async function handleStart() {
   }
 }
 
-/* ============================================================
-   TIMER
-   ============================================================ */
+
+/**
+ * Create a repeatable question order for each student and exam.
+ * Answers are stored by question ID, so reordering the display does not
+ * change answer evaluation, coding submissions, marks, or question identity.
+ * The same student receives the same order after refresh or resume.
+ */
+function seededRandom(seedText) {
+  let seed = 2166136261;
+  for (let i = 0; i < seedText.length; i++) {
+    seed ^= seedText.charCodeAt(i);
+    seed = Math.imul(seed, 16777619);
+  }
+  return function random() {
+    seed |= 0;
+    seed = (seed + 0x6D2B79F5) | 0;
+    let t = Math.imul(seed ^ (seed >>> 15), 1 | seed);
+    t ^= t + Math.imul(t ^ (t >>> 7), 61 | t);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+function deterministicShuffle(items, seedText) {
+  const random = seededRandom(seedText);
+  const shuffled = [...items];
+  for (let i = shuffled.length - 1; i > 0; i--) {
+    const j = Math.floor(random() * (i + 1));
+    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+  }
+  return shuffled;
+}
+
+/**
+ * Create a repeatable question order for each student and exam.
+ * The same student receives the same order after refresh or resume.
+ */
+function applyStudentQuestionPattern(questionList, studentId, currentExamId) {
+  // Only randomize MCQ-only exams. Mixed/coding exams retain configured order.
+  if (!questionList.length || !questionList.every((q) => q.type === "mcq")) {
+    return questionList;
+  }
+  return deterministicShuffle(questionList, `questions:${currentExamId}:${studentId}`);
+}
+
+/**
+ * Return original option indexes in a repeatable shuffled display order.
+ * Answers continue to be stored as ORIGINAL option indexes, so
+ * correctOptionIndex and saved answers remain compatible with Firestore.
+ */
+function getShuffledOptionIndexes(question, studentId, currentExamId) {
+  const optionIndexes = question.options.map((_, index) => index);
+  return deterministicShuffle(
+    optionIndexes,
+    `options:${currentExamId}:${studentId}:${question.id}`
+  );
+}
+
 function startTimer() {
   // Never allow two intervals to control the same exam countdown.
   if (timerInterval !== null) {
@@ -462,12 +520,16 @@ function renderMcqQuestion(card, q) {
   wireFlagButton(card, q);
 
   const list = document.getElementById("mcqOptionsList");
-  q.options.forEach((opt, i) => {
+  const optionIndexes = getShuffledOptionIndexes(q, currentUser.uid, examId);
+  optionIndexes.forEach((originalIndex, displayedIndex) => {
+    const opt = q.options[originalIndex];
+    const label = String.fromCharCode(65 + displayedIndex);
     const div = document.createElement("div");
-    div.className = `mcq-option ${selected === i ? "selected" : ""}`;
-    div.innerHTML = `<input type="radio" name="mcqAnswer" ${selected === i ? "checked" : ""} /> <span>${opt}</span>`;
+    div.className = `mcq-option ${selected === originalIndex ? "selected" : ""}`;
+    div.innerHTML = `<input type="radio" name="mcqAnswer" ${selected === originalIndex ? "checked" : ""} /> <span><strong>${label})</strong> ${opt}</span>`;
     div.addEventListener("click", () => {
-      answers[q.id] = i;
+      // Store the original option index, not the shuffled display position.
+      answers[q.id] = originalIndex;
       scheduleAutosave();
       renderMcqQuestion(card, q);
       renderQuestionNav();
