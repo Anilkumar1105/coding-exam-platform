@@ -381,10 +381,10 @@ function renderCodingQuestion(card, q) {
     <div class="row g-3">
       <div class="col-lg-5">
         <h5 class="mb-2">${q.title}</h5>
-        <p>${q.description}</p>
-        ${q.inputDescription ? `<p class="small"><strong>Input:</strong> ${q.inputDescription}</p>` : ""}
-        ${q.outputDescription ? `<p class="small"><strong>Output:</strong> ${q.outputDescription}</p>` : ""}
-        ${q.constraints ? `<p class="small text-muted"><strong>Constraints:</strong> ${q.constraints}</p>` : ""}
+        <p class="preserve-lines">${escapeHtml(q.description || "")}</p>
+        ${q.inputDescription ? `<p class="small preserve-lines"><strong>Input:</strong> ${escapeHtml(q.inputDescription)}</p>` : ""}
+        ${q.outputDescription ? `<p class="small preserve-lines"><strong>Output:</strong> ${escapeHtml(q.outputDescription)}</p>` : ""}
+        ${q.constraints ? `<p class="small text-muted preserve-lines"><strong>Constraints:</strong> ${escapeHtml(q.constraints)}</p>` : ""}
         ${samplesHtml}
         <div id="submissionHistory" class="mt-3"></div>
       </div>

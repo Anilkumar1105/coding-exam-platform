@@ -583,17 +583,16 @@
               </div>
               <div class="mb-3">
                 <label class="form-label">Problem Statement</label>
-                <textarea class="form-control" id="codingDescInput" rows="4" required placeholder="Explain the task clearly. Include what students must calculate, find, or print."></textarea>
-                <div class="form-text">Write the question exactly as students should see it.</div>
+                <textarea class="form-control" id="codingDescInput" rows="3" required></textarea>
               </div>
               <div class="row g-2">
                 <div class="col-6">
                   <label class="form-label">Input Description</label>
-                  <textarea class="form-control" id="codingInputDescInput" rows="3" placeholder="Describe each input line and its format."></textarea>
+                  <textarea class="form-control" id="codingInputDescInput" rows="2"></textarea>
                 </div>
                 <div class="col-6">
                   <label class="form-label">Output Description</label>
-                  <textarea class="form-control" id="codingOutputDescInput" rows="3" placeholder="Explain exactly what students must print."></textarea>
+                  <textarea class="form-control" id="codingOutputDescInput" rows="2"></textarea>
                 </div>
               </div>
               <div class="mb-3 mt-2">
@@ -633,26 +632,22 @@
 
           <div class="mb-3">
             <label class="form-label">Starter Code (Python)</label>
-            <div class="form-text mb-2">Keep the required input-reading code here. Students will complete the solution inside this template.</div>
-            <textarea class="form-control mono" id="codingStarterInput" rows="8" spellcheck="false" placeholder="def solve():&#10;    pass&#10;&#10;if __name__ == &quot;__main__&quot;:&#10;    solve()"></textarea>
+            <textarea class="form-control mono" id="codingStarterInput" rows="4" placeholder="def solve():&#10;    pass"></textarea>
           </div>
 
-          <label class="form-label fw-semibold">Sample Input / Output</label>
-          <div class="form-text mb-2">Examples are visible to students. Enter input and the exact expected output for each sample.</div>
+          <label class="form-label fw-semibold">Sample Input / Output (shown to students)</label>
           <div id="examplesWrap" class="d-flex flex-column gap-2 mb-2"></div>
           <button type="button" class="btn btn-sm btn-outline-secondary mb-3" data-add-row="examplesWrap" data-row-type="example">
             <i class="bi bi-plus"></i> Add Sample
           </button>
 
-          <label class="form-label fw-semibold">Public Test Cases</label>
-          <div class="form-text mb-2">Used by Run Code and visible to students. Include normal and edge-case inputs.</div>
+          <label class="form-label fw-semibold">Public Test Cases (used by "Run Code" and shown to students)</label>
           <div id="visibleTestsWrap" class="d-flex flex-column gap-2 mb-2"></div>
           <button type="button" class="btn btn-sm btn-outline-secondary mb-3" data-add-row="visibleTestsWrap" data-row-type="test">
             <i class="bi bi-plus"></i> Add Public Test Case
           </button>
 
-          <label class="form-label fw-semibold">Hidden Test Cases</label>
-          <div class="form-text mb-2">Private grading tests. Students cannot see these inputs or expected outputs.</div>
+          <label class="form-label fw-semibold">Hidden Test Cases (used only for grading on Submit)</label>
           <div id="hiddenTestsWrap" class="d-flex flex-column gap-2 mb-2"></div>
           <button type="button" class="btn btn-sm btn-outline-secondary" data-add-row="hiddenTestsWrap" data-row-type="test">
             <i class="bi bi-plus"></i> Add Hidden Test Case

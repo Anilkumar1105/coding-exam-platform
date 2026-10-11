@@ -201,10 +201,10 @@ function renderQuestionDetail(q, points) {
       <div class="row g-3">
         <div class="col-lg-5">
           <h5 class="mb-2 text-white">${escapeHtml(q.title)}</h5>
-          <p class="text-white-75">${escapeHtml(q.description)}</p>
-          ${q.inputDescription ? `<p class="small text-white-75"><strong>Input:</strong> ${escapeHtml(q.inputDescription)}</p>` : ""}
-          ${q.outputDescription ? `<p class="small text-white-75"><strong>Output:</strong> ${escapeHtml(q.outputDescription)}</p>` : ""}
-          ${q.constraints ? `<p class="small text-white-50"><strong>Constraints:</strong> ${escapeHtml(q.constraints)}</p>` : ""}
+          <p class="text-white-75 preserve-lines">${escapeHtml(q.description || "")}</p>
+          ${q.inputDescription ? `<p class="small text-white-75 preserve-lines"><strong>Input:</strong> ${escapeHtml(q.inputDescription)}</p>` : ""}
+          ${q.outputDescription ? `<p class="small text-white-75 preserve-lines"><strong>Output:</strong> ${escapeHtml(q.outputDescription)}</p>` : ""}
+          ${q.constraints ? `<p class="small text-white-50 preserve-lines"><strong>Constraints:</strong> ${escapeHtml(q.constraints)}</p>` : ""}
           ${samplesHtml}
           <div id="specialSubmissionHistory" class="mt-3"></div>
         </div>

@@ -545,10 +545,17 @@ function renderCodingQuestion(card, q) {
   const samplesHtml = (q.examples || [])
     .map(
       (ex, i) => `
-      <div class="mb-2">
-        <div class="small text-muted">Sample ${i + 1}</div>
-        <div class="testcase-result">Input:\n${escapeHtml(ex.input || "")}\n\nOutput:\n${escapeHtml(ex.output || "")}</div>
-      </div>`
+      <section class="sample-case mb-3">
+        <div class="sample-case-title">Sample ${i + 1}</div>
+        <div class="sample-io-block">
+          <div class="sample-io-label">Input</div>
+          <pre class="sample-io-value">${escapeHtml(ex.input || "")}</pre>
+        </div>
+        <div class="sample-io-block">
+          <div class="sample-io-label">Expected Output</div>
+          <pre class="sample-io-value">${escapeHtml(ex.output || "")}</pre>
+        </div>
+      </section>`
     )
     .join("");
 
@@ -564,10 +571,10 @@ function renderCodingQuestion(card, q) {
     <div class="row g-3">
       <div class="col-lg-5">
         <h5 class="mb-2">${q.title}</h5>
-        <p>${q.description}</p>
-        ${q.inputDescription ? `<p class="small"><strong>Input:</strong> ${q.inputDescription}</p>` : ""}
-        ${q.outputDescription ? `<p class="small"><strong>Output:</strong> ${q.outputDescription}</p>` : ""}
-        ${q.constraints ? `<p class="small text-muted"><strong>Constraints:</strong> ${q.constraints}</p>` : ""}
+        <p class="preserve-lines">${escapeHtml(q.description || "")}</p>
+        ${q.inputDescription ? `<p class="small preserve-lines"><strong>Input:</strong> ${escapeHtml(q.inputDescription)}</p>` : ""}
+        ${q.outputDescription ? `<p class="small preserve-lines"><strong>Output:</strong> ${escapeHtml(q.outputDescription)}</p>` : ""}
+        ${q.constraints ? `<p class="small text-muted preserve-lines"><strong>Constraints:</strong> ${escapeHtml(q.constraints)}</p>` : ""}
         ${samplesHtml}
         <div id="submissionHistory" class="mt-3"></div>
       </div>
