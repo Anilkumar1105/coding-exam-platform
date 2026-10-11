@@ -255,7 +255,7 @@ export function renderResultsTable(tbodyEl, rows) {
             <i class="bi bi-pencil-square"></i>
           </button>
           ${
-            r.examType === "coding" && r.status !== "absent"
+            (r.examType === "coding" || r.examType === "mixed") && r.status !== "absent"
               ? `<button class="btn btn-sm btn-outline-secondary" data-view-code="${r.studentId}" data-exam-id="${r.examId}" title="View Code"><i class="bi bi-code-slash"></i></button>`
               : ""
           }
@@ -616,13 +616,13 @@ export function computeAllTimePythonTopper(students, submissions, exams, schedul
 
     // Coding exams on this platform are Python coding exams. If a future
     // exam explicitly declares another language, don't count it here.
-    const isCoding = exam.examType === "coding";
+    const isCoding = exam.examType === "coding" || exam.examType === "mixed";
     const isPythonCoding = isCoding && (
       !exam.language ||
       String(exam.language).toLowerCase() === "python" ||
       (Array.isArray(exam.allowedLanguages) && exam.allowedLanguages.some((l) => String(l).toLowerCase() === "python"))
     );
-    const isMcq = exam.examType === "mcq";
+    const isMcq = exam.examType === "mcq" || exam.examType === "mixed";
     if (!isPythonCoding && !isMcq) return;
 
     const current = totals.get(sub.studentId) || {
@@ -653,13 +653,13 @@ export function computeAllTimePythonTopper(students, submissions, exams, schedul
     const exam = examById.get(row.examId);
     const student = studentById.get(row.studentId);
     if (!exam || !student) return;
-    const isCoding = exam.examType === "coding";
+    const isCoding = exam.examType === "coding" || exam.examType === "mixed";
     const isPythonCoding = isCoding && (
       !exam.language ||
       String(exam.language).toLowerCase() === "python" ||
       (Array.isArray(exam.allowedLanguages) && exam.allowedLanguages.some((l) => String(l).toLowerCase() === "python"))
     );
-    const isMcq = exam.examType === "mcq";
+    const isMcq = exam.examType === "mcq" || exam.examType === "mixed";
     if (!isPythonCoding && !isMcq) return;
 
     const current = totals.get(row.studentId) || {
@@ -752,7 +752,7 @@ export function computeWeeklyCodingToppers(students, submissions, exams) {
 
   submissions.forEach((sub) => {
     const exam = examById.get(sub.examId);
-    if (!exam || exam.examType !== "coding") return;
+    if (!exam || !["coding", "mixed"].includes(exam.examType)) return;
     if (!["submitted", "auto-submitted"].includes(sub.status)) return;
     if (!sub.submittedAt || new Date(sub.submittedAt) < oneWeekAgo) return;
 

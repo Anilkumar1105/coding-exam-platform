@@ -961,7 +961,7 @@ function openEditExam(examId) {
   document.getElementById("examTitleInput").value = exam.title;
   document.getElementById("examDescInput").value = exam.description || "";
   document.getElementById("examTypeInput").value = exam.examType || "mcq";
-  document.getElementById("examTypeInput").disabled = true; // avoid mismatched questions after creation
+  document.getElementById("examTypeInput").disabled = false;
   document.getElementById("examMaxViolationsInput").value = exam.maxViolations ?? 3;
   document.getElementById("examDurationInput").value = exam.duration;
   document.getElementById("examMarksInput").value = exam.totalMarks;
@@ -1174,12 +1174,21 @@ async function openQuestionsView(examId) {
   document.getElementById("questionsExamTitle").textContent = `Manage Questions - ${activeExamForQuestions.title}`;
 
   const addBtn = document.getElementById("addQuestionBtn");
-  addBtn.innerHTML =
-    activeExamForQuestions.examType === "coding"
+  addBtn.innerHTML = activeExamForQuestions.examType === "mixed"
+    ? '<i class="bi bi-plus-lg me-1"></i>Add Question'
+    : activeExamForQuestions.examType === "coding"
       ? '<i class="bi bi-plus-lg me-1"></i>Add Coding Question'
       : '<i class="bi bi-plus-lg me-1"></i>Add MCQ Question';
-  addBtn.onclick = () =>
-    activeExamForQuestions.examType === "coding" ? openCodingModal() : openMcqModal();
+  addBtn.onclick = () => {
+    if (activeExamForQuestions.examType === "mixed") {
+      const choice = prompt("Which question type do you want to add? Enter MCQ or CODING:", "MCQ");
+      if (!choice) return;
+      if (/^coding$/i.test(choice.trim())) openCodingModal();
+      else if (/^mcq$/i.test(choice.trim())) openMcqModal();
+      else alert("Enter MCQ or CODING.");
+    } else if (activeExamForQuestions.examType === "coding") openCodingModal();
+    else openMcqModal();
+  };
 
   questions = await listQuestionsForExam(examId);
   renderQuestionsList();
@@ -2257,6 +2266,138 @@ function renderLearningProgressTable() {
     })
     .join("");
 }
+
+
+/* ============================================================
+   BULK QUESTION IMPORT (Excel templates + labeled text PDF)
+   ============================================================ */
+let importTarget = "exam";
+let parsedImportQuestions = [];
+const IMPORT_FIELDS = ["type","questionText","options","correctAnswer","marks","title","description","inputDescription","outputDescription","constraints","difficulty","timeLimit","memoryLimit","starterCode","examplesJson","publicTestsJson","hiddenTestsJson","company","published"];
+function downloadQuestionTemplate(kind, special=false) {
+  if (!window.XLSX) { alert("Excel library did not load. Refresh the page and try again."); return; }
+  const headers = kind === "mcq"
+    ? ["Type","QuestionText","OptionA","OptionB","OptionC","OptionD","CorrectAnswer","Marks","Published"]
+    : ["Type","Title","Description","InputDescription","OutputDescription","Constraints","Difficulty","Marks","TimeLimit","MemoryLimit","StarterCode","ExamplesJSON","PublicTestsJSON","HiddenTestsJSON","Company","Published"];
+  const example = kind === "mcq"
+    ? ["MCQ","What is the output of print(2 + 3)?","4","5","6","7","B",1,true]
+    : ["CODING","Sum of Two Numbers","Read two integers and print their sum.","Two integers, one per line.","Print their sum.","Both inputs are integers.","easy",5,5,256,"def solve():\n    a = int(input())\n    b = int(input())\n    print(a + b)\n\nif __name__ == \"__main__\":\n    solve()",JSON.stringify([{input:"2\n3",output:"5"}]),JSON.stringify([{input:"2\n3",expectedOutput:"5"}]),JSON.stringify([{input:"-1\n1",expectedOutput:"0"}]),special?"Google":"",true];
+  const wb = XLSX.utils.book_new();
+  const ws = XLSX.utils.aoa_to_sheet([headers,example]);
+  ws["!cols"] = headers.map(h=>({wch:Math.max(14,Math.min(32,h.length+4))}));
+  XLSX.utils.book_append_sheet(wb,ws,kind === "mcq" ? "MCQ Questions" : "Coding Questions");
+  XLSX.writeFile(wb, `${special ? "special-" : ""}${kind}-question-template.xlsx`);
+}
+document.getElementById("downloadMcqTemplateBtn")?.addEventListener("click",()=>downloadQuestionTemplate("mcq"));
+document.getElementById("downloadCodingTemplateBtn")?.addEventListener("click",()=>downloadQuestionTemplate("coding"));
+document.getElementById("downloadSpecialCodingTemplateBtn")?.addEventListener("click",()=>downloadQuestionTemplate("coding",true));
+document.getElementById("importExamQuestionsBtn")?.addEventListener("click",()=>openQuestionImport("exam"));
+document.getElementById("importSpecialQuestionsBtn")?.addEventListener("click",()=>openQuestionImport("special"));
+function openQuestionImport(target) {
+  importTarget=target; parsedImportQuestions=[];
+  document.getElementById("questionImportFile").value="";
+  document.getElementById("questionImportStatus").textContent=target==="special"?"Special Section imports coding questions only.":`Target exam: ${activeExamForQuestions?.title || "Open an exam's Manage Questions screen first."}`;
+  document.getElementById("questionImportPreview").innerHTML="";
+  document.getElementById("confirmQuestionImportBtn").disabled=true;
+  bootstrap.Modal.getOrCreateInstance(document.getElementById("questionImportModal")).show();
+}
+function cleanCell(v) { return v == null ? "" : String(v).trim(); }
+function parseJsonCell(value, fallback=[]) {
+  if (!cleanCell(value)) return fallback;
+  const parsed=JSON.parse(String(value)); if (!Array.isArray(parsed)) throw new Error("JSON test/example columns must contain an array."); return parsed;
+}
+function rowToImportQuestion(row) {
+  const get=(...keys)=>{for(const k of keys){if(row[k]!==undefined && row[k]!==null && String(row[k]).trim()!=="") return row[k];}return "";};
+  const type=cleanCell(get("type","questiontype")).toLowerCase();
+  const marks=Number(get("marks")||1);
+  if(!Number.isFinite(marks)||marks<=0) throw new Error("Marks must be a positive number.");
+  if(type==="mcq") {
+    const options=[get("optiona","a"),get("optionb","b"),get("optionc","c"),get("optiond","d")].map(cleanCell).filter(Boolean);
+    const questionText=cleanCell(get("questiontext","question","text"));
+    const answer=cleanCell(get("correctanswer","answer","correctoption"));
+    if(!questionText||options.length<2||!answer) throw new Error("MCQ needs QuestionText, at least two options, and CorrectAnswer.");
+    let correctOptionIndex=-1;
+    if(/^[A-D]$/i.test(answer)) correctOptionIndex=answer.toUpperCase().charCodeAt(0)-65;
+    else correctOptionIndex=options.findIndex(o=>o.toLowerCase()===answer.toLowerCase());
+    if(correctOptionIndex<0||correctOptionIndex>=options.length) throw new Error(`MCQ correct answer "${answer}" must match an option or A/B/C/D.`);
+    return {type:"mcq",questionText,options,correctOptionIndex,marks,published: get("published")===""?true:!(/^(false|0|no)$/i.test(cleanCell(get("published"))))};
+  }
+  if(type==="coding"||type==="code") {
+    const title=cleanCell(get("title","questiontitle"));
+    const description=cleanCell(get("description","problemstatement","questiontext"));
+    if(!title||!description) throw new Error("Coding question needs Title and Description.");
+    const examples=parseJsonCell(get("examplesjson","examples"),[]);
+    const visibleTestCases=parseJsonCell(get("publictestsjson","publictestcases","visibleTestCases"),[]).map(t=>({input:String(t.input??""),expectedOutput:String(t.expectedOutput??t.output??"")}));
+    const hiddenTestCases=parseJsonCell(get("hiddentestsjson","hiddentestcases","hiddenTestCases"),[]).map(t=>({input:String(t.input??""),expectedOutput:String(t.expectedOutput??t.output??"")}));
+    if(!visibleTestCases.length&&!hiddenTestCases.length) throw new Error(`Coding question "${title}" needs at least one PublicTestsJSON or HiddenTestsJSON case.`);
+    const starterCode=cleanCell(get("startercode"))||'def solve():\n    pass\n\nif __name__ == "__main__":\n    solve()';
+    return {type:"coding",title,description,inputDescription:cleanCell(get("inputdescription","input")),outputDescription:cleanCell(get("outputdescription","output")),constraints:cleanCell(get("constraints")),difficulty:cleanCell(get("difficulty")).toLowerCase()||"medium",marks,timeLimit:Number(get("timelimit")||5),memoryLimit:Number(get("memorylimit")||256),starterCode,examples,visibleTestCases,hiddenTestCases,language:"python",allowedLanguages:["python"],published: get("published")===""?true:!(/^(false|0|no)$/i.test(cleanCell(get("published")))),company:cleanCell(get("company"))||"Other"};
+  }
+  throw new Error(`Unknown Type "${type}". Use MCQ or CODING.`);
+}
+async function parsePdfFile(file) {
+  if(!window.pdfjsLib) throw new Error("PDF reader did not load. Refresh the page or use Excel.");
+  pdfjsLib.GlobalWorkerOptions.workerSrc="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+  const doc=await pdfjsLib.getDocument({data:await file.arrayBuffer()}).promise; let text="";
+  for(let p=1;p<=doc.numPages;p++){const page=await doc.getPage(p);const content=await page.getTextContent();text+=content.items.map(x=>x.str).join(" ")+"\n";}
+  if(!text.trim()) throw new Error("This PDF has no selectable text. Use a text-based PDF or Excel.");
+  const blocks=text.split(/\s*---\s*/).map(x=>x.trim()).filter(Boolean);
+  const labels="TYPE|QUESTION|TITLE|DESCRIPTION|INPUT|OUTPUT|CONSTRAINTS|MARKS|OPTIONS|ANSWER|DIFFICULTY|TIMELIMIT|MEMORYLIMIT|STARTER_CODE|EXAMPLES_JSON|PUBLIC_TESTS_JSON|HIDDEN_TESTS_JSON|COMPANY";
+  return blocks.map(block=>{
+    const row={};
+    const re=new RegExp("(?:^|\\s)("+labels+")\\s*:\\s*([\\s\\S]*?)(?=(?:\\s)(?:"+labels+")\\s*:|$)","gi");
+    let m;
+    while((m=re.exec(block))) row[m[1].toLowerCase().replace(/[^a-z0-9]/g,"")]=m[2].trim();
+    if(row.options){const opts=row.options.split("|").map(x=>x.trim());[row.optiona,row.optionb,row.optionc,row.optiond]=opts;}
+    if(row.answer) row.correctanswer=row.answer;
+    return rowToImportQuestion(row);
+  });
+}
+document.getElementById("questionImportFile")?.addEventListener("change",async e=>{
+  const file=e.target.files?.[0], status=document.getElementById("questionImportStatus"), preview=document.getElementById("questionImportPreview"), confirmBtn=document.getElementById("confirmQuestionImportBtn");
+  parsedImportQuestions=[]; confirmBtn.disabled=true; preview.innerHTML=""; if(!file)return;
+  status.className="small text-muted";status.textContent="Reading and validating file…";
+  try {
+    let parsed=[];
+    if(file.name.toLowerCase().endsWith(".pdf")) parsed=await parsePdfFile(file);
+    else {
+      if(!window.XLSX) throw new Error("Excel reader did not load. Refresh the page and try again.");
+      const wb=XLSX.read(await file.arrayBuffer(),{type:"array"});
+      for(const sheetName of wb.SheetNames){const rows=XLSX.utils.sheet_to_json(wb.Sheets[sheetName],{defval:""});for(const row of rows)parsed.push(rowToImportQuestion(Object.fromEntries(Object.entries(row).map(([k,v])=>[k.toLowerCase().replace(/[^a-z0-9]/g,""),v]))));}
+    }
+    if(!parsed.length)throw new Error("No questions found in this file.");
+    if(importTarget==="special"&&parsed.some(q=>q.type!=="coding"))throw new Error("Special Section accepts coding questions only. Use the Coding Excel Template.");
+    if(importTarget==="exam") {
+      if(!activeExamForQuestions)throw new Error("Open an exam and click Manage Questions before importing.");
+      const examType=activeExamForQuestions.examType||"mcq";
+      if(examType!=="mixed"&&parsed.some(q=>q.type!==(examType==="coding"?"coding":"mcq"))) throw new Error(`This exam is ${examType.toUpperCase()}-only. Change the exam type to Mixed or import matching questions.`);
+    }
+    parsedImportQuestions=parsed;
+    status.className="small text-success";status.textContent=`Validated ${parsed.length} question(s). No questions have been saved yet.`;
+    preview.innerHTML=`<div class="border rounded p-3"><strong>Import preview</strong><div class="small text-muted mb-2">${parsed.filter(q=>q.type==="mcq").length} MCQs · ${parsed.filter(q=>q.type==="coding").length} coding questions</div><ol class="mb-0">${parsed.slice(0,10).map(q=>`<li>${escapeHtmlL(q.type==="mcq"?q.questionText:q.title)} <span class="badge bg-secondary">${q.type.toUpperCase()}</span></li>`).join("")}${parsed.length>10?`<li class="text-muted">and ${parsed.length-10} more…</li>`:""}</ol></div>`;
+    confirmBtn.disabled=false;
+  } catch(err) {status.className="small text-danger";status.textContent=err.message||"Could not read the file.";parsedImportQuestions=[];confirmBtn.disabled=true;}
+});
+document.getElementById("confirmQuestionImportBtn")?.addEventListener("click",async()=>{
+  const btn=document.getElementById("confirmQuestionImportBtn"),status=document.getElementById("questionImportStatus"); if(!parsedImportQuestions.length)return;
+  btn.disabled=true;btn.textContent="Importing…";let imported=0;const errors=[];
+  try {
+    for(let i=0;i<parsedImportQuestions.length;i++){
+      const q={...parsedImportQuestions[i]};
+      try {
+        if(importTarget==="exam") await addQuestion({...q,examId:activeExamForQuestions.id,published:q.published!==false,order:questions.length+imported});
+        else await createSpecialQuestion({...q,published:q.published!==false,order:specialQuestions.length+imported,company:q.company||"Other"});
+        imported++;
+      } catch(err){errors.push(`Question ${i+1}: ${err.message||"save failed"}`);}
+    }
+    status.className=errors.length?"small text-warning":"small text-success";
+    status.textContent=`Imported ${imported} of ${parsedImportQuestions.length} question(s).${errors.length?" Errors: "+errors.slice(0,4).join("; "):""}`;
+    if(importTarget==="exam"){questions=await listQuestionsForExam(activeExamForQuestions.id);renderQuestionsList();}
+    else await renderSpecialQuestionsList();
+    if(!errors.length) setTimeout(()=>bootstrap.Modal.getInstance(document.getElementById("questionImportModal"))?.hide(),900);
+  } catch(err){status.className="small text-danger";status.textContent=err.message||"Import failed.";}
+  finally {btn.textContent="Import Questions";btn.disabled=parsedImportQuestions.length===0;}
+});
 
 /* ============================================================
    SPECIAL CODING SECTION (exclusive company-style questions)

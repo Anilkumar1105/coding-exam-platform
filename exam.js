@@ -171,7 +171,7 @@ async function loadExam() {
 
   // Kick off Pyodide loading in the background for coding exams so it's
   // likely ready by the time the student opens their first question.
-  if (exam.examType === "coding") {
+  if (questions.some((q) => q.type === "coding")) {
     ensurePyodide().catch((e) => console.warn("Pyodide preload failed:", e));
   }
 }
@@ -963,7 +963,7 @@ async function gradeSubmission() {
   // an extra collection query for every student's final submit. For resumed
   // legacy attempts without an in-memory value, use one fallback query.
   let codingSubs = [];
-  if (exam.examType === "coding" && questions.some((q) => q.type === "coding") && codingBestMarks.size === 0) {
+  if (questions.some((q) => q.type === "coding") && codingBestMarks.size === 0) {
     codingSubs = await listCodeSubmissionsForExam(currentUser.uid, examId);
     for (const s of codingSubs) {
       const prev = codingBestMarks.get(s.questionId) || 0;
