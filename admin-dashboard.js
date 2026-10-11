@@ -2417,6 +2417,7 @@ document.getElementById("confirmQuestionImportBtn")?.addEventListener("click",as
       try {
         if(importTarget==="exam") await addQuestion({...q,examId:activeExamForQuestions.id,published:q.published!==false,order:questions.length+imported});
         else if(importTarget==="special") await createSpecialQuestion({...q,published:q.published!==false,order:specialQuestions.length+imported,company:q.company||"Other"});
+        else if(importTarget==="learning-concepts") await createConcept({levelId:activeLevel.id,title:q.title,content:q.content,order:Number.isFinite(q.order)?q.order:((levelConcepts?.length||0)+imported)});
         else if(importTarget==="learning-mcq") await createMcqQuestion({levelId:activeLevel.id,questionText:q.questionText,options:q.options,correctOptionIndex:q.correctOptionIndex,marks:q.marks,order:(levelMcqQuestions?.length||0)+imported});
         else if(importTarget==="learning-coding") await createLearningCodingQuestion({levelId:activeLevel.id,language:"python",title:q.title,description:q.description,inputDescription:q.inputDescription,outputDescription:q.outputDescription,constraints:q.constraints||"",marks:q.marks,timeLimit:q.timeLimit||5,order:(levelCodingQuestions?.length||0)+imported,starterCode:q.starterCode,examples:q.examples||[],visibleTestCases:q.visibleTestCases||[],hiddenTestCases:q.hiddenTestCases||[]});
         imported++;
