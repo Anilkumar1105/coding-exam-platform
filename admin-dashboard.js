@@ -2295,6 +2295,8 @@ document.getElementById("downloadLearningMcqTemplateBtn")?.addEventListener("cli
 document.getElementById("downloadLearningCodingTemplateBtn")?.addEventListener("click",()=>downloadQuestionTemplate("coding"));
 document.getElementById("importLearningMcqBtn")?.addEventListener("click",()=>openQuestionImport("learning-mcq"));
 document.getElementById("importLearningCodingBtn")?.addEventListener("click",()=>openQuestionImport("learning-coding"));
+document.getElementById("quickImportLearningMcqBtn")?.addEventListener("click",()=>openQuestionImport("learning-mcq"));
+document.getElementById("quickImportLearningCodingBtn")?.addEventListener("click",()=>openQuestionImport("learning-coding"));
 document.getElementById("importExamQuestionsBtn")?.addEventListener("click",()=>openQuestionImport("exam"));
 document.getElementById("importSpecialQuestionsBtn")?.addEventListener("click",()=>openQuestionImport("special"));
 function openQuestionImport(target) {
