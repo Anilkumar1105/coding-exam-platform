@@ -1470,7 +1470,7 @@ document.getElementById("codingForm").addEventListener("submit", async (e) => {
 document.getElementById("previewQuestionBtn").addEventListener("click", () => {
   const q = collectCodingFormData();
   const samplesHtml = (q.examples || [])
-    .map((ex, i) => `<div class="mb-2"><div class="small text-muted">Sample ${i + 1}</div><div class="testcase-result">Input:\n${ex.input}\n\nOutput:\n${ex.output}</div></div>`)
+    .map((ex, i) => `<div class="mb-2"><div class="small text-muted">Sample ${i + 1}</div><div class="testcase-result"><strong>Input:</strong><pre class="testcase-value">${escapeHtmlL(ex.input || "")}</pre><strong>Expected Output:</strong><pre class="testcase-value">${escapeHtmlL(ex.output || "")}</pre></div></div>`)
     .join("");
 
   document.getElementById("previewBody").innerHTML = `
@@ -1479,13 +1479,13 @@ document.getElementById("previewQuestionBtn").addEventListener("click", () => {
       <span class="badge bg-brand">${q.marks || 0} marks</span>
     </div>
     <h5>${q.title || "(untitled)"}</h5>
-    <p>${q.description || ""}</p>
-    ${q.inputDescription ? `<p class="small"><strong>Input:</strong> ${q.inputDescription}</p>` : ""}
-    ${q.outputDescription ? `<p class="small"><strong>Output:</strong> ${q.outputDescription}</p>` : ""}
-    ${q.constraints ? `<p class="small text-muted"><strong>Constraints:</strong> ${q.constraints}</p>` : ""}
+    <p class="preserve-lines">${escapeHtmlL(q.description || "")}</p>
+    ${q.inputDescription ? `<p class="small preserve-lines"><strong>Input:</strong> ${escapeHtmlL(q.inputDescription)}</p>` : ""}
+    ${q.outputDescription ? `<p class="small preserve-lines"><strong>Output:</strong> ${escapeHtmlL(q.outputDescription)}</p>` : ""}
+    ${q.constraints ? `<p class="small text-muted preserve-lines"><strong>Constraints:</strong> ${escapeHtmlL(q.constraints)}</p>` : ""}
     ${samplesHtml}
     <label class="form-label fw-semibold mt-2">Starter Code</label>
-    <pre class="mono bg-light p-2 rounded">${q.starterCode || ""}</pre>
+    <pre class="mono bg-light p-2 rounded preserve-lines">${escapeHtmlL(q.starterCode || "")}</pre>
   `;
   new bootstrap.Modal(document.getElementById("previewModal")).show();
 });
@@ -1519,10 +1519,10 @@ document.getElementById("testRunQuestionBtn").addEventListener("click", async ()
           (r, i) => `
           <div class="testcase-result ${r.passed ? "pass" : "fail"} mb-2">
             <div><strong>Test ${i + 1}: ${r.passed ? "PASSED" : "FAILED"}</strong> &middot; ${r.executionStatus} &middot; ${r.executionTimeMs} ms</div>
-            <div>Input: ${r.input || "(none)"}</div>
-            <div>Expected: ${r.expectedOutput}</div>
-            <div>Got: ${r.actualOutput}</div>
-            ${r.errorMessage ? `<div>Error: ${r.errorMessage}</div>` : ""}
+            <div><strong>Input:</strong><pre class="testcase-value">${escapeHtmlL(r.input || "(empty input)")}</pre></div>
+            <div><strong>Expected Output:</strong><pre class="testcase-value">${escapeHtmlL(r.expectedOutput ?? "")}</pre></div>
+            <div><strong>Actual Output:</strong><pre class="testcase-value">${escapeHtmlL(r.actualOutput ?? "")}</pre></div>
+            ${r.errorMessage ? `<div><strong>Error:</strong><pre class="testcase-value">${escapeHtmlL(r.errorMessage)}</pre></div>` : ""}
           </div>`
         )
         .join("");

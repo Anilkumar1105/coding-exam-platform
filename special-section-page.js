@@ -173,7 +173,7 @@ function renderQuestionDetail(q, points) {
         </div>
         <div class="display-6 mb-3"><i class="bi bi-box-arrow-up-right"></i></div>
         <h4 class="text-white">${escapeHtml(q.title)}</h4>
-        <p class="text-white-75 mx-auto" style="max-width:720px">${escapeHtml(q.description || "Practice this problem on Codeforces.")}</p>
+        <p class="text-white-75 mx-auto preserve-lines" style="max-width:720px">${escapeHtml(q.description || "Practice this problem on Codeforces.")}</p>
         ${q.topic ? `<div class="small text-white-50 mb-3">Topic: ${escapeHtml(q.topic)}${q.rating ? ` &middot; Rating: ${escapeHtml(q.rating)}` : ""}</div>` : ""}
         <a class="btn btn-special" href="${escapeHtml(q.externalUrl)}" target="_blank" rel="noopener noreferrer"><i class="bi bi-code-slash me-1"></i>Open Codeforces Problem</a>
       </div>`;
@@ -253,9 +253,9 @@ async function runVisible(q) {
         (r, i) => `
         <div class="testcase-result ${r.passed ? "pass" : "fail"}">
           <div><strong>Test ${i + 1}: ${r.passed ? "PASSED" : "FAILED"}</strong> \u00b7 ${r.executionTimeMs} ms</div>
-          <div>Input: ${escapeHtml(r.input || "(none)")}</div>
-          <div>Expected: ${escapeHtml(r.expectedOutput)}</div>
-          <div>Got: ${escapeHtml(r.actualOutput)}</div>
+          <div><strong>Input:</strong><pre class="testcase-value">${escapeHtml(r.input || "(empty input)")}</pre></div>
+          <div><strong>Expected Output:</strong><pre class="testcase-value">${escapeHtml(r.expectedOutput ?? "")}</pre></div>
+          <div><strong>Your Output:</strong><pre class="testcase-value">${escapeHtml(r.actualOutput ?? "")}</pre></div>
           ${r.errorMessage ? `<div>Error: ${escapeHtml(r.errorMessage)}</div>` : ""}
         </div>`
       )
@@ -294,9 +294,18 @@ async function submitSpecial(q) {
     });
 
     statusEl.textContent = `Submitted: ${passedCount} / ${allTests.length} test cases passed \u00b7 ${marksObtained} / ${q.marks} marks`;
-    resultsEl.innerHTML = results
-      .map((r, i) => `<div class="testcase-result ${r.passed ? "pass" : "fail"}"><strong>Test ${i + 1}: ${r.passed ? "PASSED" : "FAILED"}</strong></div>`)
-      .join("");
+    const publicCount = (q.visibleTestCases || []).length;
+    resultsEl.innerHTML = results.map((r, i) => {
+      const isHidden = i >= publicCount;
+      const showDetails = !isHidden || !r.passed;
+      return `<div class="testcase-result ${r.passed ? "pass" : "fail"}">
+        <strong>${isHidden ? "Hidden test" : "Public test"} ${isHidden ? i - publicCount + 1 : i + 1}: ${r.passed ? "PASSED" : "FAILED"}</strong>
+        ${showDetails ? `<div><strong>Input:</strong><pre class="testcase-value">${escapeHtml(r.input || "(empty input)")}</pre></div>
+          <div><strong>Expected Output:</strong><pre class="testcase-value">${escapeHtml(r.expectedOutput ?? "")}</pre></div>
+          <div><strong>Your Output:</strong><pre class="testcase-value">${escapeHtml(r.actualOutput ?? "")}</pre></div>` : "<div>Details are hidden because this test passed.</div>"}
+        ${r.errorMessage ? `<div><strong>Error:</strong><pre class="testcase-value">${escapeHtml(r.errorMessage)}</pre></div>` : ""}
+      </div>`;
+    }).join("");
     renderSpecialHistory(q.id);
   } catch (err) {
     statusEl.textContent = "Could not submit code.";

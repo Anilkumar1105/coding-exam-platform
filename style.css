@@ -1965,3 +1965,9 @@ body.special-body .navbar-brand {
 /* Preserve line breaks only where the author entered them. */
 .preserve-lines { white-space: pre-line; overflow-wrap: anywhere; }
 .testcase-result { white-space: pre-wrap; overflow-wrap: anywhere; }
+
+
+/* Preserve author-entered line breaks throughout coding questions and test results. */
+.preserve-lines { white-space: pre-wrap; overflow-wrap: anywhere; }
+.testcase-value { white-space: pre-wrap; overflow-wrap: anywhere; margin: .25rem 0 .5rem; padding: .55rem .7rem; border-radius: .45rem; background: rgba(100, 116, 139, .08); font: inherit; }
+.testcase-result { overflow-wrap: anywhere; }

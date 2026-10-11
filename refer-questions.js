@@ -482,9 +482,9 @@ async function runVisibleTests(q, code) {
         (r, i) => `
         <div class="testcase-result ${r.passed ? "pass" : "fail"}">
           <div><strong>Test ${i + 1}: ${r.passed ? "PASSED" : "FAILED"}</strong> &middot; ${r.executionStatus} &middot; ${r.executionTimeMs} ms</div>
-          <div>Input: ${escapeHtml(r.input || "(none)")}</div>
-          <div>Expected: ${escapeHtml(r.expectedOutput)}</div>
-          <div>Got: ${escapeHtml(r.actualOutput)}</div>
+          <div><strong>Input:</strong><pre class="testcase-value">${escapeHtml(r.input || "(empty input)")}</pre></div>
+          <div><strong>Expected Output:</strong><pre class="testcase-value">${escapeHtml(r.expectedOutput ?? "")}</pre></div>
+          <div><strong>Your Output:</strong><pre class="testcase-value">${escapeHtml(r.actualOutput ?? "")}</pre></div>
           ${r.errorMessage ? `<div>Error: ${escapeHtml(r.errorMessage)}</div>` : ""}
         </div>`
       )
@@ -536,14 +536,24 @@ async function submitCode(q, code) {
 
     statusEl.textContent = `Submitted: ${passedCount} / ${allTests.length} test cases passed \u00b7 ${marksObtained} / ${q.marks} marks`;
 
-    // Only show pass/fail per test - never reveal hidden inputs/expected output.
+    // Public tests always show details. Hidden test inputs and expected outputs
+    // are disclosed only for failed cases to help the student debug.
+    const publicCount = (q.visibleTestCases || []).length;
     resultsEl.innerHTML = results
-      .map(
-        (r, i) => `
-        <div class="testcase-result ${r.passed ? "pass" : "fail"}">
-          <strong>Test ${i + 1}: ${r.passed ? "PASSED" : "FAILED"}</strong> &middot; ${r.executionStatus} &middot; ${r.executionTimeMs} ms
-        </div>`
-      )
+      .map((r, i) => {
+        const isHidden = i >= publicCount;
+        const showDetails = !isHidden || !r.passed;
+        return `
+          <div class="testcase-result ${r.passed ? "pass" : "fail"}">
+            <strong>${isHidden ? "Hidden test" : "Public test"} ${isHidden ? i - publicCount + 1 : i + 1}: ${r.passed ? "PASSED" : "FAILED"}</strong> &middot; ${r.executionStatus} &middot; ${r.executionTimeMs} ms
+            ${showDetails ? `
+              <div><strong>Input:</strong><pre class="testcase-value">${escapeHtml(r.input || "(empty input)")}</pre></div>
+              <div><strong>Expected Output:</strong><pre class="testcase-value">${escapeHtml(r.expectedOutput ?? "")}</pre></div>
+              <div><strong>Your Output:</strong><pre class="testcase-value">${escapeHtml(r.actualOutput ?? "")}</pre></div>
+              ${r.errorMessage ? `<div><strong>Error:</strong><pre class="testcase-value">${escapeHtml(r.errorMessage)}</pre></div>` : ""}
+            ` : "<div>Details are hidden because this test passed.</div>"}
+          </div>`;
+      })
       .join("");
 
     renderSubmissionHistory(q.id);

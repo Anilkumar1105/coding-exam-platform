@@ -518,9 +518,9 @@ async function runVisible(q) {
         (r, i) => `
         <div class="testcase-result ${r.passed ? "pass" : "fail"}">
           <div><strong>Test ${i + 1}: ${r.passed ? "PASSED" : "FAILED"}</strong> \u00b7 ${r.executionTimeMs} ms</div>
-          <div>Input: ${escapeHtml(r.input || "(none)")}</div>
-          <div>Expected: ${escapeHtml(r.expectedOutput)}</div>
-          <div>Got: ${escapeHtml(r.actualOutput)}</div>
+          <div><strong>Input:</strong><pre class="testcase-value">${escapeHtml(r.input || "(empty input)")}</pre></div>
+          <div><strong>Expected Output:</strong><pre class="testcase-value">${escapeHtml(r.expectedOutput ?? "")}</pre></div>
+          <div><strong>Your Output:</strong><pre class="testcase-value">${escapeHtml(r.actualOutput ?? "")}</pre></div>
           ${r.errorMessage ? `<div>Error: ${escapeHtml(r.errorMessage)}</div>` : ""}
         </div>`
       )
@@ -626,9 +626,18 @@ async function submitPractice(q) {
     }
 
     statusEl.textContent = `Submitted: ${passedCount} / ${allTests.length} test cases passed · ${marksObtained} / ${q.marks} marks${finalStatusMessage}`;
-    resultsEl.innerHTML = results
-      .map((r, i) => `<div class="testcase-result ${r.passed ? "pass" : "fail"}"><strong>Test ${i + 1}: ${r.passed ? "PASSED" : "FAILED"}</strong>${r.errorMessage ? ` · ${escapeHtml(r.errorMessage)}` : ""}</div>`)
-      .join("");
+    const publicCount = (q.visibleTestCases || []).length;
+    resultsEl.innerHTML = results.map((r, i) => {
+      const isHidden = i >= publicCount;
+      const showDetails = !isHidden || !r.passed;
+      return `<div class="testcase-result ${r.passed ? "pass" : "fail"}">
+        <strong>${isHidden ? "Hidden test" : "Public test"} ${isHidden ? i - publicCount + 1 : i + 1}: ${r.passed ? "PASSED" : "FAILED"}</strong>
+        ${showDetails ? `<div><strong>Input:</strong><pre class="testcase-value">${escapeHtml(r.input || "(empty input)")}</pre></div>
+          <div><strong>Expected Output:</strong><pre class="testcase-value">${escapeHtml(r.expectedOutput ?? "")}</pre></div>
+          <div><strong>Your Output:</strong><pre class="testcase-value">${escapeHtml(r.actualOutput ?? "")}</pre></div>` : "<div>Details are hidden because this test passed.</div>"}
+        ${r.errorMessage ? `<div><strong>Error:</strong><pre class="testcase-value">${escapeHtml(r.errorMessage)}</pre></div>` : ""}
+      </div>`;
+    }).join("");
 
     try { localStorage.removeItem(draftKey); } catch (_) {}
     renderLearningHistory(q.id);
