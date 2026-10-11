@@ -2274,6 +2274,19 @@ function renderLearningProgressTable() {
 let importTarget = "exam";
 let parsedImportQuestions = [];
 const IMPORT_FIELDS = ["type","questionText","options","correctAnswer","marks","title","description","inputDescription","outputDescription","constraints","difficulty","timeLimit","memoryLimit","starterCode","examplesJson","publicTestsJson","hiddenTestsJson","company","published"];
+function downloadConceptTemplate() {
+  if (!window.XLSX) { alert("Excel library did not load. Refresh the page and try again."); return; }
+  const headers = ["Type", "Title", "Content", "Order"];
+  const sample = ["CONCEPT", "What is Programming?", "Programming means giving instructions to a computer to perform a task.\\n\\nExample:\\n1. Enter PIN\\n2. Select amount", 1];
+  const wb = XLSX.utils.book_new();
+  const ws = XLSX.utils.aoa_to_sheet([headers, sample]);
+  ws["!cols"] = [{wch:16},{wch:32},{wch:72},{wch:12}];
+  XLSX.utils.book_append_sheet(wb, ws, "Concepts");
+  XLSX.writeFile(wb, "learning-concepts-template.xlsx");
+}
+document.getElementById("downloadConceptTemplateBtn")?.addEventListener("click", downloadConceptTemplate);
+document.getElementById("importLearningConceptsBtn")?.addEventListener("click", () => openQuestionImport("learning-concepts"));
+
 function downloadQuestionTemplate(kind, special=false) {
   if (!window.XLSX) { alert("Excel library did not load. Refresh the page and try again."); return; }
   const headers = kind === "mcq"
@@ -2302,7 +2315,7 @@ document.getElementById("importSpecialQuestionsBtn")?.addEventListener("click",(
 function openQuestionImport(target) {
   importTarget=target; parsedImportQuestions=[];
   document.getElementById("questionImportFile").value="";
-  document.getElementById("questionImportStatus").textContent=target==="special"?"Special Section imports coding questions only.":target.startsWith("learning-")?`Learning section target: ${activeLevel?.title || activeLevel?.name || "Open a learning level first."}. Import ${target==="learning-mcq"?"MCQs only":"coding questions only"}.`:`Target exam: ${activeExamForQuestions?.title || "Open an exam's Manage Questions screen first."}`;
+  document.getElementById("questionImportStatus").textContent=target==="special"?"Special Section imports coding questions only.":target.startsWith("learning-")?`Learning section target: ${activeLevel?.title || activeLevel?.name || "Open a learning level first."}. Import ${target==="learning-mcq"?"MCQs only":target==="learning-coding"?"coding questions only":"concepts only"}.`:`Target exam: ${activeExamForQuestions?.title || "Open an exam's Manage Questions screen first."}`;
   document.getElementById("questionImportPreview").innerHTML="";
   document.getElementById("confirmQuestionImportBtn").disabled=true;
   bootstrap.Modal.getOrCreateInstance(document.getElementById("questionImportModal")).show();
@@ -2315,6 +2328,13 @@ function parseJsonCell(value, fallback=[]) {
 function rowToImportQuestion(row) {
   const get=(...keys)=>{for(const k of keys){if(row[k]!==undefined && row[k]!==null && String(row[k]).trim()!=="") return row[k];}return "";};
   const type=cleanCell(get("type","questiontype")).toLowerCase();
+  if (type === "concept") {
+    const title = cleanCell(get("title", "concepttitle"));
+    const content = String(get("content", "conceptcontent", "description") || "");
+    const order = Number(get("order") || 0);
+    if (!title || !content.trim()) throw new Error("Concept needs Title and Content.");
+    return {type:"concept", title, content, order:Number.isFinite(order) ? order : 0};
+  }
   const marks=Number(get("marks")||1);
   if(!Number.isFinite(marks)||marks<=0) throw new Error("Marks must be a positive number.");
   if(type==="mcq") {
@@ -2339,7 +2359,7 @@ function rowToImportQuestion(row) {
     const starterCode=cleanCell(get("startercode"))||'def solve():\n    pass\n\nif __name__ == "__main__":\n    solve()';
     return {type:"coding",title,description,inputDescription:cleanCell(get("inputdescription","input")),outputDescription:cleanCell(get("outputdescription","output")),constraints:cleanCell(get("constraints")),difficulty:cleanCell(get("difficulty")).toLowerCase()||"medium",marks,timeLimit:Number(get("timelimit")||5),memoryLimit:Number(get("memorylimit")||256),starterCode,examples,visibleTestCases,hiddenTestCases,language:"python",allowedLanguages:["python"],published: get("published")===""?true:!(/^(false|0|no)$/i.test(cleanCell(get("published")))),company:cleanCell(get("company"))||"Other"};
   }
-  throw new Error(`Unknown Type "${type}". Use MCQ or CODING.`);
+  throw new Error(`Unknown Type "${type}". Use CONCEPT, MCQ or CODING.`);
 }
 async function parsePdfFile(file) {
   if(!window.pdfjsLib) throw new Error("PDF reader did not load. Refresh the page or use Excel.");
@@ -2373,6 +2393,7 @@ document.getElementById("questionImportFile")?.addEventListener("change",async e
     }
     if(!parsed.length)throw new Error("No questions found in this file.");
     if(importTarget==="special"&&parsed.some(q=>q.type!=="coding"))throw new Error("Special Section accepts coding questions only. Use the Coding Excel Template.");
+    if(importTarget==="learning-concepts"&&parsed.some(q=>q.type!=="concept"))throw new Error("Learning Concepts import accepts CONCEPT rows only. Use the Concept Excel Template.");
     if(importTarget==="learning-mcq"&&parsed.some(q=>q.type!=="mcq"))throw new Error("Learning MCQ import accepts MCQ questions only. Use the MCQ Excel Template.");
     if(importTarget==="learning-coding"&&parsed.some(q=>q.type!=="coding"))throw new Error("Learning Coding import accepts coding questions only. Use the Coding Excel Template.");
     if(importTarget.startsWith("learning-")&&!activeLevel)throw new Error("Open a learning level before importing questions.");
@@ -2405,6 +2426,7 @@ document.getElementById("confirmQuestionImportBtn")?.addEventListener("click",as
     status.textContent=`Imported ${imported} of ${parsedImportQuestions.length} question(s).${errors.length?" Errors: "+errors.slice(0,4).join("; "):""}`;
     if(importTarget==="exam"){questions=await listQuestionsForExam(activeExamForQuestions.id);renderQuestionsList();}
     else if(importTarget==="special") await renderSpecialQuestionsList();
+    else if(importTarget==="learning-concepts") await renderConceptsList();
     else if(importTarget==="learning-mcq") await renderLearningMcqList();
     else if(importTarget==="learning-coding") await renderLearningCodingList();
     if(!errors.length) setTimeout(()=>bootstrap.Modal.getInstance(document.getElementById("questionImportModal"))?.hide(),900);
