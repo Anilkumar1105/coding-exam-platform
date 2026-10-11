@@ -2291,12 +2291,16 @@ function downloadQuestionTemplate(kind, special=false) {
 document.getElementById("downloadMcqTemplateBtn")?.addEventListener("click",()=>downloadQuestionTemplate("mcq"));
 document.getElementById("downloadCodingTemplateBtn")?.addEventListener("click",()=>downloadQuestionTemplate("coding"));
 document.getElementById("downloadSpecialCodingTemplateBtn")?.addEventListener("click",()=>downloadQuestionTemplate("coding",true));
+document.getElementById("downloadLearningMcqTemplateBtn")?.addEventListener("click",()=>downloadQuestionTemplate("mcq"));
+document.getElementById("downloadLearningCodingTemplateBtn")?.addEventListener("click",()=>downloadQuestionTemplate("coding"));
+document.getElementById("importLearningMcqBtn")?.addEventListener("click",()=>openQuestionImport("learning-mcq"));
+document.getElementById("importLearningCodingBtn")?.addEventListener("click",()=>openQuestionImport("learning-coding"));
 document.getElementById("importExamQuestionsBtn")?.addEventListener("click",()=>openQuestionImport("exam"));
 document.getElementById("importSpecialQuestionsBtn")?.addEventListener("click",()=>openQuestionImport("special"));
 function openQuestionImport(target) {
   importTarget=target; parsedImportQuestions=[];
   document.getElementById("questionImportFile").value="";
-  document.getElementById("questionImportStatus").textContent=target==="special"?"Special Section imports coding questions only.":`Target exam: ${activeExamForQuestions?.title || "Open an exam's Manage Questions screen first."}`;
+  document.getElementById("questionImportStatus").textContent=target==="special"?"Special Section imports coding questions only.":target.startsWith("learning-")?`Learning section target: ${activeLevel?.title || activeLevel?.name || "Open a learning level first."}. Import ${target==="learning-mcq"?"MCQs only":"coding questions only"}.`:`Target exam: ${activeExamForQuestions?.title || "Open an exam's Manage Questions screen first."}`;
   document.getElementById("questionImportPreview").innerHTML="";
   document.getElementById("confirmQuestionImportBtn").disabled=true;
   bootstrap.Modal.getOrCreateInstance(document.getElementById("questionImportModal")).show();
@@ -2367,6 +2371,9 @@ document.getElementById("questionImportFile")?.addEventListener("change",async e
     }
     if(!parsed.length)throw new Error("No questions found in this file.");
     if(importTarget==="special"&&parsed.some(q=>q.type!=="coding"))throw new Error("Special Section accepts coding questions only. Use the Coding Excel Template.");
+    if(importTarget==="learning-mcq"&&parsed.some(q=>q.type!=="mcq"))throw new Error("Learning MCQ import accepts MCQ questions only. Use the MCQ Excel Template.");
+    if(importTarget==="learning-coding"&&parsed.some(q=>q.type!=="coding"))throw new Error("Learning Coding import accepts coding questions only. Use the Coding Excel Template.");
+    if(importTarget.startsWith("learning-")&&!activeLevel)throw new Error("Open a learning level before importing questions.");
     if(importTarget==="exam") {
       if(!activeExamForQuestions)throw new Error("Open an exam and click Manage Questions before importing.");
       const examType=activeExamForQuestions.examType||"mcq";
@@ -2386,14 +2393,18 @@ document.getElementById("confirmQuestionImportBtn")?.addEventListener("click",as
       const q={...parsedImportQuestions[i]};
       try {
         if(importTarget==="exam") await addQuestion({...q,examId:activeExamForQuestions.id,published:q.published!==false,order:questions.length+imported});
-        else await createSpecialQuestion({...q,published:q.published!==false,order:specialQuestions.length+imported,company:q.company||"Other"});
+        else if(importTarget==="special") await createSpecialQuestion({...q,published:q.published!==false,order:specialQuestions.length+imported,company:q.company||"Other"});
+        else if(importTarget==="learning-mcq") await createMcqQuestion({levelId:activeLevel.id,questionText:q.questionText,options:q.options,correctOptionIndex:q.correctOptionIndex,marks:q.marks,order:(levelMcqQuestions?.length||0)+imported});
+        else if(importTarget==="learning-coding") await createLearningCodingQuestion({levelId:activeLevel.id,language:"python",title:q.title,description:q.description,inputDescription:q.inputDescription,outputDescription:q.outputDescription,constraints:q.constraints||"",marks:q.marks,timeLimit:q.timeLimit||5,order:(levelCodingQuestions?.length||0)+imported,starterCode:q.starterCode,examples:q.examples||[],visibleTestCases:q.visibleTestCases||[],hiddenTestCases:q.hiddenTestCases||[]});
         imported++;
       } catch(err){errors.push(`Question ${i+1}: ${err.message||"save failed"}`);}
     }
     status.className=errors.length?"small text-warning":"small text-success";
     status.textContent=`Imported ${imported} of ${parsedImportQuestions.length} question(s).${errors.length?" Errors: "+errors.slice(0,4).join("; "):""}`;
     if(importTarget==="exam"){questions=await listQuestionsForExam(activeExamForQuestions.id);renderQuestionsList();}
-    else await renderSpecialQuestionsList();
+    else if(importTarget==="special") await renderSpecialQuestionsList();
+    else if(importTarget==="learning-mcq") await renderLearningMcqList();
+    else if(importTarget==="learning-coding") await renderLearningCodingList();
     if(!errors.length) setTimeout(()=>bootstrap.Modal.getInstance(document.getElementById("questionImportModal"))?.hide(),900);
   } catch(err){status.className="small text-danger";status.textContent=err.message||"Import failed.";}
   finally {btn.textContent="Import Questions";btn.disabled=parsedImportQuestions.length===0;}

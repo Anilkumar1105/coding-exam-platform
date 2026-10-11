@@ -159,6 +159,22 @@ function escapeHtml(str) {
     .replace(/>/g, "&gt;");
 }
 
+function completedQuestionKey(section) {
+  return `completedCodingQuestions:${section}:${currentUser?.uid || "guest"}`;
+}
+function isCodingQuestionCompleted(section, questionId) {
+  try { return JSON.parse(localStorage.getItem(completedQuestionKey(section)) || "[]").includes(questionId); }
+  catch { return false; }
+}
+function markCodingQuestionCompleted(section, questionId) {
+  try {
+    const key = completedQuestionKey(section);
+    const completed = new Set(JSON.parse(localStorage.getItem(key) || "[]"));
+    completed.add(questionId);
+    localStorage.setItem(key, JSON.stringify([...completed]));
+  } catch (err) { console.warn("Could not save question completion status", err); }
+}
+
 /* ---------- Question detail / practice editor ---------- */
 function renderQuestionDetail(q, points) {
   const body = document.getElementById("pageBody");
@@ -276,6 +292,9 @@ async function submitSpecial(q) {
     const allTests = [...(q.visibleTestCases || []), ...(q.hiddenTestCases || [])];
     const results = await runAllTestCases(pyodide, cmEditor.getValue(), allTests, (q.timeLimit || 5) * 1000);
     const passedCount = results.filter((r) => r.passed).length;
+    if (allTests.length > 0 && passedCount === allTests.length) {
+      markCodingQuestionCompleted("special", q.id);
+    }
     const marksObtained = computeCodingMarks(q.marks, results);
     const totalExecutionTimeMs = results.reduce((sum, r) => sum + (r.executionTimeMs || 0), 0);
     const hadError = results.some((r) => r.executionStatus === "error" || r.executionStatus === "timeout");

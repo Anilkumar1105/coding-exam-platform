@@ -310,7 +310,11 @@
           <div class="card mb-3">
             <div class="card-header d-flex justify-content-between align-items-center">
               <span class="fw-semibold"><i class="bi bi-list-check me-1"></i>MCQ Questions</span>
-              <button class="btn btn-brand btn-sm" id="addLearningMcqBtn"><i class="bi bi-plus-lg me-1"></i>Add Question</button>
+              <div class="d-flex flex-wrap gap-2">
+                <button class="btn btn-outline-primary btn-sm" id="downloadLearningMcqTemplateBtn"><i class="bi bi-download me-1"></i>Excel Template</button>
+                <button class="btn btn-outline-secondary btn-sm" id="importLearningMcqBtn"><i class="bi bi-file-earmark-arrow-up me-1"></i>Import MCQs</button>
+                <button class="btn btn-brand btn-sm" id="addLearningMcqBtn"><i class="bi bi-plus-lg me-1"></i>Add Question</button>
+              </div>
             </div>
             <div id="learningMcqListWrap" class="d-flex flex-column gap-2 p-3"></div>
           </div>
@@ -319,6 +323,8 @@
             <div class="card-header d-flex justify-content-between align-items-center">
               <span class="fw-semibold"><i class="bi bi-code-slash me-1"></i>Coding Questions</span>
               <div class="d-flex flex-wrap gap-2">
+                <button class="btn btn-outline-primary btn-sm" id="downloadLearningCodingTemplateBtn"><i class="bi bi-download me-1"></i>Excel Template</button>
+                <button class="btn btn-outline-secondary btn-sm" id="importLearningCodingBtn"><i class="bi bi-file-earmark-arrow-up me-1"></i>Import Coding</button>
                 <button class="btn btn-outline-primary btn-sm" id="importCodeforcesBtn"><i class="bi bi-cloud-download me-1"></i>Import from Codeforces</button>
                 <button class="btn btn-brand btn-sm" id="addLearningCodingBtn"><i class="bi bi-plus-lg me-1"></i>Add Question</button>
               </div>

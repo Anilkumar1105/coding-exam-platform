@@ -132,6 +132,22 @@ function escapeHtml(str) {
     .replace(/>/g, "&gt;");
 }
 
+function completedQuestionKey(section, questionId) {
+  return `completedCodingQuestions:${section}:${currentUser?.uid || "guest"}`;
+}
+function isCodingQuestionCompleted(section, questionId) {
+  try { return JSON.parse(localStorage.getItem(completedQuestionKey(section, questionId)) || "[]").includes(questionId); }
+  catch { return false; }
+}
+function markCodingQuestionCompleted(section, questionId) {
+  try {
+    const key = completedQuestionKey(section, questionId);
+    const completed = new Set(JSON.parse(localStorage.getItem(key) || "[]"));
+    completed.add(questionId);
+    localStorage.setItem(key, JSON.stringify([...completed]));
+  } catch (err) { console.warn("Could not save question completion status", err); }
+}
+
 /* ---------- Concepts ---------- */
 function renderConcept(content) {
   const concept = concepts.find((c) => c.id === view.id);
@@ -604,6 +620,7 @@ async function submitPractice(q) {
     });
 
     if (allTests.length && passedCount === allTests.length) {
+      markCodingQuestionCompleted("learning", q.id);
       const [pointsResult, streakResult] = await Promise.allSettled([
         awardPointsForCompletedQuestion(currentUser.uid, q.id),
         recordLearningProblemSolved(currentUser.uid, q.id)
