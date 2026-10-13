@@ -314,17 +314,25 @@ async function submitSpecial(q) {
 
     statusEl.textContent = `Submitted: ${passedCount} / ${allTests.length} test cases passed \u00b7 ${marksObtained} / ${q.marks} marks`;
     const publicCount = (q.visibleTestCases || []).length;
-    resultsEl.innerHTML = results.map((r, i) => {
-      const isHidden = i >= publicCount;
-      const showDetails = !isHidden || !r.passed;
-      return `<div class="testcase-result ${r.passed ? "pass" : "fail"}">
-        <strong>${isHidden ? "Hidden test" : "Public test"} ${isHidden ? i - publicCount + 1 : i + 1}: ${r.passed ? "PASSED" : "FAILED"}</strong>
-        ${showDetails ? `<div><strong>Input:</strong><pre class="testcase-value">${escapeHtml(r.input || "(empty input)")}</pre></div>
+    if (allTests.length > 0 && passedCount === allTests.length) {
+      resultsEl.innerHTML = `<div class="testcase-result pass"><strong>✓ All test cases passed!</strong><div>${passedCount} / ${allTests.length} test cases passed.</div></div>`;
+    } else {
+      resultsEl.innerHTML = results.map((r, i) => {
+        if (r.passed) return "";
+        const isHidden = i >= publicCount;
+        return `<div class="testcase-result fail">
+          <strong>${isHidden ? "Hidden test" : "Public test"} ${isHidden ? i - publicCount + 1 : i + 1}: FAILED</strong>
+          ${r.executionStatus ? ` &middot; ${r.executionStatus}` : ""}${r.executionTimeMs != null ? ` &middot; ${r.executionTimeMs} ms` : ""}
+          <div><strong>Input:</strong><pre class="testcase-value">${escapeHtml(r.input || "(empty input)")}</pre></div>
           <div><strong>Expected Output:</strong><pre class="testcase-value">${escapeHtml(r.expectedOutput ?? "")}</pre></div>
-          <div><strong>Your Output:</strong><pre class="testcase-value">${escapeHtml(r.actualOutput ?? "")}</pre></div>` : "<div>Details are hidden because this test passed.</div>"}
-        ${r.errorMessage ? `<div><strong>Error:</strong><pre class="testcase-value">${escapeHtml(r.errorMessage)}</pre></div>` : ""}
-      </div>`;
-    }).join("");
+          <div><strong>Your Output:</strong><pre class="testcase-value">${escapeHtml(r.actualOutput ?? "")}</pre></div>
+          ${r.errorMessage ? `<div><strong>Error:</strong><pre class="testcase-value">${escapeHtml(r.errorMessage)}</pre></div>` : ""}
+        </div>`;
+      }).join("");
+      if (!results.some((r) => !r.passed)) {
+        resultsEl.innerHTML = `<div class="testcase-result fail">No test cases passed. Please review your code and try again.</div>`;
+      }
+    }
     renderSpecialHistory(q.id);
   } catch (err) {
     statusEl.textContent = "Could not submit code.";

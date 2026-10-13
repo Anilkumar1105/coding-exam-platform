@@ -799,22 +799,25 @@ async function submitCode(q, code) {
     // Public tests always show details. Hidden test inputs and expected outputs
     // are disclosed only for failed cases to help the student debug.
     const publicCount = (q.visibleTestCases || []).length;
-    resultsEl.innerHTML = results
-      .map((r, i) => {
+    if (allTests.length > 0 && passedCount === allTests.length) {
+      resultsEl.innerHTML = `<div class="testcase-result pass"><strong>✓ All test cases passed!</strong><div>${passedCount} / ${allTests.length} test cases passed.</div></div>`;
+    } else {
+      resultsEl.innerHTML = results.map((r, i) => {
+        if (r.passed) return "";
         const isHidden = i >= publicCount;
-        const showDetails = !isHidden || !r.passed;
-        return `
-          <div class="testcase-result ${r.passed ? "pass" : "fail"}">
-            <strong>${isHidden ? "Hidden test" : "Public test"} ${isHidden ? i - publicCount + 1 : i + 1}: ${r.passed ? "PASSED" : "FAILED"}</strong> &middot; ${r.executionStatus} &middot; ${r.executionTimeMs} ms
-            ${showDetails ? `
-              <div><strong>Input:</strong><pre class="testcase-value">${escapeHtml(r.input || "(empty input)")}</pre></div>
-              <div><strong>Expected Output:</strong><pre class="testcase-value">${escapeHtml(r.expectedOutput ?? "")}</pre></div>
-              <div><strong>Your Output:</strong><pre class="testcase-value">${escapeHtml(r.actualOutput ?? "")}</pre></div>
-              ${r.errorMessage ? `<div><strong>Error:</strong><pre class="testcase-value">${escapeHtml(r.errorMessage)}</pre></div>` : ""}
-            ` : "<div>Details are hidden because this test passed.</div>"}
-          </div>`;
-      })
-      .join("");
+        return `<div class="testcase-result fail">
+          <strong>${isHidden ? "Hidden test" : "Public test"} ${isHidden ? i - publicCount + 1 : i + 1}: FAILED</strong>
+          ${r.executionStatus ? ` &middot; ${r.executionStatus}` : ""}${r.executionTimeMs != null ? ` &middot; ${r.executionTimeMs} ms` : ""}
+          <div><strong>Input:</strong><pre class="testcase-value">${escapeHtml(r.input || "(empty input)")}</pre></div>
+          <div><strong>Expected Output:</strong><pre class="testcase-value">${escapeHtml(r.expectedOutput ?? "")}</pre></div>
+          <div><strong>Your Output:</strong><pre class="testcase-value">${escapeHtml(r.actualOutput ?? "")}</pre></div>
+          ${r.errorMessage ? `<div><strong>Error:</strong><pre class="testcase-value">${escapeHtml(r.errorMessage)}</pre></div>` : ""}
+        </div>`;
+      }).join("");
+      if (!results.some((r) => !r.passed)) {
+        resultsEl.innerHTML = `<div class="testcase-result fail">No test cases passed. Please review your code and try again.</div>`;
+      }
+    }
 
     // Add the new attempt to the in-memory history so navigating away/back
     // does not trigger another Firestore query.
