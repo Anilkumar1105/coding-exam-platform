@@ -218,9 +218,12 @@
         <div id="examsListView">
           <div class="d-flex justify-content-between align-items-center mb-3">
             <h6 class="mb-0"><i class="bi bi-journal-code me-1"></i>Exams</h6>
-            <button class="btn btn-brand btn-sm" data-bs-toggle="modal" data-bs-target="#examModal" id="createExamBtn">
-              <i class="bi bi-plus-lg me-1"></i>Create Exam
-            </button>
+            <div class="d-flex gap-2">
+              <button class="btn btn-outline-secondary btn-sm" id="openExamBinBtn"><i class="bi bi-trash3 me-1"></i>Bin</button>
+              <button class="btn btn-brand btn-sm" data-bs-toggle="modal" data-bs-target="#examModal" id="createExamBtn">
+                <i class="bi bi-plus-lg me-1"></i>Create Exam
+              </button>
+            </div>
           </div>
 
           <div class="card">
@@ -237,6 +240,23 @@
               </table>
             </div>
           </div>
+        </div>
+
+        <!-- Deleted exams recycle bin -->
+        <div id="examBinView" class="d-none">
+          <div class="d-flex justify-content-between align-items-center mb-3">
+            <div>
+              <h6 class="mb-1"><i class="bi bi-trash3 me-1"></i>Deleted Exams</h6>
+              <small class="text-muted">Deleted exams are kept for 30 days. Restoring brings back the original results and questions.</small>
+            </div>
+            <button class="btn btn-sm btn-outline-secondary" id="backFromExamBinBtn"><i class="bi bi-arrow-left me-1"></i>Back to Exams</button>
+          </div>
+          <div class="card"><div class="table-responsive">
+            <table class="table table-striped mb-0 align-middle">
+              <thead><tr><th>Exam</th><th>Deleted on</th><th>Auto-delete on</th><th class="text-end">Actions</th></tr></thead>
+              <tbody id="examBinTableBody"><tr><td colspan="4" class="text-center text-muted py-4">Loading Bin...</td></tr></tbody>
+            </table>
+          </div></div>
         </div>
 
         <!-- Exam questions view -->

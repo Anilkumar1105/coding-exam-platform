@@ -21,7 +21,9 @@ import {
   getDoc,
   query,
   where,
-  orderBy
+  orderBy,
+  writeBatch,
+  deleteField
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
 export const SECTIONS = ["IT-A", "IT-B", "IT-C", "AIDS-A", "AIDS-B", "CYS", "AIML","OTHERS"];
@@ -128,7 +130,71 @@ export async function listStudents(section = "all") {
 /** Fetch all exams, newest first. */
 export async function listExams() {
   const snap = await getDocsCached(query(collection(db, "exams"), orderBy("createdAt", "desc")), "col:exams:admin:all");
-  return snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+  return snap.docs.map((d) => ({ id: d.id, ...d.data() })).filter((exam) => !exam.deletedAt);
+}
+
+/** Deleted exams remain in the exams collection until restored or purged. */
+export async function listDeletedExams() {
+  const snap = await getDocsCached(query(collection(db, "exams"), orderBy("createdAt", "desc")), "col:exams:admin:all");
+  return snap.docs.map((d) => ({ id: d.id, ...d.data() })).filter((exam) => !!exam.deletedAt);
+}
+
+export async function moveExamToBin(examId, deletedBy = null) {
+  const examRef = doc(db, "exams", examId);
+  const current = await getDoc(examRef);
+  if (!current.exists()) throw new Error("Exam not found.");
+  const data = current.data();
+  if (data.deletedAt) return;
+  await updateDoc(examRef, {
+    deletedAt: new Date().toISOString(),
+    deletedBy,
+    wasActiveBeforeDelete: !!data.active,
+    active: false
+  });
+  invalidateCollection("exams");
+  invalidateCache(`col:exams:doc:${examId}`);
+  invalidateCache("col:exams:active");
+  await bumpRemoteCacheVersion(db, "exams");
+}
+
+export async function restoreExamFromBin(examId) {
+  const examRef = doc(db, "exams", examId);
+  const current = await getDoc(examRef);
+  if (!current.exists()) throw new Error("Deleted exam not found.");
+  const data = current.data();
+  if (!data.deletedAt) return;
+  await updateDoc(examRef, {
+    deletedAt: deleteField(),
+    deletedBy: deleteField(),
+    active: !!data.wasActiveBeforeDelete,
+    wasActiveBeforeDelete: deleteField()
+  });
+  invalidateCollection("exams");
+  invalidateCache(`col:exams:doc:${examId}`);
+  invalidateCache("col:exams:active");
+  await bumpRemoteCacheVersion(db, "exams");
+}
+
+/** Permanently remove an exam and its top-level related documents. */
+export async function permanentlyDeleteExam(examId) {
+  const examRef = doc(db, "exams", examId);
+  const examSnap = await getDoc(examRef);
+  if (!examSnap.exists()) return;
+  if (!examSnap.data().deletedAt) throw new Error("Only exams in the Bin can be permanently deleted.");
+
+  const relatedCollections = ["questions", "examSchedules", "submissions", "codeSubmissions"];
+  for (const collectionName of relatedCollections) {
+    const snap = await getDocs(query(collection(db, collectionName), where("examId", "==", examId)));
+    for (let i = 0; i < snap.docs.length; i += 450) {
+      const batch = writeBatch(db);
+      snap.docs.slice(i, i + 450).forEach((item) => batch.delete(item.ref));
+      await batch.commit();
+    }
+  }
+  await deleteDoc(examRef);
+  for (const name of ["exams", "questions", "examSchedules", "submissions", "codeSubmissions"]) invalidateCollection(name);
+  invalidateCache("col:exams:active");
+  await bumpRemoteCacheVersion(db, "exams");
 }
 
 export async function getExam(examId) {

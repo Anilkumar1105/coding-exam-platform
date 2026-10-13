@@ -19,7 +19,7 @@ import {
 export async function listActiveExams() {
   const q = query(collection(db, "exams"), where("active", "==", true));
   const snap = await getDocsCached(q, "col:exams:active");
-  return snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+  return snap.docs.map((d) => ({ id: d.id, ...d.data() })).filter((exam) => !exam.deletedAt);
 }
 
 export async function getExamById(examId) {
@@ -50,7 +50,7 @@ export async function getExamsByIds(examIds) {
     })
   );
 
-  return results.flat();
+  return results.flat().filter((exam) => !exam.deletedAt);
 }
 
 /** Reads the admin-published "Toppers of the Week" leaderboard, or null if none has been published yet. */
@@ -141,7 +141,13 @@ export async function getQuestionsForExam(examId) {
 export async function getStudentSubmissions(uid) {
   const q = query(collection(db, "submissions"), where("studentId", "==", uid));
   const snap = await getDocsCached(q, `user:${uid}:col:submissions`);
-  return snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+  const rows = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+  if (!rows.length) return rows;
+  // Soft-deleted exams must disappear from student history and averages too.
+  const examIds = [...new Set(rows.map((row) => row.examId).filter(Boolean))];
+  const exams = await getExamsByIds(examIds);
+  const visibleExamIds = new Set(exams.map((exam) => exam.id));
+  return rows.filter((row) => visibleExamIds.has(row.examId));
 }
 
 /** Returns the submission for a given exam, if the student has one. */

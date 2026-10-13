@@ -15,7 +15,10 @@ import {
   createExam,
   updateExamDoc,
   toggleExamActive,
-  deleteExamDoc,
+  listDeletedExams,
+  moveExamToBin,
+  restoreExamFromBin,
+  permanentlyDeleteExam,
   listQuestionsForExam,
   addQuestion,
   updateQuestionDoc,
@@ -140,6 +143,8 @@ async function loadEverything() {
     listStudentPoints(),
     listDailyLearningActivity()
   ]);
+  const deletedExamIds = new Set((await listDeletedExams()).map((exam) => exam.id));
+  submissions = submissions.filter((submission) => !deletedExamIds.has(submission.examId));
   await loadSchedules();
   renderStudentsTable();
   renderExamsTable();
@@ -939,6 +944,61 @@ function renderExamsTable() {
   tbody.querySelectorAll("[data-delete-exam]").forEach((btn) => btn.addEventListener("click", () => handleDeleteExam(btn.dataset.deleteExam)));
 }
 
+const examBinView = document.getElementById("examBinView");
+const examsListView = document.getElementById("examsListView");
+
+document.getElementById("openExamBinBtn")?.addEventListener("click", async () => {
+  examsListView.classList.add("d-none");
+  document.getElementById("examQuestionsView")?.classList.add("d-none");
+  document.getElementById("examSchedulesView")?.classList.add("d-none");
+  examBinView.classList.remove("d-none");
+  await renderExamBin();
+});
+document.getElementById("backFromExamBinBtn")?.addEventListener("click", () => {
+  examBinView.classList.add("d-none");
+  examsListView.classList.remove("d-none");
+});
+
+async function renderExamBin() {
+  const tbody = document.getElementById("examBinTableBody");
+  tbody.innerHTML = `<tr><td colspan="4" class="text-center text-muted py-4">Loading Bin...</td></tr>`;
+  try {
+    const deleted = await listDeletedExams();
+    if (!deleted.length) {
+      tbody.innerHTML = `<tr><td colspan="4" class="text-center text-muted py-4">Bin is empty.</td></tr>`;
+      return;
+    }
+    const now = Date.now();
+    tbody.innerHTML = deleted.map((exam) => {
+      const deletedMs = Date.parse(exam.deletedAt);
+      const purgeMs = deletedMs + 30 * 24 * 60 * 60 * 1000;
+      const dateText = Number.isFinite(deletedMs) ? new Date(deletedMs).toLocaleString() : "Unknown";
+      const purgeText = Number.isFinite(purgeMs) ? new Date(purgeMs).toLocaleString() : "Unknown";
+      const daysLeft = Number.isFinite(purgeMs) ? Math.max(0, Math.ceil((purgeMs - now) / 86400000)) : 30;
+      return `<tr>
+        <td><strong>${escapeHtmlL(exam.title || "Untitled exam")}</strong><div class="small text-muted">${escapeHtmlL((exam.examType || "mcq").toUpperCase())}</div></td>
+        <td>${escapeHtmlL(dateText)}</td><td>${escapeHtmlL(purgeText)}<div class="small text-muted">${daysLeft} day(s) remaining</div></td>
+        <td class="text-end text-nowrap"><button class="btn btn-sm btn-outline-success me-1" data-restore-exam="${exam.id}"><i class="bi bi-arrow-counterclockwise me-1"></i>Restore</button><button class="btn btn-sm btn-outline-danger" data-purge-exam="${exam.id}"><i class="bi bi-trash3 me-1"></i>Delete forever</button></td>
+      </tr>`;
+    }).join("");
+    tbody.querySelectorAll("[data-restore-exam]").forEach((btn) => btn.addEventListener("click", async () => {
+      const exam = deleted.find((item) => item.id === btn.dataset.restoreExam);
+      if (!exam || !confirm(`Restore "${exam.title}" and its original results?`)) return;
+      try { await restoreExamFromBin(exam.id); await loadEverything(); await renderExamBin(); alert("Exam restored successfully."); }
+      catch (err) { console.error(err); alert(`Restore failed: ${err.message || err}`); }
+    }));
+    tbody.querySelectorAll("[data-purge-exam]").forEach((btn) => btn.addEventListener("click", async () => {
+      const exam = deleted.find((item) => item.id === btn.dataset.purgeExam);
+      if (!exam || !confirm(`PERMANENTLY delete "${exam.title}" and all related questions, schedules, results, and coding submissions? This cannot be undone.`)) return;
+      try { await permanentlyDeleteExam(exam.id); await loadEverything(); await renderExamBin(); alert("Exam and related records permanently deleted."); }
+      catch (err) { console.error(err); alert(`Permanent deletion failed: ${err.message || err}`); }
+    }));
+  } catch (err) {
+    console.error("Could not load exam Bin", err);
+    tbody.innerHTML = `<tr><td colspan="4" class="text-danger text-center py-4">Could not load Bin. ${escapeHtmlL(err.message || "Unknown error")}</td></tr>`;
+  }
+}
+
 document.getElementById("createExamBtn").addEventListener("click", () => {
   editingExamId = null;
   document.getElementById("examForm").reset();
@@ -979,13 +1039,17 @@ async function handleToggleExam(examId) {
 }
 
 async function handleDeleteExam(examId) {
-  if (!confirm("Delete this exam? Its questions and schedules will remain orphaned unless removed separately. This cannot be undone.")) return;
-  await deleteExamDoc(examId);
-  exams = exams.filter((e) => e.id !== examId);
-  delete schedulesByExamId[examId];
-  renderExamsTable();
-  populateFilterOptions();
-  renderAnalytics();
+  const exam = exams.find((e) => e.id === examId);
+  if (!exam) return;
+  if (!confirm(`Move "${exam.title}" to the Bin? Its results and averages will disappear from active dashboards. You can restore it within 30 days.`)) return;
+  try {
+    await moveExamToBin(examId, auth.currentUser?.uid || null);
+    await loadEverything();
+    alert("Exam moved to Bin. It can be restored for 30 days.");
+  } catch (err) {
+    console.error("Failed to move exam to Bin", err);
+    alert(`Could not move exam to Bin: ${err.message || err}`);
+  }
 }
 
 document.getElementById("examForm").addEventListener("submit", async (e) => {
