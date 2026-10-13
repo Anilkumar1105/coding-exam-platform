@@ -2358,7 +2358,7 @@ function downloadQuestionTemplate(kind, special=false) {
     : ["Type","Title","Description","InputDescription","OutputDescription","Constraints","Difficulty","Marks","TimeLimit","MemoryLimit","StarterCode","ExamplesJSON","PublicTestsJSON","HiddenTestsJSON","Company","Published"];
   const example = kind === "mcq"
     ? ["MCQ","What is the output of print(2 + 3)?","4","5","6","7","B",1,true]
-    : ["CODING","Sum of Two Numbers","Read two integers and print their sum.","Two integers, one per line.","Print their sum.","Both inputs are integers.","easy",5,5,256,"def solve():\n    a = int(input())\n    b = int(input())\n    print(a + b)\n\nif __name__ == \"__main__\":\n    solve()",JSON.stringify([{input:"2\n3",output:"5"}]),JSON.stringify([{input:"2\n3",expectedOutput:"5"}]),JSON.stringify([{input:"-1\n1",expectedOutput:"0"}]),special?"Google":"",true];
+    : ["CODING","Sum of Two Numbers","Read two integers and print their sum.","Two integers, one per line.","Print their sum.","Both inputs are integers.","easy",5,5,256,"a = int(input())\nb = int(input())\n# Write your code here",JSON.stringify([{input:"2\n3",output:"5"}]),JSON.stringify([{input:"2\n3",expectedOutput:"5"}]),JSON.stringify([{input:"-1\n1",expectedOutput:"0"}]),special?"Google":"",true];
   const wb = XLSX.utils.book_new();
   const ws = XLSX.utils.aoa_to_sheet([headers,example]);
   ws["!cols"] = headers.map(h=>({wch:Math.max(14,Math.min(32,h.length+4))}));
@@ -2420,7 +2420,7 @@ function rowToImportQuestion(row) {
     const visibleTestCases=parseJsonCell(get("publictestsjson","publictestcases","visibleTestCases"),[]).map(t=>({input:String(t.input??""),expectedOutput:String(t.expectedOutput??t.output??"")}));
     const hiddenTestCases=parseJsonCell(get("hiddentestsjson","hiddentestcases","hiddenTestCases"),[]).map(t=>({input:String(t.input??""),expectedOutput:String(t.expectedOutput??t.output??"")}));
     if(!visibleTestCases.length&&!hiddenTestCases.length) throw new Error(`Coding question "${title}" needs at least one PublicTestsJSON or HiddenTestsJSON case.`);
-    const starterCode=cleanCell(get("startercode"))||'def solve():\n    pass\n\nif __name__ == "__main__":\n    solve()';
+    const starterCode=cleanCell(get("startercode"))||"# Write your code here";
     return {type:"coding",title,description,inputDescription:cleanCell(get("inputdescription","input")),outputDescription:cleanCell(get("outputdescription","output")),constraints:cleanCell(get("constraints")),difficulty:cleanCell(get("difficulty")).toLowerCase()||"medium",marks,timeLimit:Number(get("timelimit")||5),memoryLimit:Number(get("memorylimit")||256),starterCode,examples,visibleTestCases,hiddenTestCases,language:"python",allowedLanguages:["python"],published: get("published")===""?true:!(/^(false|0|no)$/i.test(cleanCell(get("published")))),company:cleanCell(get("company"))||"Other"};
   }
   throw new Error(`Unknown Type "${type}". Use CONCEPT, MCQ or CODING.`);
