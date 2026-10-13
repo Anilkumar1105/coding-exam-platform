@@ -1971,3 +1971,50 @@ body.special-body .navbar-brand {
 .preserve-lines { white-space: pre-wrap; overflow-wrap: anywhere; }
 .testcase-value { white-space: pre-wrap; overflow-wrap: anywhere; margin: .25rem 0 .5rem; padding: .55rem .7rem; border-radius: .45rem; background: rgba(100, 116, 139, .08); font: inherit; }
 .testcase-result { overflow-wrap: anywhere; }
+
+/* Compact, responsive coding-runner results shared by Exams, Learning and Special Coding. */
+.testcase-result {
+  box-sizing: border-box;
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  height: auto;
+  min-height: 0;
+  margin: 0 0 .65rem;
+  padding: .8rem .9rem;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  line-height: 1.45;
+}
+.testcase-result:last-child { margin-bottom: 0; }
+.testcase-result > div { margin-top: .55rem; }
+.testcase-value {
+  box-sizing: border-box;
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  min-height: 0;
+  max-height: 9rem;
+  overflow: auto;
+  margin: .25rem 0 .35rem;
+  padding: .5rem .65rem;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  line-height: 1.4;
+}
+#testResults, #learningTestResults, #specialTestResults {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  max-height: 32rem;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: .25rem;
+}
+@media (max-width: 576px) {
+  .testcase-result { padding: .65rem; font-size: .8rem; }
+  .testcase-value { max-height: 7rem; padding: .45rem; }
+  #testResults, #learningTestResults, #specialTestResults { max-height: 26rem; }
+}
