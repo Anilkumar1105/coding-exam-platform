@@ -238,6 +238,13 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
 
+    // codeVisualizations/{programId}: published visual programs are visible
+    // to signed-in students; only admins can import, edit, publish or delete.
+    match /codeVisualizations/{programId} {
+      allow read: if isSignedIn();
+      allow create, update, delete: if isAdmin();
+    }
+
     // specialCodingQuestions/{questionId}
     // Exclusive company-style interview practice questions, unlocked
     // client-side once a student hits 100 points. Same limitation as

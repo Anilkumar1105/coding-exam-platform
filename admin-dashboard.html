@@ -294,6 +294,23 @@
       <!-- ===================== LEARNING PANE ===================== -->
       <div class="tab-pane d-none" id="learningPane">
 
+        <!-- Dedicated program-only Excel import for Code Visualizations -->
+        <div class="card mb-4 border-primary-subtle" id="codeVisualizationsAdminCard">
+          <div class="card-header d-flex flex-wrap justify-content-between align-items-center gap-2">
+            <span class="fw-semibold"><i class="bi bi-play-btn me-2"></i>Code Visualizations Lab</span>
+            <div class="d-flex gap-2 flex-wrap">
+              <button class="btn btn-outline-primary btn-sm" id="downloadVisualizationTemplateBtn"><i class="bi bi-download me-1"></i>Download Excel Template</button>
+              <button class="btn btn-brand btn-sm" id="importVisualizationProgramsBtn"><i class="bi bi-file-earmark-arrow-up me-1"></i>Import Programs</button>
+              <input type="file" id="visualizationProgramsFile" accept=".xlsx,.xls" class="d-none" />
+            </div>
+          </div>
+          <div class="card-body">
+            <p class="text-muted small mb-2">Import visualization programs only. This does not import or change MCQs, coding exam questions, marks, or learning progress. Students see published programs inside Learning.</p>
+            <div id="visualizationImportStatus" class="small mb-2" role="status"></div>
+            <div id="visualizationProgramsAdminList" class="d-flex flex-column gap-2"><span class="text-muted small">Loading visualization programs…</span></div>
+          </div>
+        </div>
+
         <!-- Levels list view -->
         <div id="levelsListView">
           <div class="d-flex justify-content-between align-items-center mb-3">
@@ -1187,5 +1204,6 @@
 </div>
 
 <script type="module" src="admin-dashboard.js"></script>
+<script type="module" src="code-visualizations-admin.js"></script>
 </body>
 </html>
