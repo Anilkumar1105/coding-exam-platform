@@ -34,3 +34,18 @@ For custom Firestore documents, an optional `mediaUrl` field may point to a dire
 
 ## Student dashboard entry point
 The student dashboard now includes a **Code Visualizations Lab** card directly below the Learning Section cards. It opens `code-visualizations.html`, which is student-role protected and loads published records from the `codeVisualizations` Firestore collection. Built-in demos remain available even if no custom programs have been published. If custom imported programs do not appear, verify that deployed Firestore rules allow signed-in students to read documents in `codeVisualizations` when `published == true`.
+
+## Automatic and custom visualization steps (updated)
+
+The student visualizer now infers common program patterns from the program title, topic, and code. Supported automatic examples include factorial, prime checks, palindrome/reverse number, printing 1..N, sum of natural numbers, quotient/remainder, word count, GCD, subtraction, voting eligibility, character counts, searching, sorting, stack, and recursion. When a program is not recognized, it displays a generic code/loop trace rather than incorrectly showing Bubble Sort bars.
+
+The Excel template supports these columns:
+- `title`, `topic`, `difficulty`, `description`, `code`
+- `type`: use `auto` for automatic inference, or a supported type such as `factorial`, `prime`, `palindrome`, `reverse-number`, `print-range`, `sum-range`, `quotient`, `word-count`, `gcd`, `subtract`, `voting`, `char-count`, `bubble-sort`, `binary-search`, `two-pointers`, `linear-search`, `stack`, or `recursion`.
+- `exampleInput`: optional sample input for programs such as word count.
+- `visualizationSteps`: optional JSON array to override the automatically generated trace. Each item may contain `note`, `variables`, `output`, and `visualization`. Example: `[ {"note":"Initialize total = 0","variables":{"total":0}}, {"note":"Final result","variables":{"total":10},"output":"10","visualization":{"kind":"result","value":10}} ]`
+- `mediaUrl`, `published`
+
+Admins can also click **Customize** next to an imported program to select a visualization type and enter custom steps. Custom steps override automatic steps. Leave custom steps blank to return to automatic generation. This is a lightweight educational trace generator, not a secure Python execution engine; it does not execute arbitrary imported Python code.
+
+After updating files, push `code-visualizations.js`, `code-visualizations-admin.js`, `code-visualizations.css`, and this setup guide to GitHub Pages. Existing Firestore documents and other collections are not migrated or deleted. Hard refresh the browser after deployment.
