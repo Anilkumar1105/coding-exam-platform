@@ -30,3 +30,7 @@ For custom Firestore documents, an optional `mediaUrl` field may point to a dire
 - Existing exams, timers, grading, learning progress, points, streaks, MCQs, and coding question collections are unchanged.
 - Built-in demos remain usable if Firestore reads fail; a console warning is logged.
 - The Excel importer is intentionally separate from existing question imports. It caps a single import at 300 rows and asks for confirmation before writing.
+
+
+## Student dashboard entry point
+The student dashboard now includes a **Code Visualizations Lab** card directly below the Learning Section cards. It opens `code-visualizations.html`, which is student-role protected and loads published records from the `codeVisualizations` Firestore collection. Built-in demos remain available even if no custom programs have been published. If custom imported programs do not appear, verify that deployed Firestore rules allow signed-in students to read documents in `codeVisualizations` when `published == true`.
