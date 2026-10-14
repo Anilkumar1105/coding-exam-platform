@@ -11,3 +11,16 @@
 .cv-cards::-webkit-scrollbar-thumb{background:#cbd5e1;border-radius:99px}
 .cv-card-icon i{font-size:1.15rem;line-height:1}
 @media(max-width:900px){.cv-library{position:static;max-height:none;overflow:visible}.cv-cards{overflow:visible;min-height:auto;flex:initial;scrollbar-gutter:auto}}
+
+/* Clear student-facing problem statement and examples for imported programs */
+.cv-problem-panel{margin-top:14px;padding:14px 16px;border:1px solid #dbeafe;border-radius:12px;background:linear-gradient(135deg,#f8fbff,#fff);color:#334155}
+.cv-problem-panel h4{font-size:.9rem;font-weight:800;color:#1e40af;margin:0 0 8px}
+.cv-problem-panel p{font-size:.84rem;line-height:1.55;margin:0 0 10px}
+.cv-example-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.cv-example-grid>div{min-width:0;border:1px solid #e2e8f0;border-radius:9px;overflow:hidden;background:#fff}
+.cv-example-grid span{display:block;padding:7px 10px;background:#f1f5f9;color:#475569;font-size:.72rem;font-weight:800;text-transform:uppercase;letter-spacing:.04em}
+.cv-example-grid pre{margin:0;padding:10px;white-space:pre-wrap;overflow-wrap:anywhere;font-size:.82rem;color:#0f172a;min-height:42px}
+.cv-problem-tip{margin-top:10px!important;margin-bottom:0!important;color:#64748b}
+.cv-bar-active{background:linear-gradient(180deg,#fbbf24,#f97316)!important;box-shadow:0 0 0 3px #fed7aa}
+.cv-bar.sorted{background:linear-gradient(180deg,#34d399,#059669)}
+@media(max-width:560px){.cv-example-grid{grid-template-columns:1fr}.cv-problem-panel{padding:12px}}
