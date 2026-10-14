@@ -143,7 +143,9 @@ export function renderCodeVisualizations(root) {
     else visual=`<div class="cv-variable-grid">${Object.entries(vars).map(([k,v])=>`<div class="cv-variable"><small>${esc(k)}</small><strong>${esc(typeof v==="object"?JSON.stringify(v):v)}</strong></div>`).join("")||'<div class="cv-variable"><small>State</small><strong>Initialized</strong></div>'}</div>`;
     const varsMarkup=`<div class="cv-variable-grid">${Object.entries(vars).map(([k,v])=>`<div class="cv-variable"><small>${esc(k)}</small><strong>${esc(typeof v==="object"?JSON.stringify(v):v)}</strong></div>`).join("")}</div>`;
     const code=String(p.code||"").split("\n"); const highlight=frame.vars?.lineNumber?Number(frame.vars.lineNumber)-1:-1;
-    $("cvCanvas").innerHTML=`${visual}${varsMarkup?`<div class="cv-state-caption">Variable state</div>${varsMarkup}`:""}`;
+    // Avoid rendering the same variable grid twice: the fallback visual already contains it.
+    const hasInlineVariableGrid = visual.includes("cv-variable-grid");
+    $("cvCanvas").innerHTML=`${visual}${varsMarkup && !hasInlineVariableGrid ? `<div class="cv-state-caption">Variable state</div>${varsMarkup}` : ""}`;
     $("cvCode").innerHTML=code.map((line,i)=>`<span class="cv-code-line ${i===highlight?'cv-code-current':''}">${esc(line)||" "}</span>`).join("\n")||"Code example not provided.";
     $("cvNote").textContent=frame.note||"Observe how the program state changes.";
     if(frame.output && frame.output!=="Not produced yet")$("cvNote").textContent+=` Output: ${typeof frame.output==="object"?(frame.output.display||JSON.stringify(frame.output.value??frame.output)):frame.output}`;

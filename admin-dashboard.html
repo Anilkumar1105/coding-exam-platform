@@ -300,6 +300,7 @@
             <span class="fw-semibold"><i class="bi bi-play-btn me-2"></i>Code Visualizations Lab</span>
             <div class="d-flex gap-2 flex-wrap">
               <button class="btn btn-outline-primary btn-sm" id="downloadVisualizationTemplateBtn"><i class="bi bi-download me-1"></i>Download Excel Template</button>
+              <button class="btn btn-outline-success btn-sm" id="downloadVisualizationProgramsBtn"><i class="bi bi-file-earmark-spreadsheet me-1"></i>Download Programs</button>
               <button class="btn btn-brand btn-sm" id="importVisualizationProgramsBtn"><i class="bi bi-file-earmark-arrow-up me-1"></i>Import Programs</button>
               <input type="file" id="visualizationProgramsFile" accept=".xlsx,.xls" class="d-none" />
             </div>
@@ -307,6 +308,14 @@
           <div class="card-body">
             <p class="text-muted small mb-2">Import visualization programs only. This does not import or change MCQs, coding exam questions, marks, or learning progress. Students see published programs inside Learning.</p>
             <div id="visualizationImportStatus" class="small mb-2" role="status"></div>
+            <div class="d-flex flex-wrap align-items-center gap-2 mb-3 p-2 border rounded-3 bg-light">
+              <div class="form-check mb-0">
+                <input class="form-check-input" type="checkbox" id="selectAllVisualizationPrograms">
+                <label class="form-check-label small" for="selectAllVisualizationPrograms">Select all programs</label>
+              </div>
+              <span id="selectedVisualizationProgramCount" class="small text-muted">0 selected</span>
+              <button type="button" class="btn btn-outline-danger btn-sm ms-auto" id="deleteSelectedVisualizationProgramsBtn" disabled><i class="bi bi-trash me-1"></i>Delete Selected</button>
+            </div>
             <div id="visualizationProgramsAdminList" class="d-flex flex-column gap-2"><span class="text-muted small">Loading visualization programs…</span></div>
           </div>
         </div>
