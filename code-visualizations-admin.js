@@ -59,9 +59,34 @@ async function importFile(event){const file=event.target.files?.[0];event.target
   try { status("Reading Excel file…"); const wb=XLSX.read(await file.arrayBuffer(),{type:"array"});const rows=[];for(const sheet of wb.SheetNames){for(const raw of XLSX.utils.sheet_to_json(wb.Sheets[sheet],{defval:""})){const r=normalize(raw);if(!r.title)continue;const item={title:String(r.title).trim(),topic:String(r.topic||"Algorithms").trim(),difficulty:String(r.difficulty||"Beginner").trim(),description:String(r.description||"").trim(),code:String(r.code||"").trim(),type:String(r.type||r.visualizationtype||"auto").trim(),exampleInput:String(r.exampleinput||r.sampleinput||r.input||"").trim(),expectedOutput:String(r.expectedoutput||r.sampleoutput||r.output||"").trim(),visualizationSteps:String(r.visualizationsteps||r.steps||"").trim(),mediaUrl:String(r.mediaurl||"").trim(),published:boolValue(r.published),createdAt:new Date().toISOString(),updatedAt:new Date().toISOString()};if(!item.title)continue;rows.push(item);}}
     if(!rows.length)throw new Error("No valid program rows found. Include a title column and at least one program row.");
     if(rows.length>300)throw new Error("Import is limited to 300 programs per file. Split the workbook into smaller files.");
-    const preview=rows.slice(0,5).map(r=>`${r.title} (${r.topic})`).join(" · ");if(!confirm(`Import ${rows.length} visualization program(s) into the separate codeVisualizations collection?\n\n${preview}${rows.length>5?" · …":""}\n\nThis will not change existing coding questions or MCQs.`))return;
-    status(`Importing ${rows.length} program(s)…`);let count=0;for(let i=0;i<rows.length;i+=400){const chunk=rows.slice(i,i+400);for(const item of chunk){await addDoc(collectionRef,item);count++;}}
-    status(`Successfully imported ${count} program(s). Published programs are now available in Learning.`,"success");await loadPrograms();
+    // Skip programs that already exist by case-insensitive title + topic, and duplicate rows in this workbook.
+    const existingSnap = await getDocs(collectionRef);
+    const keyOf = item => `${String(item.title || "").trim().toLowerCase()}::${String(item.topic || "").trim().toLowerCase()}`;
+    const existingKeys = new Set(existingSnap.docs.map(d => keyOf(d.data())));
+    const workbookKeys = new Set();
+    const uniqueRows = [];
+    let duplicateCount = 0;
+    for (const item of rows) {
+      const key = keyOf(item);
+      if (existingKeys.has(key) || workbookKeys.has(key)) { duplicateCount++; continue; }
+      workbookKeys.add(key);
+      uniqueRows.push(item);
+    }
+    if (!uniqueRows.length) {
+      status(`Nothing imported: all ${rows.length} row(s) already exist by title and topic. Existing programs were not changed.`, "warning");
+      await loadPrograms();
+      return;
+    }
+    const preview = uniqueRows.slice(0, 5).map(r => `${r.title} (${r.topic})`).join(" · ");
+    if (!confirm(`Import ${uniqueRows.length} new visualization program(s)?\n\n${preview}${uniqueRows.length > 5 ? " · …" : ""}\n\n${duplicateCount} duplicate row(s) will be skipped. Existing programs, MCQs, coding questions, marks, and learning progress will not be changed.`)) return;
+    status(`Importing ${uniqueRows.length} new program(s)…`);
+    let count = 0, failed = 0;
+    for (const item of uniqueRows) {
+      try { await addDoc(collectionRef, item); count++; }
+      catch (writeError) { failed++; console.error("Could not import visualization program:", item.title, writeError); }
+    }
+    status(`Imported ${count} program(s); skipped ${duplicateCount} duplicate row(s)${failed ? `; ${failed} failed (see console)` : ""}.`, failed ? "warning" : "success");
+    await loadPrograms();
   }catch(error){console.error("Visualization import failed",error);status(`Import failed: ${error.message||"Please check the file and Firestore permissions."}`,"danger");} }
 function updateBulkDeleteState() {
   const checks = [...document.querySelectorAll("[data-select-visual-program]")];
