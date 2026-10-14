@@ -123,7 +123,13 @@ export function renderCodeVisualizations(root) {
     if(typeof customSteps==="string"){try{customSteps=JSON.parse(customSteps);}catch{customSteps=null;}}
     if(Array.isArray(customSteps) && customSteps.length && kind!=="sorting" && customSteps.some(x=>x && (x.variables||x.vars||x.visualization||x.output))) {framesOut.length=0;customSteps.forEach((raw,i)=>{const item=typeof raw==="string"?{note:raw}:raw;add(item.note||item.description||`Custom step ${i+1}`,item.variables||item.vars||{},item.output||"",item.visualization||{});});}
     if(typeof p.steps==="string"&&p.steps.trim()){try{const parsed=JSON.parse(p.steps);if(Array.isArray(parsed)){framesOut.length=0;parsed.forEach((item,i)=>add(item.note||item.description||`Custom step ${i+1}`,item.variables||item.vars||{},item.output||"",item.visualization||{}));}}catch{}}
-    return framesOut.length?framesOut:[{note:"No steps could be generated for this program yet.",vars:{program:title},output:"Add code or custom visualization steps in the admin Excel file."}];
+    const expected=String(p.expectedOutput??p.expectedoutput??p.sampleOutput??"").trim();
+    if(expected && framesOut.length){
+      const last=framesOut[framesOut.length-1];
+      if(!String(last.output??"").trim() || ["Completed","Ready","Not produced yet","Loop running"].includes(String(last.output).trim())) last.output=expected;
+      if(last.vars && !Object.prototype.hasOwnProperty.call(last.vars,"expectedOutput")) last.vars.expectedOutput=expected;
+    }
+    return framesOut.length?framesOut:[{note:"No steps could be generated for this program yet.",vars:{program:title},output:expected||"Add code or custom visualization steps in the admin Excel file."}];
   }
   function renderGenericFrame(frame,p){
     const vars=frame.vars||{}; const viz=frame.viz||{}; let visual="";
@@ -143,6 +149,7 @@ export function renderCodeVisualizations(root) {
     if(frame.output && frame.output!=="Not produced yet")$("cvNote").textContent+=` Output: ${typeof frame.output==="object"?(frame.output.display||JSON.stringify(frame.output.value??frame.output)):frame.output}`;
   }
   function expectedOutput(p){
+    if(String(p.expectedOutput??p.expectedoutput??p.sampleOutput??"").trim()) return String(p.expectedOutput??p.expectedoutput??p.sampleOutput).trim();
     const title=String(p.title||"").toLowerCase(), input=String(p.exampleInput||p.input||"").trim();
     const nums=input.split(/[\\s,]+/).filter(Boolean).map(Number);
     if(/sort/.test(title)&&nums.length&&nums.every(Number.isFinite)){

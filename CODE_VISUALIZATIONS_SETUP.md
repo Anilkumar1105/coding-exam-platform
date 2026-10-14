@@ -51,3 +51,7 @@ Admins can also click **Customize** next to an imported program to select a visu
 After updating files, push `code-visualizations.js`, `code-visualizations-admin.js`, `code-visualizations.css`, and this setup guide to GitHub Pages. Existing Firestore documents and other collections are not migrated or deleted. Hard refresh the browser after deployment.
 
 \n## Imported program visualization and examples update\n\nThe visualization page now reads `exampleInput`, displays an expected output panel, and creates sorting steps from the selected program's input instead of showing a generic “Program ready” screen. Merge Sort splits the array and merges sorted parts; Bubble/Selection/Insertion/Quick Sort have step-based array updates. Program descriptions are shown in a “Understand the problem” panel with sample input/output. The automatic trace is an educational visualization; verify expected outputs for custom algorithms and provide explicit custom steps where exact algorithm-specific behavior is required.\n
+
+## Excel sample input and expected output
+
+The visualization import template includes `exampleInput` and `expectedOutput`. Put the exact test input in `exampleInput` and the expected program output in `expectedOutput`. These values appear in the student-facing “Understand the problem” panel. Generated step-by-step frames use the expected output for the final state when a frame does not provide its own output. Optional `visualizationSteps` can be a JSON array of objects with `note`, `variables`, `output`, and `visualization` fields.
