@@ -31,7 +31,7 @@ export function renderCodeVisualizations(root) {
   let programs = [...builtIns], selected = "bubble-sort", step = 0, timer = null, speed = 900, filter = "All", activeFrames = [];
   root.innerHTML = `<section class="cv-lab">
     <div class="cv-hero"><div><div class="cv-eyebrow">LEARN BY WATCHING</div><h2>Code Visualizations Lab</h2><p>Explore algorithms step by step. Watch values move, compare logic, and understand why the code works.</p></div><div class="cv-hero-icon">⌘</div></div>
-    <div class="cv-toolbar"><div class="cv-search-wrap"><i class="bi bi-search"></i><input id="cvSearch" class="form-control" placeholder="Search algorithms, topics…" aria-label="Search visualizations"></div><select id="cvTopic" class="form-select" aria-label="Filter by topic"><option>All</option><option>Sorting</option><option>Searching</option><option>Arrays & Strings</option><option>Data Structures</option><option>Recursion</option></select></div>
+    <div class="cv-toolbar"><div class="cv-search-wrap"><i class="bi bi-search"></i><input id="cvSearch" class="form-control" placeholder="Search algorithms, topics…" aria-label="Search visualizations"></div><select id="cvTopic" class="form-select" aria-label="Filter by topic"><option value="All">All topics</option></select></div>
     <div class="cv-layout"><aside class="cv-library"><div class="cv-section-label">VISUALIZATION LIBRARY</div><div id="cvCards" class="cv-cards"></div></aside>
     <div class="cv-workspace"><div class="cv-workspace-head"><div><span class="cv-topic" id="cvTopicBadge">SORTING</span><h3 id="cvTitle">Bubble Sort</h3><p id="cvDescription"></p><div id="cvProblem" class="cv-problem-panel"></div></div><span class="cv-difficulty" id="cvDifficulty"></span></div>
       <div class="cv-stage"><div class="cv-stage-top"><span><i class="bi bi-activity me-1"></i>LIVE VISUALIZATION</span><span id="cvStepLabel">Step 1</span></div><div id="cvCanvas" class="cv-canvas" aria-live="polite"></div><div id="cvNote" class="cv-note"></div></div>
@@ -40,7 +40,17 @@ export function renderCodeVisualizations(root) {
     </div></div><div class="cv-footer"><i class="bi bi-lightbulb me-2"></i>Tip: use <strong>Next</strong> to follow each state change, or <strong>Play</strong> to watch the full algorithm.</div></section>`;
   const $ = id => root.querySelector("#"+id);
   const stop = () => { if(timer) clearInterval(timer); timer=null; $("cvPlay").innerHTML='<i class="bi bi-play-fill me-1"></i>Play'; };
-  function visiblePrograms(){ const q=$("cvSearch").value.toLowerCase(); return programs.filter(p=>(filter==="All"||p.topic===filter)&&[p.title,p.topic,p.description].join(" ").toLowerCase().includes(q)); }
+  function updateTopicOptions(){
+    const select=$("cvTopic");
+    const previous=filter;
+    const topics=[...new Map(programs.map(p=>String(p.topic||"").trim()).filter(Boolean).map(topic=>[topic.toLocaleLowerCase(),topic])).values()]
+      .sort((a,b)=>a.localeCompare(b,undefined,{sensitivity:"base"}));
+    select.innerHTML='<option value="All">All topics</option>'+topics.map(topic=>`<option value="${esc(topic)}">${esc(topic)}</option>`).join("");
+    const stillExists=topics.some(topic=>topic.toLocaleLowerCase()===String(previous).toLocaleLowerCase());
+    filter=previous==="All"||stillExists?previous:"All";
+    select.value=filter;
+  }
+  function visiblePrograms(){ const q=$("cvSearch").value.toLowerCase(); return programs.filter(p=>(filter==="All"||String(p.topic||"").trim().toLocaleLowerCase()===filter.toLocaleLowerCase())&&[p.title,p.topic,p.description].join(" ").toLowerCase().includes(q)); }
   function renderCards(){const list=visiblePrograms(); $("cvCards").innerHTML=list.map(p=>`<button class="cv-card ${p.id===selected?'active':''}" data-id="${esc(p.id)}"><span class="cv-card-icon" aria-hidden="true"><i class="${iconFor(p.topic)}"></i></span><span class="cv-card-copy"><strong>${esc(p.title)}</strong><small>${esc(p.topic)} · ${esc(p.difficulty||"Beginner")}</small></span><i class="bi bi-chevron-right"></i></button>`).join("")||'<div class="text-muted small p-3">No visualizations match your search.</div>'; $("cvCards").querySelectorAll("[data-id]").forEach(b=>b.addEventListener("click",()=>{stop();selected=b.dataset.id;step=0;renderCards();renderActive();})); }
   function inferKind(p){
     const title=String(p.title||"").toLowerCase(), topic=String(p.topic||"").toLowerCase(), code=String(p.code||"").toLowerCase(), declared=String(p.type||"").toLowerCase();
@@ -238,6 +248,6 @@ export function renderCodeVisualizations(root) {
   function embedUrl(raw){try{const u=new URL(raw);if(u.hostname.endsWith("youtu.be"))return `https://www.youtube-nocookie.com/embed/${u.pathname.slice(1)}`;if(u.hostname.includes("youtube.com")&&u.pathname==="/watch")return `https://www.youtube-nocookie.com/embed/${u.searchParams.get("v")}`;if(u.hostname.includes("youtube.com")&&u.pathname.startsWith("/embed/"))return `https://www.youtube-nocookie.com${u.pathname}`;if(u.hostname.includes("vimeo.com")&&!u.hostname.includes("player."))return `https://player.vimeo.com/video/${u.pathname.split('/').filter(Boolean).pop()}`;return u.href;}catch{return "";}}
   function iconFor(topic){return ({Sorting:"bi-bar-chart-steps",Searching:"bi-search", "Arrays & Strings":"bi-braces", "Data Structures":"bi-boxes",Recursion:"bi-diagram-3"})[topic]||"bi-code-slash";}
   $("cvPrev").addEventListener("click",()=>{stop();step--;renderActive();}); $("cvNext").addEventListener("click",()=>{stop();step++;renderActive();}); $("cvReset").addEventListener("click",()=>{stop();step=0;renderActive();}); $("cvPlay").addEventListener("click",()=>{if(timer){stop();return;}if(step>=activeFrames.length-1)step=0;$("cvPlay").innerHTML='<i class="bi bi-pause-fill me-1"></i>Pause';timer=setInterval(()=>{if(step>=activeFrames.length-1){stop();return;}step++;renderActive();$("cvPlay").innerHTML='<i class="bi bi-pause-fill me-1"></i>Pause';},speed);}); $("cvSpeed").addEventListener("change",e=>{speed=Number(e.target.value);if(timer){stop();$("cvPlay").click();}}); $("cvSearch").addEventListener("input",()=>{renderCards();const list=visiblePrograms();if(list.length&&!list.some(p=>p.id===selected)){selected=list[0].id;step=0;}renderActive();}); $("cvTopic").addEventListener("change",e=>{filter=e.target.value;renderCards();const list=visiblePrograms();if(list.length&&!list.some(p=>p.id===selected)){selected=list[0].id;step=0;}renderActive();});
-  renderCards();renderActive();
-  getDocs(query(collection(db,"codeVisualizations"),where("published","==",true))).then(snap=>{const remote=snap.docs.map(d=>({id:d.id,...d.data()}));if(remote.length){programs=[...builtIns,...remote];renderCards();if(!programs.some(p=>p.id===selected))selected=programs[0].id;renderActive();}}).catch(e=>console.warn("Could not load published visualizations; built-in demos remain available.",e));
+  updateTopicOptions();renderCards();renderActive();
+  getDocs(query(collection(db,"codeVisualizations"),where("published","==",true))).then(snap=>{const remote=snap.docs.map(d=>({id:d.id,...d.data()}));if(remote.length){programs=[...builtIns,...remote];updateTopicOptions();renderCards();if(!programs.some(p=>p.id===selected))selected=programs[0].id;renderActive();}}).catch(e=>console.warn("Could not load published visualizations; built-in demos remain available.",e));
 }
