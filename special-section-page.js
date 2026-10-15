@@ -17,6 +17,7 @@ import {
 } from "./special-section.js";
 import { ensurePyodide, runAllTestCases } from "./python-runner.js";
 import { computeCodingMarks } from "./grading.js";
+import { recordLearningProblemSolved } from "./streak.js";
 
 wireLogoutButtons();
 
@@ -292,7 +293,8 @@ async function submitSpecial(q) {
     const allTests = [...(q.visibleTestCases || []), ...(q.hiddenTestCases || [])];
     const results = await runAllTestCases(pyodide, cmEditor.getValue(), allTests, (q.timeLimit || 5) * 1000);
     const passedCount = results.filter((r) => r.passed).length;
-    if (allTests.length > 0 && passedCount === allTests.length) {
+    const allPassed = allTests.length > 0 && passedCount === allTests.length;
+    if (allPassed) {
       markCodingQuestionCompleted("special", q.id);
     }
     const marksObtained = computeCodingMarks(q.marks, results);
@@ -312,7 +314,17 @@ async function submitSpecial(q) {
       errorMessage: results.find((r) => r.errorMessage)?.errorMessage || null
     });
 
-    statusEl.textContent = `Submitted: ${passedCount} / ${allTests.length} test cases passed \u00b7 ${marksObtained} / ${q.marks} marks`;
+    let streakMessage = "";
+    if (allPassed) {
+      try {
+        await recordLearningProblemSolved(currentUser.uid, q.id, "special");
+        streakMessage = " · Daily streak updated";
+      } catch (streakError) {
+        console.error("Special-section streak could not be saved:", streakError);
+        streakMessage = " · Streak update failed; please try again later";
+      }
+    }
+    statusEl.textContent = `Submitted: ${passedCount} / ${allTests.length} test cases passed \u00b7 ${marksObtained} / ${q.marks} marks${streakMessage}`;
     const publicCount = (q.visibleTestCases || []).length;
     if (allTests.length > 0 && passedCount === allTests.length) {
       resultsEl.innerHTML = `<div class="testcase-result pass"><strong>✓ All test cases passed!</strong><div>${passedCount} / ${allTests.length} test cases passed.</div></div>`;

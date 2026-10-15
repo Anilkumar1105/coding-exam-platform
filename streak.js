@@ -1,6 +1,8 @@
 // streak.js
-// Daily learning streaks: a day qualifies only when the student has
-// logged in AND fully solved at least one Learning Section coding problem.
+// Daily learning streaks: a day qualifies when the student has logged in
+// and fully solved at least one coding problem in either Learning or Special.
+// Use a merge write rather than a transaction so creating the first daily
+// activity document does not require read permission on a non-existent doc.
 
 import { db } from "./firebase-config.js";
 import { getDocCached, getDocsCached, invalidateCache, invalidateCollection, setCachedDoc, upsertCachedQueryDoc } from "./firestore-cache.js";
@@ -48,36 +50,30 @@ export async function recordDailyLogin(studentId) {
   return { studentId, dateKey, loginAt: now };
 }
 
-export async function recordLearningProblemSolved(studentId, questionId) {
+export async function recordLearningProblemSolved(studentId, questionId, section = "learning") {
   const dateKey = getTodayKey();
-  const ref = doc(db, COLLECTION, activityId(studentId, dateKey));
+  const id = activityId(studentId, dateKey);
+  const ref = doc(db, COLLECTION, id);
+  const now = new Date().toISOString();
 
-  // Do not depend on the separate login write having succeeded. If a
-  // student opens the coding page directly, or the login write was lost
-  // because of a transient error, solving a problem should still create a
-  // complete qualifying activity record.
-  const result = await runTransaction(db, async (transaction) => {
-    const snap = await transaction.get(ref);
-    const existing = snap.exists() ? snap.data() : {};
-    const now = new Date().toISOString();
+  // No read/transaction: the previous transaction tried to read a missing
+  // daily document, which can be rejected by Firestore rules for non-existent
+  // resources. A merge write can create or update the student's own day.
+  const updated = {
+    studentId,
+    dateKey,
+    loginAt: now,
+    solvedAt: now,
+    solvedQuestionId: questionId,
+    solvedSection: section,
+    qualified: true,
+    updatedAt: now
+  };
 
-    const updated = {
-      studentId,
-      dateKey,
-      loginAt: existing.loginAt || now,
-      solvedAt: existing.solvedAt || now,
-      solvedQuestionId: existing.solvedQuestionId || questionId,
-      qualified: true,
-      updatedAt: now
-    };
-
-    transaction.set(ref, updated, { merge: true });
-    return updated;
-  });
-  setCachedDoc(`col:${COLLECTION}:doc:${activityId(studentId, dateKey)}`, activityId(studentId, dateKey), result, true);
-  // Query caches are aggregates; invalidate them because this write changes their contents.
-  upsertCachedQueryDoc(`user:${studentId}:col:${COLLECTION}:all`, activityId(studentId, dateKey), result);
-  return result;
+  await setDoc(ref, updated, { merge: true });
+  setCachedDoc(`col:${COLLECTION}:doc:${id}`, id, updated, true);
+  upsertCachedQueryDoc(`user:${studentId}:col:${COLLECTION}:all`, id, updated);
+  return updated;
 }
 
 export async function getMyDailyLearningActivity(studentId) {
