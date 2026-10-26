@@ -700,24 +700,46 @@ async function submitPractice(q) {
 
 async function renderLearningHistory(questionId) {
   const wrap = document.getElementById("learningSubmissionHistory");
-  if (!wrap) return;
-  const history = await listLearningCodeSubmissions(currentUser.uid, questionId);
-  if (!history.length) {
-    wrap.innerHTML = `<div class="small text-muted">No submissions yet for this question.</div>`;
-    return;
+  if (!wrap || !currentUser?.uid) return;
+
+  // Keep the history visible while Firebase returns the latest records.
+  wrap.innerHTML = `<div class="small fw-semibold mb-1">Your Submissions</div><div class="small text-muted">Loading submissions...</div>`;
+  try {
+    const history = await listLearningCodeSubmissions(currentUser.uid, questionId);
+    // The student may have navigated to another question while this request was pending.
+    if (!wrap.isConnected || document.getElementById("learningSubmissionHistory") !== wrap) return;
+    if (!history.length) {
+      wrap.innerHTML = `<div class="small fw-semibold mb-1">Your Submissions</div><div class="small text-muted">No submissions yet for this question.</div>`;
+      return;
+    }
+    wrap.innerHTML =
+      `<div class="small fw-semibold mb-1">Your Submissions</div>` +
+      history
+        .map((submission) => {
+          const passed = Number(submission.testCasesPassed) || 0;
+          const total = Number(submission.totalTestCases) || 0;
+          const marks = Number(submission.marksObtained) || 0;
+          const isComplete = total > 0 && passed === total;
+          const status = submission.executionStatus === "processing"
+            ? "Grading..."
+            : submission.executionStatus === "error"
+              ? "Error"
+              : isComplete ? "All passed" : "In progress";
+          return `
+            <div class="learning-submission-row small d-flex flex-wrap align-items-center justify-content-between gap-2 border-bottom py-2">
+              <span>${submission.submittedAt ? new Date(submission.submittedAt).toLocaleTimeString() : "Just now"}</span>
+              <span class="${isComplete ? "text-success" : "text-muted"}">${passed}/${total} passed</span>
+              <span>${marks} marks</span>
+              <span class="${isComplete ? "text-success" : "text-muted"}">${status}</span>
+            </div>`;
+        })
+        .join("");
+  } catch (error) {
+    console.error("Could not load learning submission history:", error);
+    if (wrap.isConnected) {
+      wrap.innerHTML = `<div class="small fw-semibold mb-1">Your Submissions</div><div class="small text-danger">Unable to load submission history. Please refresh or try again.</div>`;
+    }
   }
-  wrap.innerHTML =
-    `<div class="small fw-semibold mb-1">Your Submissions</div>` +
-    history
-      .map(
-        (s) => `
-        <div class="small text-muted d-flex justify-content-between border-bottom py-1">
-          <span>${new Date(s.submittedAt).toLocaleTimeString()}</span>
-          <span>${s.testCasesPassed}/${s.totalTestCases} passed</span>
-          <span>${s.marksObtained} marks</span>
-        </div>`
-      )
-      .join("");
 }
 
 /** Small floating "+2 Points!" celebration, shown once per newly-completed question. */
