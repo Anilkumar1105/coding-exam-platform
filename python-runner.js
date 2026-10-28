@@ -47,7 +47,24 @@ export async function runTestCase(pyodide, code, testCase, timeoutMs = 5000) {
 
   try {
     const namespace = pyodide.globals.get("dict")();
-    const runPromise = pyodide.runPythonAsync(code, { globals: namespace });
+
+    // Run each test in a fresh __main__ namespace. This makes the common
+    // `if __name__ == "__main__": solve()` starter-code pattern execute.
+    namespace.set("__name__", "__main__");
+
+    // Support both styles used in Pyvanta questions:
+    //   1) script-style code that reads input()/prints directly
+    //   2) function-style code that defines solve()
+    // If solve() is defined without a main guard or an explicit call, invoke it.
+    // Existing main guards are left untouched so solve() is not called twice.
+    const hasSolveFunction = /^\s*def\s+solve\s*\(/m.test(code);
+    const hasMainGuard = /^\s*if\s+__name__\s*==\s*[\"']__main__[\"']\s*:/m.test(code);
+    const hasExplicitSolveCall = /^\s*solve\s*\(/m.test(code);
+    const executableCode = hasSolveFunction && !hasMainGuard && !hasExplicitSolveCall
+      ? `${code}\n\n# Pyvanta: automatically invoke a solve() function when no entry point is provided.\nsolve()\n`
+      : code;
+
+    const runPromise = pyodide.runPythonAsync(executableCode, { globals: namespace });
     const timeoutPromise = new Promise((_, reject) =>
       setTimeout(() => reject(new Error("TIMEOUT")), timeoutMs)
     );
